@@ -1,0 +1,986 @@
+/**
+ * Single Event Page Styles
+ *
+ * Designed to integrate seamlessly with the Christian Mission (CMSMasters) theme.
+ * Inherits theme typography, spacing, and colour tokens wherever possible.
+ * Custom properties cascade from the theme root; fallbacks use the plugin accent colour.
+ *
+ * @package ChurchEventManager
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CSS Custom Properties  (fall back gracefully if theme doesn't define them)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+:root {
+	--cem-accent:        var(--e-global-color-accent,     #7c5cbf);
+	--cem-accent-dark:   var(--e-global-color-accent,     #5e3ea8);
+	--cem-accent-light:  #f0ebfb;
+	--cem-text:          var(--e-global-color-text,       #2d2d2d);
+	--cem-text-muted:    #6b7280;
+	--cem-border:        #e5e7eb;
+	--cem-bg-card:       #ffffff;
+	--cem-bg-subtle:     #f9fafb;
+	--cem-success:       #16a34a;
+	--cem-warning:       #d97706;
+	--cem-danger:        #dc2626;
+	--cem-radius:        10px;
+	--cem-radius-lg:     16px;
+	--cem-shadow-sm:     0 1px 3px rgba(0,0,0,.08);
+	--cem-shadow-md:     0 4px 16px rgba(0,0,0,.10);
+	--cem-shadow-lg:     0 8px 32px rgba(0,0,0,.12);
+	--cem-transition:    0.22s ease;
+	--cem-font-sans:     var(--e-global-typography-primary-font-family, inherit);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Article wrapper — override .cmsmasters-single-post defaults for events
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-single-event {
+	overflow: visible;
+}
+
+.cem-single-event .cmsmasters-section-container {
+	max-width: 1200px;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 24px;
+	padding-right: 24px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   HERO IMAGE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-event-hero {
+	position: relative;
+	overflow: hidden;
+	border-radius: 0;          /* full-width hero */
+	max-height: 520px;
+	padding: 0 !important;
+	margin-bottom: 0 !important;
+}
+
+.cem-event-hero__img {
+	display: block;
+	width: 100%;
+	height: 520px;
+	object-fit: cover;
+	object-position: center;
+}
+
+.cem-event-hero__overlay {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		to bottom,
+		rgba(0,0,0,0.04) 0%,
+		rgba(0,0,0,0.55) 100%
+	);
+	display: flex;
+	align-items: flex-end;
+}
+
+.cem-event-hero__overlay-inner {
+	padding: 28px 32px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+/* Category links inside hero */
+.cem-event-hero__cats a {
+	display: inline-block;
+	background: rgba(255,255,255,0.18);
+	backdrop-filter: blur(6px);
+	color: #fff;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	padding: 4px 12px;
+	border-radius: 100px;
+	border: 1px solid rgba(255,255,255,0.35);
+	text-decoration: none;
+	transition: background var(--cem-transition);
+}
+
+.cem-event-hero__cats a:hover {
+	background: rgba(255,255,255,0.32);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATUS PILLS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-status-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+	padding: 5px 14px;
+	border-radius: 100px;
+}
+
+.cem-status-pill--open      { background: #dcfce7; color: #14532d; }
+.cem-status-pill--closed    { background: #fef3c7; color: #78350f; }
+.cem-status-pill--cancelled { background: #fee2e2; color: #7f1d1d; }
+.cem-status-pill--past      { background: #f1f5f9; color: #475569; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TITLE / HEADER SECTION
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-event-header {
+	padding-top: 40px !important;
+	padding-bottom: 24px !important;
+}
+
+.cem-event-ministry-label {
+	margin: 0 0 10px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	color: var(--cem-accent);
+}
+
+.cem-event-ministry-label a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.cem-event-ministry-label a:hover {
+	text-decoration: underline;
+}
+
+.cem-event-title {
+	margin: 0 0 14px !important;
+	line-height: 1.2;
+	color: var(--cem-text);
+}
+
+.cem-event-organizer-byline {
+	margin: 0;
+	font-size: 14px;
+	color: var(--cem-text-muted);
+}
+
+.cem-event-organizer-byline__label {
+	margin-right: 4px;
+}
+
+.cem-event-organizer-byline__name {
+	color: var(--cem-text);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   QUICK-INFO BAR
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-info-bar {
+	background: var(--cem-bg-subtle);
+	border-top: 1px solid var(--cem-border);
+	border-bottom: 1px solid var(--cem-border);
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+}
+
+.cem-info-bar__inner {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0;
+}
+
+.cem-info-bar__item {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 20px 28px 20px 0;
+	margin-right: 28px;
+	border-right: 1px solid var(--cem-border);
+	flex: 0 1 auto;
+}
+
+.cem-info-bar__item:last-child {
+	border-right: none;
+	margin-right: 0;
+}
+
+.cem-info-bar__icon {
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+	color: var(--cem-accent);
+	margin-top: 2px;
+}
+
+.cem-info-bar__icon svg {
+	width: 20px;
+	height: 20px;
+}
+
+.cem-info-bar__text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.cem-info-bar__label {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .07em;
+	text-transform: uppercase;
+	color: var(--cem-text-muted);
+}
+
+.cem-info-bar__value {
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--cem-text);
+	line-height: 1.4;
+}
+
+.cem-info-bar__value--free {
+	color: var(--cem-success);
+	font-weight: 600;
+}
+
+.cem-info-bar__link {
+	display: inline-block;
+	color: var(--cem-accent);
+	font-size: 13px;
+	font-weight: 600;
+	text-decoration: none;
+	margin-top: 2px;
+}
+
+.cem-info-bar__link:hover { text-decoration: underline; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TWO-COLUMN BODY LAYOUT
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * IMPORTANT — class conflict fix:
+ * cem-public.css also defines .cem-event-body as display:flex (used inside
+ * .cem-event-card for the card body in listing views).  On single event pages
+ * our .cem-event-body is the full-page content wrapper, not a card body —
+ * it must NOT be a flex container or its child (.cem-event-body__grid)
+ * will be incorrectly treated as a flex item.
+ *
+ * Scoping to .cem-single-event gives us 0-2-0 specificity, which beats the
+ * 0-1-0 rule in cem-public.css, without affecting event listing pages.
+ */
+.cem-single-event .cem-event-body {
+	display:        block !important; /* override cem-public.css display:flex */
+	flex:           none  !important; /* cancel cem-public.css flex:1 / flex-basis:0% */
+	width:          100%;             /* span the full container width */
+	padding-top:    40px  !important;
+	padding-bottom: 64px  !important;
+}
+
+.cem-event-body__grid {
+	display: grid;
+	/* Sidebar holds venue details, calendar links, and organizer info.
+	   Registration form lives in the main column above the tags. */
+	grid-template-columns: 1fr 300px;
+	gap: 48px;
+	align-items: flex-start;
+}
+
+/* ── Main column ─────────────────────────────────────────────────────────────── */
+.cem-event-body__main {
+	min-width: 0; /* prevent grid blowout */
+}
+
+.cem-event-description {
+	font-size: 16px;
+	line-height: 1.75;
+	color: var(--cem-text);
+	margin-bottom: 36px;
+}
+
+.cem-event-description p { margin: 0 0 18px; }
+.cem-event-description h2,
+.cem-event-description h3 { margin: 32px 0 12px; }
+.cem-event-description img { max-width: 100%; height: auto; border-radius: var(--cem-radius); }
+
+/* Section headings within main column */
+.cem-section-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 17px;
+	font-weight: 700;
+	color: var(--cem-text);
+	margin: 0 0 16px;
+	padding-bottom: 12px;
+	border-bottom: 2px solid var(--cem-border);
+}
+
+.cem-section-heading__icon {
+	width: 18px;
+	height: 18px;
+	color: var(--cem-accent);
+	flex-shrink: 0;
+}
+
+
+/* Online CTA */
+.cem-online-cta {
+	background: linear-gradient(135deg, var(--cem-accent-light) 0%, #ede9fe 100%);
+	border: 1px solid rgba(124,92,191,.2);
+	border-radius: var(--cem-radius);
+	padding: 24px;
+	margin-bottom: 32px;
+}
+
+/* Event Tags */
+.cem-event-tags {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding-top: 24px;
+	border-top: 1px solid var(--cem-border);
+}
+
+.cem-event-tags__label {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: .07em;
+	text-transform: uppercase;
+	color: var(--cem-text-muted);
+	padding-top: 4px;
+}
+
+.cem-event-tags__list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.cem-event-tags__list a {
+	display: inline-block;
+	background: var(--cem-bg-subtle);
+	border: 1px solid var(--cem-border);
+	color: var(--cem-text-muted);
+	font-size: 12px;
+	font-weight: 500;
+	padding: 3px 10px;
+	border-radius: 100px;
+	text-decoration: none;
+	transition: all var(--cem-transition);
+}
+
+.cem-event-tags__list a:hover {
+	background: var(--cem-accent-light);
+	border-color: var(--cem-accent);
+	color: var(--cem-accent);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR CARDS (shared base)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-event-body__sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	position: sticky;
+	top: 24px;
+}
+
+.cem-sidebar-card {
+	background: var(--cem-bg-card);
+	border: 1px solid var(--cem-border);
+	border-radius: var(--cem-radius-lg);
+	padding: 22px;
+	box-shadow: var(--cem-shadow-sm);
+}
+
+.cem-sidebar-card__heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	color: var(--cem-text-muted);
+	margin: 0 0 16px;
+}
+
+.cem-sidebar-card__heading svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+
+/* ── Date Badge Card ───────────────────────────────────────────────────────── */
+.cem-date-card {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.cem-date-badge {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: var(--cem-accent);
+	color: #fff;
+	border-radius: var(--cem-radius);
+	padding: 8px 16px 10px;
+	min-width: 72px;
+	flex-shrink: 0;
+	box-shadow: 0 4px 12px rgba(124,92,191,.35);
+}
+
+.cem-date-badge__month {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	opacity: 0.85;
+	margin-bottom: 2px;
+}
+
+.cem-date-badge__day {
+	font-size: 36px;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.cem-date-badge__dow {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+	opacity: 0.75;
+	margin-top: 2px;
+}
+
+.cem-date-card__info {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.cem-date-card__time,
+.cem-date-card__location {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	font-size: 14px;
+	color: var(--cem-text);
+	line-height: 1.4;
+}
+
+.cem-date-card__time svg,
+.cem-date-card__location svg {
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
+	color: var(--cem-accent);
+	margin-top: 1px;
+}
+
+.cem-date-card__time strong { font-weight: 600; }
+.cem-date-card__location { color: var(--cem-text-muted); }
+
+
+
+/* Status notices */
+.cem-reg-notice {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 14px 16px;
+	border-radius: var(--cem-radius);
+	margin-bottom: 16px;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.cem-reg-notice svg {
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.cem-reg-notice strong { display: block; margin-bottom: 4px; font-weight: 600; }
+.cem-reg-notice p { margin: 0; opacity: 0.85; }
+
+.cem-reg-notice--cancelled {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #991b1b;
+}
+
+.cem-reg-notice--past {
+	background: #f1f5f9;
+	border: 1px solid #cbd5e1;
+	color: #475569;
+}
+
+.cem-reg-notice--closed {
+	background: #fffbeb;
+	border: 1px solid #fde68a;
+	color: #78350f;
+}
+
+.cem-reg-notice--waitlist {
+	background: #eff6ff;
+	border: 1px solid #bfdbfe;
+	color: #1e40af;
+}
+
+/* Capacity bar */
+.cem-capacity-bar {
+	margin-bottom: 16px;
+}
+
+.cem-capacity-bar__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 6px;
+}
+
+.cem-capacity-bar__label {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--cem-text-muted);
+}
+
+.cem-capacity-bar__pct {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--cem-text-muted);
+}
+
+.cem-capacity-bar__track {
+	height: 8px;
+	background: var(--cem-border);
+	border-radius: 100px;
+	overflow: hidden;
+}
+
+.cem-capacity-bar__fill {
+	height: 100%;
+	background: var(--cem-accent);
+	border-radius: 100px;
+	transition: width 0.6s ease;
+}
+
+.cem-capacity-bar__fill--warning  { background: var(--cem-warning); }
+.cem-capacity-bar__fill--critical { background: var(--cem-danger); }
+
+/* Deadline notice */
+.cem-deadline-notice {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--cem-text-muted);
+	margin: 0 0 14px;
+}
+
+.cem-deadline-notice svg {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	color: var(--cem-warning);
+}
+
+.cem-max-notice {
+	font-size: 12px;
+	color: var(--cem-text-muted);
+	margin: 0 0 14px;
+	padding: 8px 12px;
+	background: var(--cem-bg-subtle);
+	border-radius: 6px;
+}
+
+/* Footer link (used in the full-width registration card) */
+.cem-reg-card__footer {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--cem-border);
+	text-align: center;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   REGISTRATION SECTION  (inside main column, before tags)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-event-body__reg-section {
+	margin-top:  32px;
+	padding-top: 32px;
+	border-top:  2px solid var(--cem-border);
+}
+
+.cem-reg-full-card {
+	background:    var(--cem-bg-card);
+	border:        1px solid var(--cem-border);
+	border-top:    4px solid var(--cem-accent);
+	border-radius: var(--cem-radius-lg);
+	padding:       36px 40px 40px;
+	box-shadow:    var(--cem-shadow-md);
+}
+
+/* ── Header: title + status pill on the left, capacity bar on the right ─────── */
+.cem-reg-full-card__header {
+	display:         flex;
+	justify-content: space-between;
+	align-items:     flex-start;
+	gap:             32px;
+	margin-bottom:   28px;
+	padding-bottom:  24px;
+	border-bottom:   1px solid var(--cem-border);
+	flex-wrap:       wrap;
+}
+
+.cem-reg-full-card__title-col {
+	flex:      1 1 auto;
+	min-width: 0;
+}
+
+.cem-reg-full-card__title-row {
+	display:     flex;
+	align-items: center;
+	gap:         12px;
+	flex-wrap:   wrap;
+	margin-bottom: 10px;
+}
+
+.cem-reg-full-card__title {
+	font-size:   20px;
+	font-weight: 700;
+	color:       var(--cem-text);
+	margin:      0;
+	/* Icon removed — no longer display:flex */
+}
+
+/* Capacity bar pinned to the right of the header */
+.cem-reg-full-card__capacity {
+	flex:      0 0 280px;
+	min-width: 220px;
+	margin-bottom: 0;
+}
+
+/* ── Strip double chrome from .cem-registration-wrap shortcode output ─────────
+   cem-public.css wraps every form in .cem-registration-wrap and gives it its own
+   border, box-shadow, 32px padding, and max-width:680px.  Inside .cem-reg-full-card
+   all of that is redundant — our card provides the visual container.            */
+.cem-reg-full-card .cem-registration-wrap {
+	padding:    0      !important;
+	border:     none   !important;
+	box-shadow: none   !important;
+	background: transparent !important;
+	margin-top: 0      !important;
+	max-width:  none   !important; /* removes the 680px cap from cem-public.css */
+	width:      100%   !important;
+}
+
+/* Tighten the section spacing a touch inside the card */
+.cem-reg-full-card .cem-form-section {
+	margin-bottom:  24px;
+	padding-bottom: 24px;
+}
+
+/* At full width, two-column form rows work perfectly — let them be two columns */
+.cem-reg-full-card .cem-form-row-2 {
+	grid-template-columns: 1fr 1fr;
+}
+
+/* Slightly taller, more prominent submit button */
+.cem-reg-full-card .cem-registration-wrap .cem-btn-primary,
+.cem-reg-full-card .cem-registration-wrap button[type="submit"] {
+	padding:   13px 36px;
+	font-size: 15px;
+}
+
+
+/* ── Add-to-Calendar Card ──────────────────────────────────────────────────── */
+.cem-cal-links {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.cem-cal-link {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--cem-text);
+	text-decoration: none;
+	padding: 10px 12px;
+	border: 1px solid var(--cem-border);
+	border-radius: var(--cem-radius);
+	transition: all var(--cem-transition);
+}
+
+.cem-cal-link svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+	color: var(--cem-accent);
+}
+
+.cem-cal-link:hover {
+	background: var(--cem-accent-light);
+	border-color: var(--cem-accent);
+	color: var(--cem-accent);
+}
+
+
+/* ── Organizer Card ────────────────────────────────────────────────────────── */
+.cem-organizer-name {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--cem-text);
+	margin: 0 0 8px;
+}
+
+
+/* ── Venue Card (sidebar) ──────────────────────────────────────────────────── */
+.cem-venue-card__name {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--cem-text);
+	margin: 0 0 4px;
+}
+
+.cem-venue-card__address {
+	font-style: normal;
+	font-size: 14px;
+	color: var(--cem-text-muted);
+	line-height: 1.55;
+	margin: 0 0 14px;
+	white-space: pre-line;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SHARED BUTTON STYLES (used in main column)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 10px 20px;
+	border-radius: var(--cem-radius);
+	border: 2px solid transparent;
+	cursor: pointer;
+	text-decoration: none;
+	transition: all var(--cem-transition);
+	line-height: 1.4;
+}
+
+.cem-btn__icon {
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
+}
+
+.cem-btn--primary {
+	background: var(--cem-accent);
+	color: #fff;
+	border-color: var(--cem-accent);
+}
+
+.cem-btn--primary:hover {
+	background: var(--cem-accent-dark);
+	border-color: var(--cem-accent-dark);
+	color: #fff;
+	transform: translateY(-1px);
+	box-shadow: 0 6px 20px rgba(124,92,191,.3);
+}
+
+.cem-btn--outline {
+	background: transparent;
+	color: var(--cem-accent);
+	border-color: var(--cem-accent);
+}
+
+.cem-btn--outline:hover {
+	background: var(--cem-accent-light);
+	color: var(--cem-accent-dark);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SUBTLE LINK
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-subtle-link {
+	font-size: 13px;
+	color: var(--cem-text-muted);
+	text-decoration: none;
+}
+
+.cem-subtle-link:hover {
+	color: var(--cem-accent);
+	text-decoration: underline;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   INLINE ICON (used inline with text)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.cem-inline-icon {
+	width: 14px;
+	height: 14px;
+	vertical-align: middle;
+	margin-right: 3px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE  ──  Tablet  ≤1024px
+   ═══════════════════════════════════════════════════════════════════════════════ */
+/* ─── Tablet: sidebar (venue/cal/organizer) stays comfortably narrow ─────── */
+@media (max-width: 1024px) {
+	.cem-event-body__grid {
+		grid-template-columns: 1fr 260px;
+		gap: 32px;
+	}
+
+	.cem-reg-full-card {
+		padding: 28px 32px 32px;
+	}
+
+	.cem-reg-full-card__capacity {
+		flex: 0 0 220px;
+		min-width: 180px;
+	}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE  ──  Mobile  ≤768px
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+	.cem-event-hero {
+		max-height: 260px;
+	}
+
+	.cem-event-hero__img {
+		height: 260px;
+	}
+
+	.cem-event-hero__overlay-inner {
+		padding: 16px 20px;
+	}
+
+	.cem-single-event .cmsmasters-section-container {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.cem-event-header {
+		padding-top: 28px !important;
+		padding-bottom: 16px !important;
+	}
+
+	.cem-info-bar__inner {
+		flex-direction: column;
+	}
+
+	.cem-info-bar__item {
+		border-right: none;
+		border-bottom: 1px solid var(--cem-border);
+		margin-right: 0;
+		padding: 14px 0;
+	}
+
+	.cem-info-bar__item:last-child {
+		border-bottom: none;
+	}
+
+	/* Stack to single column */
+	.cem-event-body__grid {
+		grid-template-columns: 1fr;
+		gap: 20px;
+	}
+
+	/* Sidebar stacks below main content — no longer needs to lead with reg form */
+	.cem-event-body__sidebar {
+		position: static; /* disable sticky */
+	}
+
+	.cem-date-card {
+		gap: 14px;
+	}
+
+	.cem-single-event .cem-event-body {
+		padding-top: 20px !important;
+		padding-bottom: 24px !important;
+	}
+
+	/* Sidebar cards: reduce padding on mobile */
+	.cem-sidebar-card {
+		padding: 18px;
+	}
+
+	/* Registration section on mobile */
+	.cem-event-body__reg-section {
+		margin-top: 20px;
+		padding-top: 20px;
+	}
+
+	.cem-reg-full-card {
+		padding: 22px 20px 24px;
+	}
+
+	.cem-reg-full-card__header {
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.cem-reg-full-card__capacity {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+
+	/* Collapse two-column form rows on small screens */
+	.cem-reg-full-card .cem-form-row-2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE  ──  Small mobile  ≤480px
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+	.cem-date-badge__day { font-size: 28px; }
+
+	.cem-date-card {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.cem-cal-links { gap: 6px; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PRINT STYLES  (clean printout without sidebar)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media print {
+	.cem-event-hero__overlay,
+	.cem-event-body__sidebar { display: none; }
+
+	.cem-event-body__grid { grid-template-columns: 1fr; }
+
+	.cem-info-bar__inner { flex-direction: row; flex-wrap: wrap; }
+}

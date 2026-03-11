@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Backups
+*.bak
+*.backup
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# WordPress
+wp-config.php

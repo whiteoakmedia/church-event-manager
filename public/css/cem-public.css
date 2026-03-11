@@ -1,0 +1,778 @@
+/* ============================================================
+   Church Event Manager — Public Styles
+   ============================================================ */
+
+:root {
+  --cem-primary:     #3b5998;
+  --cem-primary-dk:  #2d4578;
+  --cem-success:     #2e7d32;
+  --cem-warning:     #e65100;
+  --cem-danger:      #c62828;
+  --cem-info:        #01579b;
+  --cem-border:      #e2e8f0;
+  --cem-bg:          #f8fafc;
+  --cem-card-bg:     #ffffff;
+  --cem-text:        #2d3748;
+  --cem-muted:       #718096;
+  --cem-radius:      10px;
+  --cem-radius-sm:   6px;
+  --cem-shadow:      0 2px 8px rgba(0,0,0,.08);
+  --cem-shadow-lg:   0 8px 24px rgba(0,0,0,.12);
+}
+
+/* ── Reset for plugin elements ────────────────────────────── */
+
+.cem-events-wrap *,
+.cem-registration-wrap *,
+.cem-my-registrations *,
+.cem-calendar-wrap * {
+  box-sizing: border-box;
+}
+
+/* ── Events Grid / List ───────────────────────────────────── */
+
+.cem-events-wrap { font-family: inherit; }
+
+.cem-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.cem-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+/* ── Event Card ───────────────────────────────────────────── */
+
+.cem-event-card {
+  background: var(--cem-card-bg);
+  border: 1px solid var(--cem-border);
+  border-radius: var(--cem-radius);
+  overflow: hidden;
+  box-shadow: var(--cem-shadow);
+  transition: transform .2s ease, box-shadow .2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.cem-event-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--cem-shadow-lg);
+}
+
+.cem-event-card.cem-event-full {
+  opacity: .85;
+}
+
+/* List layout card */
+.cem-events-list .cem-event-card {
+  flex-direction: row;
+}
+
+.cem-events-list .cem-event-image {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+/* Event image */
+.cem-event-image {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+}
+
+.cem-event-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s ease;
+}
+
+.cem-event-card:hover .cem-event-image img {
+  transform: scale(1.03);
+}
+
+.cem-event-cats {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cem-event-cat {
+  background: var(--cem-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .3px;
+}
+
+/* Card body */
+.cem-event-body {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.cem-event-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--cem-primary);
+  color: #fff;
+  border-radius: var(--cem-radius-sm);
+  padding: 8px 12px;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.cem-date-month {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  font-weight: 600;
+}
+
+.cem-date-day {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cem-event-info { flex: 1; }
+
+.cem-event-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cem-event-title a {
+  color: var(--cem-text);
+  text-decoration: none;
+}
+
+.cem-event-title a:hover { color: var(--cem-primary); }
+
+.cem-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cem-meta-item {
+  font-size: 13px;
+  color: var(--cem-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cem-capacity-full { color: var(--cem-danger) !important; font-weight: 600; }
+
+.cem-event-excerpt {
+  font-size: 14px;
+  color: var(--cem-muted);
+  margin: 0 0 14px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Event action buttons */
+.cem-event-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+
+.cem-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: background .15s, color .15s, border-color .15s, transform .1s;
+  line-height: 1;
+}
+
+.cem-btn:focus { outline: 3px solid rgba(59,89,152,.3); }
+
+.cem-btn-primary {
+  background: var(--cem-primary);
+  color: #fff;
+  border-color: var(--cem-primary);
+}
+.cem-btn-primary:hover {
+  background: var(--cem-primary-dk);
+  border-color: var(--cem-primary-dk);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.cem-btn-secondary {
+  background: #fff;
+  color: var(--cem-primary);
+  border-color: var(--cem-primary);
+}
+.cem-btn-secondary:hover {
+  background: var(--cem-primary);
+  color: #fff;
+}
+
+.cem-btn-ghost {
+  background: transparent;
+  color: var(--cem-muted);
+  border-color: var(--cem-border);
+}
+.cem-btn-ghost:hover {
+  border-color: var(--cem-primary);
+  color: var(--cem-primary);
+}
+
+.cem-btn-danger {
+  background: var(--cem-danger);
+  color: #fff;
+  border-color: var(--cem-danger);
+}
+.cem-btn-danger:hover { background: #b71c1c; }
+
+.cem-btn-danger-ghost {
+  background: transparent;
+  color: var(--cem-danger);
+  border-color: var(--cem-danger);
+}
+.cem-btn-danger-ghost:hover { background: var(--cem-danger); color: #fff; }
+
+.cem-btn-disabled {
+  background: var(--cem-bg);
+  color: var(--cem-muted);
+  border-color: var(--cem-border);
+  cursor: not-allowed;
+}
+
+.cem-btn-large { padding: 12px 28px; font-size: 16px; }
+.cem-btn-small { padding: 5px 12px; font-size: 12px; }
+
+/* ── Filter form ──────────────────────────────────────────── */
+
+.cem-filter-form { margin-bottom: 20px; }
+
+.cem-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.cem-filter-row select {
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--cem-text);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='%23718096' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
+.cem-clear-filter {
+  color: var(--cem-muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+.cem-clear-filter:hover { color: var(--cem-danger); }
+
+/* ── No events ────────────────────────────────────────────── */
+
+.cem-no-events {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--cem-muted);
+}
+
+.cem-no-events-icon { font-size: 48px; margin-bottom: 12px; }
+.cem-no-events h3   { color: var(--cem-text); margin-bottom: 8px; }
+
+/* ── Pagination ───────────────────────────────────────────── */
+
+.cem-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.cem-page-btn {
+  padding: 8px 18px;
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--cem-text);
+  font-size: 14px;
+  transition: background .15s;
+}
+
+.cem-page-btn:hover { background: var(--cem-primary); color: #fff; border-color: var(--cem-primary); }
+
+.cem-page-info { color: var(--cem-muted); font-size: 14px; }
+
+/* ── Registration Form ────────────────────────────────────── */
+
+.cem-registration-wrap {
+  background: var(--cem-card-bg);
+  border: 1px solid var(--cem-border);
+  border-radius: var(--cem-radius);
+  padding: 32px;
+  margin-top: 32px;
+  box-shadow: var(--cem-shadow);
+  max-width: 680px;
+}
+
+.cem-form-section {
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--cem-border);
+}
+
+.cem-form-section:last-of-type { border-bottom: none; }
+
+.cem-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cem-text);
+  margin: 0 0 18px;
+}
+
+.cem-form-row { display: grid; gap: 16px; margin-bottom: 16px; }
+.cem-form-row-2 { grid-template-columns: 1fr 1fr; }
+
+.cem-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+
+.cem-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cem-text);
+}
+
+.cem-required { color: var(--cem-danger); margin-left: 2px; }
+
+.cem-field input[type="text"],
+.cem-field input[type="email"],
+.cem-field input[type="tel"],
+.cem-field input[type="number"],
+.cem-field input[type="date"],
+.cem-field input[type="url"],
+.cem-field select,
+.cem-field textarea {
+  border: 1.5px solid var(--cem-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--cem-text);
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+}
+
+.cem-field input:focus,
+.cem-field select:focus,
+.cem-field textarea:focus {
+  outline: none;
+  border-color: var(--cem-primary);
+  box-shadow: 0 0 0 3px rgba(59,89,152,.15);
+}
+
+.cem-option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.cem-waiver-text {
+  background: var(--cem-bg);
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--cem-muted);
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.cem-form-submit {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cem-spinner {
+  font-size: 18px;
+  animation: cem-spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes cem-spin { to { transform: rotate(360deg); } }
+
+/* ── Notices ──────────────────────────────────────────────── */
+
+.cem-notice {
+  padding: 14px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin: 16px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cem-notice-success { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+.cem-notice-error   { background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; }
+.cem-notice-warning { background: #fff3e0; color: #e65100; border: 1px solid #ffcc02; }
+.cem-notice-info    { background: #e3f2fd; color: #01579b; border: 1px solid #90caf9; }
+
+/* ── My Registrations ─────────────────────────────────────── */
+
+.cem-my-registrations h3 { font-size: 20px; margin-bottom: 16px; }
+
+.cem-reg-list { display: flex; flex-direction: column; gap: 16px; }
+
+.cem-reg-card {
+  background: var(--cem-card-bg);
+  border: 1px solid var(--cem-border);
+  border-radius: var(--cem-radius);
+  overflow: hidden;
+  box-shadow: var(--cem-shadow);
+}
+
+.cem-reg-status-confirmed  { border-left: 4px solid #2e7d32; }
+.cem-reg-status-pending    { border-left: 4px solid #f9a825; }
+.cem-reg-status-cancelled  { border-left: 4px solid #c62828; opacity: .7; }
+.cem-reg-status-waitlisted { border-left: 4px solid #1565c0; }
+.cem-reg-status-checked_in { border-left: 4px solid #6a1b9a; }
+
+.cem-reg-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cem-border);
+}
+
+.cem-reg-event-title { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+.cem-reg-date        { margin: 0; font-size: 13px; color: var(--cem-muted); }
+
+.cem-reg-card-body   { padding: 14px 20px; font-size: 13px; }
+.cem-reg-card-body p { margin: 4px 0; }
+
+.cem-reg-card-actions { padding: 12px 20px; border-top: 1px solid var(--cem-border); }
+
+/* ── Lookup Form ──────────────────────────────────────────── */
+
+.cem-lookup-wrap { max-width: 480px; }
+.cem-lookup-form { margin-top: 16px; }
+
+/* ── Status badge (public) ────────────────────────────────── */
+
+.cem-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.cem-badge--green  { background: #e8f5e9; color: #2e7d32; }
+.cem-badge--red    { background: #ffebee; color: #c62828; }
+.cem-badge--yellow { background: #fff9c4; color: #f57f17; }
+.cem-badge--blue   { background: #e3f2fd; color: #1565c0; }
+.cem-badge--purple { background: #f3e5f5; color: #6a1b9a; }
+
+/* ── Calendar ─────────────────────────────────────────────── */
+
+.cem-calendar-wrap { font-size: 14px; }
+
+.cem-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cem-calendar-header h3 { margin: 0; font-size: 18px; }
+
+.cem-cal-nav {
+  text-decoration: none;
+  color: var(--cem-primary);
+  font-weight: 600;
+  padding: 6px 14px;
+  border: 1px solid var(--cem-primary);
+  border-radius: 6px;
+}
+
+.cem-cal-nav:hover { background: var(--cem-primary); color: #fff; }
+
+.cem-calendar {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--cem-border);
+  border-radius: var(--cem-radius);
+  overflow: hidden;
+}
+
+.cem-calendar th {
+  background: var(--cem-primary);
+  color: #fff;
+  padding: 10px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.cem-cal-day, .cem-cal-empty {
+  border: 1px solid var(--cem-border);
+  padding: 8px;
+  vertical-align: top;
+  height: 80px;
+  background: #fff;
+}
+
+.cem-cal-empty { background: var(--cem-bg); }
+
+.cem-cal-today .cem-cal-date {
+  background: var(--cem-primary);
+  color: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cem-cal-date { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+.cem-cal-events { display: flex; flex-direction: column; gap: 2px; }
+
+.cem-cal-event-dot {
+  background: var(--cem-primary);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cem-cal-event-dot:hover { background: var(--cem-primary-dk); }
+
+/* ── Manage registration ──────────────────────────────────── */
+
+.cem-manage-wrap { max-width: 600px; }
+.cem-manage-wrap h2 { margin-bottom: 20px; }
+
+/* ── Inline form (on event post page) ────────────────────── */
+
+.cem-inline-form { margin-top: 32px; }
+
+
+/* ── Stripe Payment Section ───────────────────────────────── */
+
+.cem-payment-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cem-border);
+}
+
+.cem-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cem-text);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cem-payment-amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cem-accent, #3b5998);
+}
+
+.cem-payment-intro {
+  font-size: 0.85rem;
+  color: var(--cem-muted, #666);
+  margin: 0 0 16px;
+}
+
+/* Stripe Card Element wrapper — styled like a native input so the card
+   iframe blends seamlessly with the rest of the registration form. */
+.cem-stripe-element {
+  min-height: 46px;     /* Reserve space while the iframe loads */
+  padding: 11px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cem-stripe-element:focus-within {
+  border-color: var(--cem-accent, #3b5998);
+  box-shadow: 0 0 0 3px rgba(59, 89, 152, 0.12);
+}
+
+.cem-stripe-element--ready {
+  /* Iframe has mounted — collapse placeholder height; the iframe sets its own. */
+  min-height: 0;
+}
+
+/* Loading placeholder shown before the Stripe iframe mounts */
+.cem-stripe-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  color: var(--cem-muted, #888);
+  font-size: 0.9rem;
+  background: #f9f9f9;
+  border: 1px solid var(--cem-border, #e0e0e0);
+  border-radius: 6px;
+}
+
+.cem-stripe-loading__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ddd;
+  border-top-color: var(--cem-accent, #3b5998);
+  border-radius: 50%;
+  animation: cem-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cem-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error messages from Stripe */
+.cem-stripe-errors {
+  margin-top: 10px;
+}
+
+.cem-stripe-error-msg {
+  color: #c62828;
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+
+/* ── In-Person Registration Notice ───────────────────────── */
+
+.cem-inperson-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cem-border);
+}
+
+.cem-inperson-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #e8f4fd;
+  border: 1px solid #b3d9f7;
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.cem-inperson-notice__icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cem-inperson-notice strong {
+  display: block;
+  font-size: 1rem;
+  color: #1a5276;
+  margin-bottom: 4px;
+}
+
+.cem-inperson-notice p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #2980b9;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .cem-events-grid      { grid-template-columns: 1fr; }
+  .cem-events-list .cem-event-card { flex-direction: column; }
+  .cem-events-list .cem-event-image { width: 100%; }
+  .cem-form-row-2       { grid-template-columns: 1fr; }
+  .cem-event-body       { flex-direction: column; }
+  .cem-registration-wrap { padding: 20px; }
+  .cem-calendar         { font-size: 11px; }
+  .cem-cal-day, .cem-cal-empty { height: 60px; padding: 4px; }
+}
+
+/* ── Recurring event badge ────────────────────────────────── */
+
+.cem-recurring-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5a4fcf;
+  background: #ede9fe;
+  border: 1px solid #c4b5fd;
+  border-radius: 20px;
+  padding: 2px 8px;
+  vertical-align: middle;
+  margin-left: 6px;
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
