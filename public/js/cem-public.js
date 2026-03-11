@@ -122,4 +122,40 @@
     .text('.cem-field-error { border-color: #c62828 !important; box-shadow: 0 0 0 3px rgba(198,40,40,.15) !important; }')
     .appendTo('head');
 
+  // ── Leave Group form ───────────────────────────────────────────────────────
+
+  if (typeof cemGroup !== 'undefined') {
+    $(document).on('submit', '.cem-leave-group-form', function (e) {
+      e.preventDefault();
+      const form    = $(this);
+      const btn     = form.find('.cem-leave-group-btn');
+      const msg     = form.find('.cem-leave-group-msg');
+      const email   = form.find('.cem-leave-email').val().trim();
+      const groupId = form.data('group-id');
+
+      btn.prop('disabled', true).text(cemGroup.strings.leaving);
+      msg.hide().removeClass('cem-msg-success cem-msg-error');
+
+      $.post(cemGroup.ajaxUrl, {
+        action:   'cem_leave_group',
+        nonce:    cemGroup.leaveGroupNonce,
+        email:    email,
+        group_id: groupId,
+      })
+      .done(function (res) {
+        if (res.success) {
+          msg.addClass('cem-msg-success').text(res.data.message).show();
+          form.find('.cem-leave-email').val('');
+        } else {
+          msg.addClass('cem-msg-error').text(res.data.message).show();
+          btn.prop('disabled', false).text('Leave Group');
+        }
+      })
+      .fail(function () {
+        msg.addClass('cem-msg-error').text('Something went wrong. Please try again.').show();
+        btn.prop('disabled', false).text('Leave Group');
+      });
+    });
+  }
+
 })(jQuery);

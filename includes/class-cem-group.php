@@ -166,6 +166,14 @@ class CEM_Group {
 			'normal',
 			'high'
 		);
+		add_meta_box(
+			'cem_group_events',
+			__( 'Group Events', 'church-event-manager' ),
+			[ $this, 'mb_linked_events' ],
+			'cem_group',
+			'normal',
+			'default'
+		);
 	}
 
 	public function mb_group_details( $post ) {
@@ -338,5 +346,76 @@ class CEM_Group {
 		if ( ! $time_24h ) return '';
 		$ts = strtotime( '2000-01-01 ' . $time_24h );
 		return $ts ? wp_date( get_option( 'time_format', 'g:i a' ), $ts ) : $time_24h;
+	}
+
+	/**
+	 * Get cem_event posts linked to this group via _cem_event_group_id.
+	 *
+	 * @param int $group_id
+	 * @return WP_Post[]
+	 */
+	public static function get_linked_events( $group_id ) {
+		$posts = get_posts( [
+			'post_type'      => 'cem_event',
+			'post_status'    => [ 'publish', 'draft', 'future' ],
+			'posts_per_page' => -1,
+			'meta_key'       => '_cem_start_datetime',
+			'orderby'        => 'meta_value',
+			'order'          => 'ASC',
+			'meta_query'     => [
+				[
+					'key'     => '_cem_event_group_id',
+					'value'   => (int) $group_id,
+					'compare' => '=',
+					'type'    => 'NUMERIC',
+				],
+			],
+		] );
+		return $posts ?: [];
+	}
+
+	public function mb_linked_events( $post ) {
+		$events   = self::get_linked_events( $post->ID );
+		$add_url  = add_query_arg( [
+			'post_type'    => 'cem_event',
+			'cem_group_id' => $post->ID,
+		], admin_url( 'post-new.php' ) );
+		?>
+		<div style="margin-bottom:10px">
+			<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary">
+				<?php esc_html_e( '+ Add Event to Group', 'church-event-manager' ); ?>
+			</a>
+		</div>
+		<?php if ( empty( $events ) ) : ?>
+			<p style="color:#6b7280;font-style:italic"><?php esc_html_e( 'No events linked to this group yet.', 'church-event-manager' ); ?></p>
+		<?php else : ?>
+			<table class="widefat striped" style="margin-top:4px">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Event', 'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Date', 'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Status', 'church-event-manager' ); ?></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ( $events as $event ) :
+					$start  = get_post_meta( $event->ID, '_cem_start_datetime', true );
+					$status = $event->post_status;
+					?>
+					<tr>
+						<td><?php echo esc_html( $event->post_title ); ?></td>
+						<td><?php echo $start ? esc_html( CEM_Helpers::format_date( $start ) ) : '—'; ?></td>
+						<td><?php echo esc_html( ucfirst( $status ) ); ?></td>
+						<td>
+							<a href="<?php echo esc_url( get_edit_post_link( $event->ID ) ); ?>"><?php esc_html_e( 'Edit', 'church-event-manager' ); ?></a>
+							&nbsp;|&nbsp;
+							<a href="<?php echo esc_url( get_permalink( $event->ID ) ); ?>" target="_blank"><?php esc_html_e( 'View', 'church-event-manager' ); ?></a>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif;
 	}
 }

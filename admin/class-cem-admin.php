@@ -1067,9 +1067,10 @@ class CEM_Admin {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	public function add_meta_boxes() {
-		add_meta_box( 'cem_event_details', __( 'Event Details',       'church-event-manager' ), [ $this, 'mb_event_details'    ], 'cem_event', 'normal',   'high' );
-		add_meta_box( 'cem_event_reg',     __( 'Registration Settings','church-event-manager' ), [ $this, 'mb_event_reg'       ], 'cem_event', 'normal',   'default' );
-		add_meta_box( 'cem_event_sidebar', __( 'Quick Stats',         'church-event-manager' ), [ $this, 'mb_event_sidebar'   ], 'cem_event', 'side',     'default' );
+		add_meta_box( 'cem_event_details', __( 'Event Details',        'church-event-manager' ), [ $this, 'mb_event_details'    ], 'cem_event', 'normal',   'high' );
+		add_meta_box( 'cem_event_reg',     __( 'Registration Settings','church-event-manager' ), [ $this, 'mb_event_reg'        ], 'cem_event', 'normal',   'default' );
+		add_meta_box( 'cem_event_sidebar', __( 'Quick Stats',          'church-event-manager' ), [ $this, 'mb_event_sidebar'    ], 'cem_event', 'side',     'default' );
+		add_meta_box( 'cem_event_group',   __( 'Parent Group',         'church-event-manager' ), [ $this, 'mb_event_group'      ], 'cem_event', 'side',     'default' );
 	}
 
 	public function mb_event_details( $post ) {
@@ -1366,6 +1367,32 @@ class CEM_Admin {
 		<?php
 	}
 
+	public function mb_event_group( $post ) {
+		$current_group = (int) get_post_meta( $post->ID, '_cem_event_group_id', true );
+		// Pre-populate from URL param when creating a new event via the group admin panel.
+		if ( ! $current_group && ! empty( $_GET['cem_group_id'] ) ) {
+			$current_group = (int) $_GET['cem_group_id'];
+		}
+		$groups = get_posts( [
+			'post_type'      => 'cem_group',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		] );
+		?>
+		<p class="description" style="margin-bottom:8px"><?php esc_html_e( 'Optionally link this event to a small group. Group members will receive reminder emails for this event.', 'church-event-manager' ); ?></p>
+		<select name="_cem_event_group_id" style="width:100%">
+			<option value=""><?php esc_html_e( '— No Group —', 'church-event-manager' ); ?></option>
+			<?php foreach ( $groups as $group ) : ?>
+			<option value="<?php echo esc_attr( $group->ID ); ?>" <?php selected( $current_group, $group->ID ); ?>>
+				<?php echo esc_html( $group->post_title ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
+		<?php
+	}
+
 	// ── Save Event Meta ───────────────────────────────────────────────────────
 
 	public function save_event_meta( $post_id ) {
@@ -1402,6 +1429,14 @@ class CEM_Admin {
 
 		foreach ( $checkbox_fields as $key ) {
 			update_post_meta( $post_id, $key, ! empty( $_POST[$key] ) ? '1' : '0' );
+		}
+
+		// Parent Group link
+		$group_id = (int) ( $_POST['_cem_event_group_id'] ?? 0 );
+		if ( $group_id && get_post_type( $group_id ) === 'cem_group' ) {
+			update_post_meta( $post_id, '_cem_event_group_id', $group_id );
+		} else {
+			delete_post_meta( $post_id, '_cem_event_group_id' );
 		}
 
 		// ── Recurring Event ────────────────────────────────────────────────────

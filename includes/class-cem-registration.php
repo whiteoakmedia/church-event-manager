@@ -21,43 +21,64 @@ class CEM_Registration {
 	public static function create( array $data ) {
 		global $wpdb;
 
-		$event_id = (int) $data['event_id'];
-		if ( ! $event_id || get_post_type( $event_id ) !== 'cem_event' ) {
+		$event_id  = (int) $data['event_id'];
+		$post_type = $event_id ? get_post_type( $event_id ) : false;
+		$is_group  = ( $post_type === 'cem_group' );
+
+		if ( ! $event_id || ! in_array( $post_type, [ 'cem_event', 'cem_group' ], true ) ) {
 			return new WP_Error( 'invalid_event', __( 'Invalid event.', 'church-event-manager' ) );
 		}
 
-		// Check registration is open
-		$reg_status = get_post_meta( $event_id, '_cem_registration_status', true );
-		if ( $reg_status === 'closed' ) {
-			return new WP_Error( 'registration_closed', __( 'Registration is closed for this event.', 'church-event-manager' ) );
-		}
+		if ( $is_group ) {
+			// For groups, use the group's own status field
+			$group_status = get_post_meta( $event_id, '_cem_group_status', true ) ?: 'open';
+			if ( $group_status !== 'open' ) {
+				return new WP_Error( 'registration_closed', __( 'This group is not currently accepting new members.', 'church-event-manager' ) );
+			}
+		} else {
+			// Check registration is open (events only)
+			$reg_status = get_post_meta( $event_id, '_cem_registration_status', true );
+			if ( $reg_status === 'closed' ) {
+				return new WP_Error( 'registration_closed', __( 'Registration is closed for this event.', 'church-event-manager' ) );
+			}
 
-		// Check deadline
-		$deadline = get_post_meta( $event_id, '_cem_registration_deadline', true );
-		if ( $deadline && strtotime( $deadline ) < time() ) {
-			return new WP_Error( 'registration_closed', __( 'The registration deadline has passed.', 'church-event-manager' ) );
+			// Check deadline (events only)
+			$deadline = get_post_meta( $event_id, '_cem_registration_deadline', true );
+			if ( $deadline && strtotime( $deadline ) < time() ) {
+				return new WP_Error( 'registration_closed', __( 'The registration deadline has passed.', 'church-event-manager' ) );
+			}
 		}
 
 		$num_attendees = max( 1, (int) ( $data['num_attendees'] ?? 1 ) );
 		$waitlisted    = false;
 
 		// Capacity check
-		if ( CEM_Helpers::is_at_capacity( $event_id ) ) {
-			if ( get_option( 'cem_waitlist_enabled' ) ) {
+		$at_capacity = $is_group
+			? CEM_Group::is_at_capacity( $event_id )
+			: CEM_Helpers::is_at_capacity( $event_id );
+
+		if ( $at_capacity ) {
+			if ( ! $is_group && get_option( 'cem_waitlist_enabled' ) ) {
 				$waitlisted = true;
 			} else {
-				return new WP_Error( 'capacity_full', __( 'This event is full.', 'church-event-manager' ) );
+				return new WP_Error( 'capacity_full', $is_group
+					? __( 'This group is full.', 'church-event-manager' )
+					: __( 'This event is full.', 'church-event-manager' )
+				);
 			}
 		}
 
-		// Duplicate check (same email + event, not cancelled)
+		// Duplicate check (same email + event/group, not cancelled)
 		$existing = $wpdb->get_var( $wpdb->prepare(
 			"SELECT id FROM {$wpdb->prefix}cem_registrations
 			 WHERE event_id = %d AND email = %s AND status NOT IN ('cancelled')",
 			$event_id, sanitize_email( $data['email'] )
 		) );
 		if ( $existing ) {
-			return new WP_Error( 'duplicate', __( 'You are already registered for this event.', 'church-event-manager' ) );
+			return new WP_Error( 'duplicate', $is_group
+				? __( 'You are already a member of this group.', 'church-event-manager' )
+				: __( 'You are already registered for this event.', 'church-event-manager' )
+			);
 		}
 
 		$auto_confirm = get_option( 'cem_registration_auto_confirm', '1' );
@@ -148,6 +169,17 @@ class CEM_Registration {
 		return $wpdb->get_row( $wpdb->prepare(
 			"SELECT * FROM {$wpdb->prefix}cem_registrations WHERE id = %d",
 			$registration_id
+		) );
+	}
+
+	/** Get an active (non-cancelled) registration by email + event/group ID. */
+	public static function get_by_email_and_event( $email, $event_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}cem_registrations
+			 WHERE event_id = %d AND email = %s AND status NOT IN ('cancelled')
+			 ORDER BY created_at DESC LIMIT 1",
+			$event_id, sanitize_email( $email )
 		) );
 	}
 

@@ -60,23 +60,53 @@ class CEM_Notifications {
 			$target_start, $target_end
 		) );
 
+		$today = current_time( 'Y-m-d' );
+
 		foreach ( $events as $event ) {
-			// Get all confirmed/pending registrations for this event
+			// Track emails notified so we can avoid duplicates across event + group reminders
+			$notified_emails = [];
+
+			// 1. Send reminders to direct event registrants
 			$regs = CEM_Registration::get_for_event( $event->ID, [
 				'status'   => [ 'confirmed', 'pending' ],
 				'per_page' => 0,
 			] );
 
 			foreach ( $regs as $reg ) {
-				// Skip if a reminder was already sent today (check email log)
 				$already_sent = $wpdb->get_var( $wpdb->prepare(
 					"SELECT id FROM {$wpdb->prefix}cem_email_log
 					 WHERE registration_id = %d AND type = 'reminder' AND DATE(sent_at) = %s",
-					$reg->id, current_time( 'Y-m-d' )
+					$reg->id, $today
 				) );
 				if ( $already_sent ) continue;
 
 				CEM_Email::send_reminder( $reg->id );
+				$notified_emails[ strtolower( $reg->email ) ] = true;
+			}
+
+			// 2. Also notify group members if this event is linked to a group
+			$group_id = (int) get_post_meta( $event->ID, '_cem_event_group_id', true );
+			if ( ! $group_id ) continue;
+
+			$group_regs = CEM_Registration::get_for_event( $group_id, [
+				'status'   => [ 'confirmed', 'pending' ],
+				'per_page' => 0,
+			] );
+
+			foreach ( $group_regs as $greg ) {
+				// Skip if this email already got a direct event reminder above
+				if ( isset( $notified_emails[ strtolower( $greg->email ) ] ) ) continue;
+
+				// Skip if a group event reminder was already sent today for this reg + event
+				$already_sent = $wpdb->get_var( $wpdb->prepare(
+					"SELECT id FROM {$wpdb->prefix}cem_email_log
+					 WHERE registration_id = %d AND event_id = %d AND type = 'group_event_reminder' AND DATE(sent_at) = %s",
+					$greg->id, $event->ID, $today
+				) );
+				if ( $already_sent ) continue;
+
+				CEM_Email::send_group_event_reminder( $greg->id, $event->ID );
+				$notified_emails[ strtolower( $greg->email ) ] = true;
 			}
 		}
 	}

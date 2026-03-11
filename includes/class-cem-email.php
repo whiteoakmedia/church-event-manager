@@ -312,32 +312,97 @@ class CEM_Email {
 	// ── Template Variables ────────────────────────────────────────────────────
 
 	public static function get_template_vars( $reg, $event ) {
-		$start     = get_post_meta( $reg->event_id, '_cem_start_datetime', true );
-		$end       = get_post_meta( $reg->event_id, '_cem_end_datetime', true );
-		$location  = get_post_meta( $reg->event_id, '_cem_location', true );
-		$manage_url= CEM_Helpers::get_manage_url( $reg->registration_code );
+		$is_group = $event && get_post_type( $event->ID ) === 'cem_group';
+
+		if ( $is_group ) {
+			$start    = '';
+			$end      = '';
+			$location = trim( implode( ', ', array_filter( [
+				get_post_meta( $event->ID, '_cem_group_location', true ),
+				get_post_meta( $event->ID, '_cem_group_address', true ),
+			] ) ) );
+			// Build human-readable schedule as the "date"
+			$freq     = get_post_meta( $event->ID, '_cem_group_frequency', true );
+			$day      = get_post_meta( $event->ID, '_cem_group_day', true );
+			$time_raw = get_post_meta( $event->ID, '_cem_group_time', true );
+			$parts    = array_filter( [
+				$freq ? ucwords( $freq ) : '',
+				$day,
+				CEM_Group::format_time( $time_raw ),
+			] );
+			$schedule = implode( ' · ', $parts );
+		} else {
+			$start    = get_post_meta( $reg->event_id, '_cem_start_datetime', true );
+			$end      = get_post_meta( $reg->event_id, '_cem_end_datetime', true );
+			$location = get_post_meta( $reg->event_id, '_cem_location', true );
+			$schedule = '';
+		}
+
+		$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
 
 		return [
-			'first_name'        => $reg->first_name,
-			'last_name'         => $reg->last_name,
-			'full_name'         => trim( $reg->first_name . ' ' . $reg->last_name ),
-			'email'             => $reg->email,
-			'phone'             => $reg->phone,
-			'num_attendees'     => $reg->num_attendees,
-			'registration_code' => $reg->registration_code,
+			'first_name'          => $reg->first_name,
+			'last_name'           => $reg->last_name,
+			'full_name'           => trim( $reg->first_name . ' ' . $reg->last_name ),
+			'email'               => $reg->email,
+			'phone'               => $reg->phone,
+			'num_attendees'       => $reg->num_attendees,
+			'registration_code'   => $reg->registration_code,
 			'registration_status' => $reg->status,
-			'event_title'       => $event ? $event->post_title : '',
-			'event_description' => $event ? wp_trim_words( $event->post_content, 30 ) : '',
-			'event_url'         => $event ? get_permalink( $event->ID ) : '',
-			'event_date'        => $start ? CEM_Helpers::format_date( $start ) : '',
-			'event_time'        => $start ? CEM_Helpers::format_time( $start ) : '',
-			'event_end_time'    => $end   ? CEM_Helpers::format_time( $end )   : '',
-			'event_location'    => $location ?: '',
-			'manage_url'        => $manage_url,
-			'church_name'       => get_bloginfo( 'name' ),
-			'church_url'        => home_url(),
-			'church_phone'      => get_option( 'cem_church_phone', '' ),
+			'event_title'         => $event ? $event->post_title : '',
+			'event_description'   => $event ? wp_trim_words( $event->post_content, 30 ) : '',
+			'event_url'           => $event ? get_permalink( $event->ID ) : '',
+			'event_date'          => $start    ? CEM_Helpers::format_date( $start ) : $schedule,
+			'event_time'          => $start    ? CEM_Helpers::format_time( $start ) : '',
+			'event_end_time'      => $end      ? CEM_Helpers::format_time( $end )   : '',
+			'event_location'      => $location ?: '',
+			'manage_url'          => $manage_url,
+			'church_name'         => get_bloginfo( 'name' ),
+			'church_url'          => home_url(),
+			'church_phone'        => get_option( 'cem_church_phone', '' ),
 		];
+	}
+
+	/**
+	 * Send a reminder to a group member about a specific upcoming group event.
+	 * Uses the member's group registration but substitutes the event's date/time/location.
+	 */
+	public static function send_group_event_reminder( $group_reg_id, $event_id ) {
+		$reg = CEM_Registration::get( $group_reg_id );
+		if ( ! $reg ) return false;
+
+		$group = get_post( $reg->event_id );
+		$event = get_post( $event_id );
+		if ( ! $event ) return false;
+
+		// Start from group registration vars, then overlay event-specific details.
+		$vars = self::get_template_vars( $reg, $group );
+		$start = get_post_meta( $event_id, '_cem_start_datetime', true );
+		$end   = get_post_meta( $event_id, '_cem_end_datetime', true );
+
+		$vars['event_title']    = $event->post_title;
+		$vars['event_url']      = get_permalink( $event->ID );
+		$vars['event_date']     = $start ? CEM_Helpers::format_date( $start ) : '';
+		$vars['event_time']     = $start ? CEM_Helpers::format_time( $start ) : '';
+		$vars['event_end_time'] = $end   ? CEM_Helpers::format_time( $end )   : '';
+		$vars['event_location'] = get_post_meta( $event_id, '_cem_location', true ) ?: ( $vars['event_location'] ?? '' );
+		$vars['group_name']     = $group ? $group->post_title : '';
+
+		$subject = CEM_Helpers::parse_template(
+			get_option( 'cem_reminder_subject', 'Reminder: {event_title} is Tomorrow!' ),
+			$vars
+		);
+		$message = self::load_template( 'reminder', $vars );
+
+		return self::send( [
+			'to_email'        => $reg->email,
+			'to_name'         => trim( $reg->first_name . ' ' . $reg->last_name ),
+			'subject'         => $subject,
+			'message'         => $message,
+			'event_id'        => $event_id,
+			'registration_id' => $group_reg_id,
+			'type'            => 'group_event_reminder',
+		] );
 	}
 
 	// ── Log ───────────────────────────────────────────────────────────────────

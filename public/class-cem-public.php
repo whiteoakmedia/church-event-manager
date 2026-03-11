@@ -136,6 +136,15 @@ class CEM_Public {
 			'cem-single-group',
 			':root { --cem-accent: ' . $accent . '; --cem-accent-dark: ' . $accent_dark . '; }'
 		);
+
+		wp_localize_script( 'cem-public', 'cemGroup', [
+			'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+			'leaveGroupNonce'=> wp_create_nonce( 'cem_leave_group_nonce' ),
+			'strings'        => [
+				'leaving'   => __( 'Removing…', 'church-event-manager' ),
+				'notFound'  => __( 'No active membership found for that email address.', 'church-event-manager' ),
+			],
+		] );
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────

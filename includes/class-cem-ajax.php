@@ -12,6 +12,8 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_nopriv_cem_register',              [ $this, 'handle_registration' ] );
 		add_action( 'wp_ajax_cem_cancel_registration',          [ $this, 'cancel_registration' ] );
 		add_action( 'wp_ajax_nopriv_cem_cancel_registration',   [ $this, 'cancel_registration' ] );
+		add_action( 'wp_ajax_cem_leave_group',                  [ $this, 'leave_group' ] );
+		add_action( 'wp_ajax_nopriv_cem_leave_group',           [ $this, 'leave_group' ] );
 		add_action( 'wp_ajax_cem_create_payment_intent',        [ $this, 'create_payment_intent' ] );
 		add_action( 'wp_ajax_nopriv_cem_create_payment_intent', [ $this, 'create_payment_intent' ] );
 
@@ -147,6 +149,36 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
 		}
 		wp_send_json_success( [ 'message' => __( 'Registration cancelled.', 'church-event-manager' ) ] );
+	}
+
+	public function leave_group() {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'cem_leave_group_nonce' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Security check failed.', 'church-event-manager' ) ] );
+		}
+
+		$email    = sanitize_email( $_POST['email'] ?? '' );
+		$group_id = (int) ( $_POST['group_id'] ?? 0 );
+
+		if ( ! is_email( $email ) ) {
+			wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'church-event-manager' ) ] );
+		}
+		if ( ! $group_id || get_post_type( $group_id ) !== 'cem_group' ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid group.', 'church-event-manager' ) ] );
+		}
+
+		$reg = CEM_Registration::get_by_email_and_event( $email, $group_id );
+		if ( ! $reg ) {
+			wp_send_json_error( [ 'message' => __( 'No active membership found for that email address.', 'church-event-manager' ) ] );
+		}
+
+		$result = CEM_Registration::update_status( $reg->id, 'cancelled' );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+
+		do_action( 'cem_registration_cancelled', $reg->id, $group_id );
+
+		wp_send_json_success( [ 'message' => __( 'You have been removed from this group.', 'church-event-manager' ) ] );
 	}
 
 	// ── Admin handlers ────────────────────────────────────────────────────────
