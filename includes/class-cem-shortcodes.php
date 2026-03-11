@@ -297,12 +297,21 @@ class CEM_Shortcodes {
 
 	public function groups_list( $atts ) {
 		$atts = shortcode_atts( [
-			'layout'   => 'grid', // grid | list
+			'layout'   => 'grid',  // grid | list
 			'per_page' => 12,
-			'status'   => '',     // '' = all, 'upcoming', 'ongoing', 'completed'
+			'type'     => '',      // bible-study, prayer, mens, womens, etc.
+			'status'   => 'open',  // open | closed | full | inactive | '' = all
 		], $atts );
 
-		$meta_query = [];
+		$meta_query = [ 'relation' => 'AND' ];
+
+		if ( $atts['type'] ) {
+			$meta_query[] = [
+				'key'     => '_cem_group_type',
+				'value'   => sanitize_key( $atts['type'] ),
+				'compare' => '=',
+			];
+		}
 		if ( $atts['status'] ) {
 			$meta_query[] = [
 				'key'     => '_cem_group_status',
@@ -315,49 +324,46 @@ class CEM_Shortcodes {
 			'post_type'      => 'cem_group',
 			'post_status'    => 'publish',
 			'posts_per_page' => (int) $atts['per_page'],
-			'orderby'        => 'meta_value',
-			'meta_key'       => '_cem_group_start_date',
+			'orderby'        => 'title',
 			'order'          => 'ASC',
-			'meta_query'     => $meta_query,
+			'meta_query'     => count( $meta_query ) > 1 ? $meta_query : [],
 		] );
 
 		if ( ! $query->have_posts() ) {
-			return '<p class="cem-no-events">' . esc_html__( 'No event series found.', 'church-event-manager' ) . '</p>';
+			return '<p class="cem-no-events">' . esc_html__( 'No groups found.', 'church-event-manager' ) . '</p>';
 		}
 
-		$layout = in_array( $atts['layout'], [ 'grid', 'list' ], true ) ? $atts['layout'] : 'grid';
+		$group_types = CEM_Group::group_types();
+		$layout      = in_array( $atts['layout'], [ 'grid', 'list' ], true ) ? $atts['layout'] : 'grid';
+		$status_labels = [
+			'open'     => __( 'Open',     'church-event-manager' ),
+			'closed'   => __( 'Closed',   'church-event-manager' ),
+			'full'     => __( 'Full',     'church-event-manager' ),
+			'inactive' => __( 'Inactive', 'church-event-manager' ),
+		];
 
 		ob_start();
 		echo '<div class="cem-events-grid cem-groups-' . esc_attr( $layout ) . '">';
 
 		while ( $query->have_posts() ) {
 			$query->the_post();
-			$id         = get_the_ID();
-			$start      = get_post_meta( $id, '_cem_group_start_date', true );
-			$end        = get_post_meta( $id, '_cem_group_end_date', true );
-			$location   = get_post_meta( $id, '_cem_group_location', true );
-			$status_val = get_post_meta( $id, '_cem_group_status', true ) ?: 'upcoming';
-			$reg_status = get_post_meta( $id, '_cem_group_registration_status', true ) ?: 'open';
-			$capacity   = (int) get_post_meta( $id, '_cem_group_capacity', true );
-			$signups    = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
+			$id        = get_the_ID();
+			$type      = get_post_meta( $id, '_cem_group_type',      true );
+			$day       = get_post_meta( $id, '_cem_group_day',       true );
+			$time      = get_post_meta( $id, '_cem_group_time',      true );
+			$freq      = get_post_meta( $id, '_cem_group_frequency', true );
+			$location  = get_post_meta( $id, '_cem_group_location',  true );
+			$leader    = get_post_meta( $id, '_cem_group_leader',    true );
+			$status    = get_post_meta( $id, '_cem_group_status',    true ) ?: 'open';
+			$capacity  = (int) get_post_meta( $id, '_cem_group_capacity', true );
+			$members   = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
 
-			$date_range = '';
-			if ( $start ) {
-				$date_range = wp_date( get_option( 'date_format' ), strtotime( $start ) );
-				if ( $end && $end !== $start ) {
-					$date_range .= ' &ndash; ' . wp_date( get_option( 'date_format' ), strtotime( $end ) );
-				}
-			}
-
-			$status_labels = [
-				'upcoming'  => __( 'Upcoming',  'church-event-manager' ),
-				'ongoing'   => __( 'Ongoing',   'church-event-manager' ),
-				'completed' => __( 'Completed', 'church-event-manager' ),
-				'cancelled' => __( 'Cancelled', 'church-event-manager' ),
-			];
-			$status_label = $status_labels[ $status_val ] ?? ucfirst( $status_val );
-
-			$thumb = has_post_thumbnail() ? get_the_post_thumbnail( $id, 'medium', [ 'class' => 'cem-card-img' ] ) : '';
+			$type_label    = $group_types[ $type ] ?? '';
+			$status_label  = $status_labels[ $status ] ?? ucfirst( $status );
+			$fmt_time      = CEM_Group::format_time( $time );
+			$schedule_parts = array_filter( [ $freq ? ucfirst( $freq ) : '', $day, $fmt_time ] );
+			$schedule      = implode( ' · ', $schedule_parts );
+			$thumb         = has_post_thumbnail() ? get_the_post_thumbnail( $id, 'medium', [ 'class' => 'cem-card-img' ] ) : '';
 			?>
 			<article class="cem-event-card cem-group-card">
 				<?php if ( $thumb ) : ?>
@@ -365,38 +371,39 @@ class CEM_Shortcodes {
 				<?php endif; ?>
 				<div class="cem-card-body">
 					<div class="cem-card-meta">
-						<span class="cem-badge cem-group-status cem-group-status--<?php echo esc_attr( $status_val ); ?>">
+						<?php if ( $type_label ) : ?>
+						<span class="cem-badge cem-group-type-badge"><?php echo esc_html( $type_label ); ?></span>
+						<?php endif; ?>
+						<span class="cem-badge cem-group-status cem-group-status--<?php echo esc_attr( $status ); ?>">
 							<?php echo esc_html( $status_label ); ?>
 						</span>
 					</div>
 					<h3 class="cem-card-title">
 						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 					</h3>
-					<?php if ( $date_range ) : ?>
-					<p class="cem-card-date">📅 <?php echo esc_html( $date_range ); ?></p>
+					<?php if ( $schedule ) : ?>
+					<p class="cem-card-date">🗓 <?php echo esc_html( $schedule ); ?></p>
 					<?php endif; ?>
 					<?php if ( $location ) : ?>
 					<p class="cem-card-location">📍 <?php echo esc_html( $location ); ?></p>
 					<?php endif; ?>
+					<?php if ( $leader ) : ?>
+					<p class="cem-card-leader">👤 <?php echo esc_html( $leader ); ?></p>
+					<?php endif; ?>
 					<?php if ( $capacity > 0 ) : ?>
 					<p class="cem-card-capacity">
 						<?php printf(
-							/* translators: 1: filled seats, 2: total capacity */
 							esc_html__( '%1$d / %2$d spots filled', 'church-event-manager' ),
-							$signups, $capacity
+							$members, $capacity
 						); ?>
 					</p>
 					<?php endif; ?>
 					<div class="cem-card-actions">
-						<?php if ( $reg_status === 'open' ) : ?>
-						<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-primary">
-							<?php esc_html_e( 'Sign Up', 'church-event-manager' ); ?>
+						<a href="<?php the_permalink(); ?>" class="cem-btn <?php echo $status === 'open' ? 'cem-btn-primary' : 'cem-btn-secondary'; ?>">
+							<?php echo $status === 'open'
+								? esc_html__( 'Join Group', 'church-event-manager' )
+								: esc_html__( 'Learn More', 'church-event-manager' ); ?>
 						</a>
-						<?php else : ?>
-						<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-secondary">
-							<?php esc_html_e( 'Learn More', 'church-event-manager' ); ?>
-						</a>
-						<?php endif; ?>
 					</div>
 				</div>
 			</article>

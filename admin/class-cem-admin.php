@@ -47,9 +47,9 @@ class CEM_Admin {
 		add_submenu_page( 'cem-dashboard', __( 'All Events',     'church-event-manager' ), __( 'All Events',     'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_event' );
 		add_submenu_page( 'cem-dashboard', __( 'Add New Event',  'church-event-manager' ), __( 'Add New Event',  'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_event' );
 		add_submenu_page( 'cem-dashboard', __( 'Registrations',  'church-event-manager' ), __( 'Registrations',  'church-event-manager' ), 'cem_manage_events', 'cem-registrations',  [ $this, 'page_registrations' ] );
-		add_submenu_page( 'cem-dashboard', __( 'Event Series',   'church-event-manager' ), __( 'Event Series',   'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_group' );
-		add_submenu_page( 'cem-dashboard', __( 'Add New Series', 'church-event-manager' ), __( 'Add New Series', 'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_group' );
-		add_submenu_page( 'cem-dashboard', __( 'Series Sign-ups','church-event-manager' ), __( 'Series Sign-ups', 'church-event-manager' ), 'cem_manage_events', 'cem-group-signups',  [ $this, 'page_group_signups' ] );
+		add_submenu_page( 'cem-dashboard', __( 'Groups',         'church-event-manager' ), __( 'Groups',         'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_group' );
+		add_submenu_page( 'cem-dashboard', __( 'Add New Group',  'church-event-manager' ), __( 'Add New Group',  'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_group' );
+		add_submenu_page( 'cem-dashboard', __( 'Group Sign-ups', 'church-event-manager' ), __( 'Group Sign-ups', 'church-event-manager' ), 'cem_manage_events', 'cem-group-signups',  [ $this, 'page_group_signups' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Email Center',   'church-event-manager' ), __( 'Email Center',   'church-event-manager' ), 'cem_manage_events', 'cem-emails',         [ $this, 'page_emails' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Reports',        'church-event-manager' ), __( 'Reports',        'church-event-manager' ), 'cem_manage_events', 'cem-reports',        [ $this, 'page_reports' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Settings',       'church-event-manager' ), __( 'Settings',       'church-event-manager' ), 'manage_options',    'cem-settings',       [ $this, 'page_settings' ] );
@@ -505,7 +505,7 @@ class CEM_Admin {
 		<?php
 	}
 
-	// ── Series Sign-ups Page ─────────────────────────────────────────────────
+	// ── Group Sign-ups Page ──────────────────────────────────────────────────
 
 	public function page_group_signups() {
 		global $wpdb;
@@ -546,14 +546,14 @@ class CEM_Admin {
 		$groups = get_posts( [ 'post_type' => 'cem_group', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ] );
 		?>
 		<div class="wrap cem-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Series Sign-ups', 'church-event-manager' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Group Sign-ups', 'church-event-manager' ); ?></h1>
 			<hr class="wp-header-end">
 
 			<div class="cem-filter-bar">
 				<form method="get">
 					<input type="hidden" name="page" value="cem-group-signups">
 					<select name="group_id" onchange="this.form.submit()">
-						<option value=""><?php esc_html_e( 'All Series', 'church-event-manager' ); ?></option>
+						<option value=""><?php esc_html_e( 'All Groups', 'church-event-manager' ); ?></option>
 						<?php foreach ( $groups as $g ) : ?>
 						<option value="<?php echo esc_attr( $g->ID ); ?>" <?php selected( $group_id, $g->ID ); ?>>
 							<?php echo esc_html( $g->post_title ); ?>

@@ -52,6 +52,7 @@ class CEM_Post_Types {
 		add_action( 'manage_cem_event_posts_custom_column',  [ $this, 'event_column_data' ], 10, 2 );
 		add_filter( 'manage_edit-cem_event_sortable_columns',[ $this, 'event_sortable_columns' ] );
 		add_action( 'pre_get_posts',                         [ $this, 'sort_events_by_date' ] );
+		add_action( 'pre_get_posts',                         [ $this, 'events_archive_per_page' ] );
 	}
 
 	// ── Taxonomy: Event Category ──────────────────────────────────────────────
@@ -210,6 +211,16 @@ class CEM_Post_Types {
 		if ( $query->get( 'orderby' ) === 'cem_start_date' ) {
 			$query->set( 'meta_key', '_cem_start_datetime' );
 			$query->set( 'orderby', 'meta_value' );
+		}
+	}
+
+	public function events_archive_per_page( $query ) {
+		if ( is_admin() || ! $query->is_main_query() ) return;
+		if ( ! $query->is_post_type_archive( 'cem_event' ) ) return;
+
+		$per_page = (int) get_option( 'cem_events_per_page', 10 );
+		if ( $per_page > 0 ) {
+			$query->set( 'posts_per_page', $per_page );
 		}
 	}
 }
