@@ -3,6 +3,7 @@
  * All public-facing shortcodes.
  *
  * [cem_events]                    – Event listing with filters
+ * [cem_groups]                    – Event Series listing grid/list
  * [cem_registration_form]         – Registration form for a specific event
  * [cem_my_registrations]          – Registrant's own history / manage
  * [cem_event_calendar]            – Simple calendar grid (coming events)
@@ -13,6 +14,7 @@ class CEM_Shortcodes {
 
 	public function register() {
 		add_shortcode( 'cem_events',            [ $this, 'events_list' ] );
+		add_shortcode( 'cem_groups',            [ $this, 'groups_list' ] );
 		add_shortcode( 'cem_registration_form', [ $this, 'registration_form' ] );
 		add_shortcode( 'cem_my_registrations',  [ $this, 'my_registrations' ] );
 		add_shortcode( 'cem_event_calendar',    [ $this, 'event_calendar' ] );
@@ -291,6 +293,121 @@ class CEM_Shortcodes {
 		return ob_get_clean();
 	}
 
+	// ── [cem_groups] ─────────────────────────────────────────────────────────
+
+	public function groups_list( $atts ) {
+		$atts = shortcode_atts( [
+			'layout'   => 'grid', // grid | list
+			'per_page' => 12,
+			'status'   => '',     // '' = all, 'upcoming', 'ongoing', 'completed'
+		], $atts );
+
+		$meta_query = [];
+		if ( $atts['status'] ) {
+			$meta_query[] = [
+				'key'     => '_cem_group_status',
+				'value'   => sanitize_key( $atts['status'] ),
+				'compare' => '=',
+			];
+		}
+
+		$query = new WP_Query( [
+			'post_type'      => 'cem_group',
+			'post_status'    => 'publish',
+			'posts_per_page' => (int) $atts['per_page'],
+			'orderby'        => 'meta_value',
+			'meta_key'       => '_cem_group_start_date',
+			'order'          => 'ASC',
+			'meta_query'     => $meta_query,
+		] );
+
+		if ( ! $query->have_posts() ) {
+			return '<p class="cem-no-events">' . esc_html__( 'No event series found.', 'church-event-manager' ) . '</p>';
+		}
+
+		$layout = in_array( $atts['layout'], [ 'grid', 'list' ], true ) ? $atts['layout'] : 'grid';
+
+		ob_start();
+		echo '<div class="cem-events-grid cem-groups-' . esc_attr( $layout ) . '">';
+
+		while ( $query->have_posts() ) {
+			$query->the_post();
+			$id         = get_the_ID();
+			$start      = get_post_meta( $id, '_cem_group_start_date', true );
+			$end        = get_post_meta( $id, '_cem_group_end_date', true );
+			$location   = get_post_meta( $id, '_cem_group_location', true );
+			$status_val = get_post_meta( $id, '_cem_group_status', true ) ?: 'upcoming';
+			$reg_status = get_post_meta( $id, '_cem_group_registration_status', true ) ?: 'open';
+			$capacity   = (int) get_post_meta( $id, '_cem_group_capacity', true );
+			$signups    = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
+
+			$date_range = '';
+			if ( $start ) {
+				$date_range = wp_date( get_option( 'date_format' ), strtotime( $start ) );
+				if ( $end && $end !== $start ) {
+					$date_range .= ' &ndash; ' . wp_date( get_option( 'date_format' ), strtotime( $end ) );
+				}
+			}
+
+			$status_labels = [
+				'upcoming'  => __( 'Upcoming',  'church-event-manager' ),
+				'ongoing'   => __( 'Ongoing',   'church-event-manager' ),
+				'completed' => __( 'Completed', 'church-event-manager' ),
+				'cancelled' => __( 'Cancelled', 'church-event-manager' ),
+			];
+			$status_label = $status_labels[ $status_val ] ?? ucfirst( $status_val );
+
+			$thumb = has_post_thumbnail() ? get_the_post_thumbnail( $id, 'medium', [ 'class' => 'cem-card-img' ] ) : '';
+			?>
+			<article class="cem-event-card cem-group-card">
+				<?php if ( $thumb ) : ?>
+				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap"><?php echo $thumb; ?></a>
+				<?php endif; ?>
+				<div class="cem-card-body">
+					<div class="cem-card-meta">
+						<span class="cem-badge cem-group-status cem-group-status--<?php echo esc_attr( $status_val ); ?>">
+							<?php echo esc_html( $status_label ); ?>
+						</span>
+					</div>
+					<h3 class="cem-card-title">
+						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+					</h3>
+					<?php if ( $date_range ) : ?>
+					<p class="cem-card-date">📅 <?php echo esc_html( $date_range ); ?></p>
+					<?php endif; ?>
+					<?php if ( $location ) : ?>
+					<p class="cem-card-location">📍 <?php echo esc_html( $location ); ?></p>
+					<?php endif; ?>
+					<?php if ( $capacity > 0 ) : ?>
+					<p class="cem-card-capacity">
+						<?php printf(
+							/* translators: 1: filled seats, 2: total capacity */
+							esc_html__( '%1$d / %2$d spots filled', 'church-event-manager' ),
+							$signups, $capacity
+						); ?>
+					</p>
+					<?php endif; ?>
+					<div class="cem-card-actions">
+						<?php if ( $reg_status === 'open' ) : ?>
+						<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-primary">
+							<?php esc_html_e( 'Sign Up', 'church-event-manager' ); ?>
+						</a>
+						<?php else : ?>
+						<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-secondary">
+							<?php esc_html_e( 'Learn More', 'church-event-manager' ); ?>
+						</a>
+						<?php endif; ?>
+					</div>
+				</div>
+			</article>
+			<?php
+		}
+		wp_reset_postdata();
+
+		echo '</div>';
+		return ob_get_clean();
+	}
+
 	// ── [cem_registration_form] ───────────────────────────────────────────────
 
 	public function registration_form( $atts ) {
@@ -455,7 +572,7 @@ class CEM_Shortcodes {
 						<div>
 							<strong><?php echo esc_html( sprintf(
 							    /* translators: %%s: formatted price */
-							    __( 'Cost: %%s — Pay at the Door', 'church-event-manager' ),
+							    __( 'Cost: %s — Pay at the Door', 'church-event-manager' ),
 							    $price_display
 							) ); ?></strong>
 							<p><?php esc_html_e( 'No online payment required. Please bring payment to the event.', 'church-event-manager' ); ?></p>

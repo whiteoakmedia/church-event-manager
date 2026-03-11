@@ -20,6 +20,7 @@ class CEM_Public {
 	public function init() {
 		add_action( 'wp_enqueue_scripts',  [ $this, 'enqueue_assets' ] );
 		add_action( 'wp_enqueue_scripts',  [ $this, 'enqueue_event_template_assets' ] );
+		add_action( 'wp_enqueue_scripts',  [ $this, 'enqueue_group_template_assets' ] );
 		add_filter( 'the_content',         [ $this, 'append_registration_form' ] );
 
 		/*
@@ -112,6 +113,29 @@ class CEM_Public {
 
 		// Load Stripe for the built-in single-event template.
 		self::enqueue_stripe_for_event( get_the_ID() );
+	}
+
+	// ────────────────────────────────────────────────────────────────────────────
+	// Enqueue: single group template stylesheet (only on cem_group pages)
+	// ────────────────────────────────────────────────────────────────────────────
+	public function enqueue_group_template_assets() {
+		if ( ! is_singular( 'cem_group' ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'cem-single-group',
+			CEM_PLUGIN_URL . 'templates/single-group.css',
+			[ 'cem-public' ],
+			CEM_VERSION
+		);
+
+		$accent      = sanitize_hex_color( get_option( 'cem_accent_color', '#3b5998' ) ) ?: '#3b5998';
+		$accent_dark = self::darken_hex_color( $accent, 25 );
+		wp_add_inline_style(
+			'cem-single-group',
+			':root { --cem-accent: ' . $accent . '; --cem-accent-dark: ' . $accent_dark . '; }'
+		);
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────

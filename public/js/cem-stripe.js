@@ -70,6 +70,7 @@
     .done(function (res) {
       if (!res.success) {
         initError = true;
+        console.error('[CEM Stripe] PaymentIntent creation failed:', res.data);
         $mount.html(
           '<p class="cem-stripe-error-msg">' +
           $('<span>').text(res.data.message || cemStripe.strings.loadError).html() +
@@ -183,6 +184,9 @@
     .then(function (result) {
       if (result.error) {
         // Show Stripe's own error message (e.g. "Your card was declined.").
+        console.error('[CEM Stripe] confirmCardPayment error:', result.error);
+        // Clear PI ID so a failed intent can't be accidentally resubmitted.
+        $('#cem-payment-intent-id').val('');
         setButtonState(false);
         showStripeError(result.error.message);
         return;
@@ -195,6 +199,9 @@
         $form.data('payment-confirmed', true);
         $form.trigger('submit');
       } else {
+        // Unexpected status (e.g. requires_action for 3DS). Log for diagnosis.
+        console.error('[CEM Stripe] Unexpected PI status:', result.paymentIntent ? result.paymentIntent.status : 'unknown', result);
+        $('#cem-payment-intent-id').val('');
         setButtonState(false);
         showStripeError(cemStripe.strings.error);
       }

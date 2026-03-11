@@ -244,6 +244,22 @@
     });
   });
 
+  // ── Stripe test connection ────────────────────────────────────────────────
+
+  $(document).on('click', '#cem-test-stripe', function () {
+    const btn    = $(this);
+    const result = $('#cem-stripe-test-result');
+    btn.prop('disabled', true).text('Testing…');
+    result.text('').css('color', '');
+    $.post(ajax, { action: 'cem_test_stripe', nonce: cemAdmin.nonce }, function (res) {
+      btn.prop('disabled', false).text('Test Stripe Connection');
+      result.text(res.data.message).css('color', res.success ? '#008000' : '#c62828');
+    }).fail(function () {
+      btn.prop('disabled', false).text('Test Stripe Connection');
+      result.text('Request failed. Check browser console.').css('color', '#c62828');
+    });
+  });
+
   // Also save page dropdowns via native form post
   $('#cem-settings-form select[name="cem_events_page_id"], #cem-settings-form select[name="cem_my_registrations_page_id"]').on('change', function () {
     const key = $(this).attr('name');

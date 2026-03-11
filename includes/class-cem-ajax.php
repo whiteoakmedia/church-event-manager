@@ -28,6 +28,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_dashboard_stats',        [ $this, 'dashboard_stats' ] );
 		add_action( 'wp_ajax_cem_get_recipients_preview', [ $this, 'get_recipients_preview' ] );
 		add_action( 'wp_ajax_cem_submit_ticket',          [ $this, 'submit_ticket' ] );
+		add_action( 'wp_ajax_cem_test_stripe',            [ $this, 'test_stripe_connection' ] );
 	}
 
 	// ── Public handlers ───────────────────────────────────────────────────────
@@ -38,10 +39,12 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Security check failed.', 'church-event-manager' ) ] );
 		}
 
-		$event_id = (int) ( $_POST['event_id'] ?? 0 );
-		if ( ! $event_id ) {
+		$event_id   = (int) ( $_POST['event_id'] ?? 0 );
+		$post_type  = $event_id ? get_post_type( $event_id ) : false;
+		if ( ! $event_id || ! in_array( $post_type, [ 'cem_event', 'cem_group' ], true ) ) {
 			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
 		}
+		$is_group = ( $post_type === 'cem_group' );
 
 		// Collect custom fields
 		$custom_fields = [];
@@ -81,11 +84,12 @@ class CEM_Ajax {
 		}
 
 		// ── Payment verification ───────────────────────────────────────────────
-		$event_price    = get_post_meta( $event_id, '_cem_price', true );
+		// Groups (Event Series) are always free — no Stripe involved.
+		$event_price    = $is_group ? '' : get_post_meta( $event_id, '_cem_price', true );
 		$price_num      = ( $event_price !== '' ) ? (float) $event_price : 0.0;
-		$allow_inperson = get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';
+		$allow_inperson = ! $is_group && get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';
 
-		if ( $price_num > 0 && ! $allow_inperson && get_option( 'cem_stripe_enabled' ) === '1' ) {
+		if ( ! $is_group && $price_num > 0 && ! $allow_inperson && get_option( 'cem_stripe_enabled' ) === '1' ) {
 			// ── Online payment required — verify with Stripe ──────────────────
 			$pi_id = sanitize_text_field( $_POST['payment_intent_id'] ?? '' );
 
@@ -530,6 +534,48 @@ class CEM_Ajax {
 		}
 
 		return true;
+	}
+
+	// ── Stripe Test Connection ────────────────────────────────────────────────
+
+	/**
+	 * Verify Stripe API credentials by calling GET /v1/account (read-only, no charges).
+	 */
+	public function test_stripe_connection() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$secret_key = get_option( 'cem_stripe_secret_key', '' );
+		if ( empty( $secret_key ) ) {
+			wp_send_json_error( [ 'message' => __( 'No secret key configured. Enter your Stripe secret key and save first.', 'church-event-manager' ) ] );
+		}
+
+		$response = wp_remote_get( 'https://api.stripe.com/v1/account', [
+			'headers' => [ 'Authorization' => 'Bearer ' . $secret_key ],
+			'timeout' => 15,
+		] );
+
+		if ( is_wp_error( $response ) ) {
+			wp_send_json_error( [ 'message' => sprintf( __( 'Could not reach Stripe: %s', 'church-event-manager' ), $response->get_error_message() ) ] );
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( $code === 200 ) {
+			$mode = str_starts_with( $secret_key, 'sk_test_' ) ? 'test' : 'live';
+			$pub  = get_option( 'cem_stripe_publishable_key', '' );
+			$pub_mode = str_starts_with( $pub, 'pk_test_' ) ? 'test' : ( str_starts_with( $pub, 'pk_live_' ) ? 'live' : 'unknown' );
+			$mismatch = ( $mode === 'test' && $pub_mode === 'live' ) || ( $mode === 'live' && $pub_mode === 'test' );
+			$msg = sprintf( __( '✅ Connected! Account: %s (mode: %s)', 'church-event-manager' ), $body['email'] ?? $body['id'] ?? 'unknown', $mode );
+			if ( $mismatch ) {
+				$msg .= ' ⚠️ ' . __( 'Key mismatch: secret key is', 'church-event-manager' ) . " $mode " . __( 'but publishable key is', 'church-event-manager' ) . " $pub_mode.";
+			}
+			wp_send_json_success( [ 'message' => $msg ] );
+		} else {
+			$err = $body['error']['message'] ?? "HTTP $code";
+			wp_send_json_error( [ 'message' => sprintf( __( '❌ Stripe error: %s', 'church-event-manager' ), $err ) ] );
+		}
 	}
 
 	// ── Support Ticket ────────────────────────────────────────────────────────

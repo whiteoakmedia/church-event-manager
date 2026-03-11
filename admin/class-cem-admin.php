@@ -47,6 +47,9 @@ class CEM_Admin {
 		add_submenu_page( 'cem-dashboard', __( 'All Events',     'church-event-manager' ), __( 'All Events',     'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_event' );
 		add_submenu_page( 'cem-dashboard', __( 'Add New Event',  'church-event-manager' ), __( 'Add New Event',  'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_event' );
 		add_submenu_page( 'cem-dashboard', __( 'Registrations',  'church-event-manager' ), __( 'Registrations',  'church-event-manager' ), 'cem_manage_events', 'cem-registrations',  [ $this, 'page_registrations' ] );
+		add_submenu_page( 'cem-dashboard', __( 'Event Series',   'church-event-manager' ), __( 'Event Series',   'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_group' );
+		add_submenu_page( 'cem-dashboard', __( 'Add New Series', 'church-event-manager' ), __( 'Add New Series', 'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_group' );
+		add_submenu_page( 'cem-dashboard', __( 'Series Sign-ups','church-event-manager' ), __( 'Series Sign-ups', 'church-event-manager' ), 'cem_manage_events', 'cem-group-signups',  [ $this, 'page_group_signups' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Email Center',   'church-event-manager' ), __( 'Email Center',   'church-event-manager' ), 'cem_manage_events', 'cem-emails',         [ $this, 'page_emails' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Reports',        'church-event-manager' ), __( 'Reports',        'church-event-manager' ), 'cem_manage_events', 'cem-reports',        [ $this, 'page_reports' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Settings',       'church-event-manager' ), __( 'Settings',       'church-event-manager' ), 'manage_options',    'cem-settings',       [ $this, 'page_settings' ] );
@@ -58,10 +61,11 @@ class CEM_Admin {
 	public function enqueue_assets( $hook ) {
 		$cem_pages = [ 'toplevel_page_cem-dashboard', 'church-events_page_cem-registrations',
 			'church-events_page_cem-emails', 'church-events_page_cem-reports',
-			'church-events_page_cem-settings', 'cem_event', 'post.php', 'post-new.php' ];
+			'church-events_page_cem-settings', 'church-events_page_cem-group-signups',
+			'cem_event', 'post.php', 'post-new.php' ];
 
 		$on_cem = in_array( $hook, $cem_pages )
-			|| ( in_array( $hook, [ 'post.php', 'post-new.php' ] ) && get_post_type() === 'cem_event' );
+			|| ( in_array( $hook, [ 'post.php', 'post-new.php' ] ) && in_array( get_post_type(), [ 'cem_event', 'cem_group' ], true ) );
 
 		if ( ! $on_cem ) return;
 
@@ -501,6 +505,146 @@ class CEM_Admin {
 		<?php
 	}
 
+	// ── Series Sign-ups Page ─────────────────────────────────────────────────
+
+	public function page_group_signups() {
+		global $wpdb;
+
+		$group_id = (int) ( $_GET['group_id'] ?? 0 );
+		$status   = sanitize_key( $_GET['status'] ?? '' );
+		$search   = sanitize_text_field( $_GET['s'] ?? '' );
+		$page     = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+		$per_page = 25;
+
+		$args = [
+			'per_page' => $per_page,
+			'page'     => $page,
+			'search'   => $search,
+			'status'   => $status ? [ $status ] : [],
+			'event_id' => $group_id,
+		];
+
+		// If no specific group, limit to cem_group post IDs only.
+		if ( ! $group_id ) {
+			$group_ids = get_posts( [
+				'post_type'      => 'cem_group',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			] );
+			if ( empty( $group_ids ) ) {
+				$group_ids = [ 0 ]; // Force zero results.
+			}
+			$args['event_ids'] = $group_ids;
+		}
+
+		$result = CEM_Registration::get_all( $args );
+		$regs   = $result['registrations'];
+		$total  = $result['total'];
+		$pages  = ceil( $total / $per_page );
+
+		$groups = get_posts( [ 'post_type' => 'cem_group', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ] );
+		?>
+		<div class="wrap cem-wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Series Sign-ups', 'church-event-manager' ); ?></h1>
+			<hr class="wp-header-end">
+
+			<div class="cem-filter-bar">
+				<form method="get">
+					<input type="hidden" name="page" value="cem-group-signups">
+					<select name="group_id" onchange="this.form.submit()">
+						<option value=""><?php esc_html_e( 'All Series', 'church-event-manager' ); ?></option>
+						<?php foreach ( $groups as $g ) : ?>
+						<option value="<?php echo esc_attr( $g->ID ); ?>" <?php selected( $group_id, $g->ID ); ?>>
+							<?php echo esc_html( $g->post_title ); ?>
+						</option>
+						<?php endforeach; ?>
+					</select>
+					<select name="status" onchange="this.form.submit()">
+						<option value=""><?php esc_html_e( 'All Statuses', 'church-event-manager' ); ?></option>
+						<?php foreach ( [ 'pending', 'confirmed', 'cancelled', 'waitlisted', 'checked_in' ] as $s ) : ?>
+						<option value="<?php echo esc_attr($s); ?>" <?php selected($status,$s); ?>><?php echo esc_html(ucwords(str_replace('_',' ',$s))); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<input type="search" name="s" placeholder="<?php esc_attr_e('Search name, email…','church-event-manager'); ?>"
+						value="<?php echo esc_attr($search); ?>">
+					<button type="submit" class="button"><?php esc_html_e('Filter','church-event-manager'); ?></button>
+				</form>
+			</div>
+
+			<p class="cem-results-count">
+				<?php printf( esc_html__( '%d sign-ups found', 'church-event-manager' ), $total ); ?>
+			</p>
+
+			<?php if ( empty( $regs ) ) : ?>
+			<div class="cem-empty-state">
+				<p><?php esc_html_e( 'No sign-ups found.', 'church-event-manager' ); ?></p>
+			</div>
+			<?php else : ?>
+			<table class="wp-list-table widefat fixed striped cem-reg-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Name',         'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Series',       'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Email',        'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Attendees',    'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Status',       'church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Registered',   'church-event-manager' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ( $regs as $reg ) :
+					$grp       = get_post( $reg->event_id );
+					$grp_title = $grp ? esc_html( $grp->post_title ) : '—';
+					$badge_map = [
+						'confirmed'  => 'cem-badge--green',
+						'cancelled'  => 'cem-badge--red',
+						'waitlisted' => 'cem-badge--yellow',
+						'checked_in' => 'cem-badge--purple',
+						'pending'    => '',
+					];
+					$badge_cls = $badge_map[ $reg->status ] ?? '';
+				?>
+				<tr>
+					<td><strong><?php echo esc_html( $reg->first_name . ' ' . $reg->last_name ); ?></strong></td>
+					<td><?php echo $grp ? '<a href="' . esc_url( get_edit_post_link( $reg->event_id ) ) . '">' . $grp_title . '</a>' : $grp_title; ?></td>
+					<td><?php echo esc_html( $reg->email ); ?></td>
+					<td><?php echo (int) $reg->num_attendees; ?></td>
+					<td><span class="cem-badge <?php echo esc_attr($badge_cls); ?>"><?php echo esc_html(ucwords(str_replace('_',' ',$reg->status))); ?></span></td>
+					<td><?php echo esc_html( wp_date( get_option('date_format'), strtotime( $reg->created_at ) ) ); ?></td>
+				</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<?php if ( $pages > 1 ) : ?>
+			<div class="tablenav">
+				<div class="tablenav-pages">
+					<?php
+					echo paginate_links( [ // phpcs:ignore WordPress.Security.EscapeOutput
+						'base'    => add_query_arg( 'paged', '%#%' ),
+						'format'  => '',
+						'current' => $page,
+						'total'   => $pages,
+					] );
+					?>
+				</div>
+			</div>
+			<?php endif; ?>
+			<?php endif; ?>
+		</div>
+
+		<!-- Registration Detail Modal -->
+		<div id="cem-reg-modal" class="cem-modal" style="display:none">
+			<div class="cem-modal-overlay"></div>
+			<div class="cem-modal-content">
+				<button class="cem-modal-close">✕</button>
+				<div id="cem-reg-modal-body"></div>
+			</div>
+		</div>
+		<?php
+	}
+
 	// ── Email Center ──────────────────────────────────────────────────────────
 
 	public function page_emails() {
@@ -847,6 +991,18 @@ class CEM_Admin {
 				<div class="notice notice-warning inline"><p>
 					⚠️ <?php esc_html_e( 'Stripe is enabled but API keys are missing. Enter both keys above.', 'church-event-manager' ); ?>
 				</p></div>
+				<?php endif; ?>
+
+				<?php if ( $has_keys ) : ?>
+				<p>
+					<button type="button" class="button" id="cem-test-stripe">
+						<?php esc_html_e( 'Test Stripe Connection', 'church-event-manager' ); ?>
+					</button>
+					<span id="cem-stripe-test-result" style="margin-left:10px;"></span>
+				</p>
+				<p class="description">
+					<?php esc_html_e( 'Test card: 4242 4242 4242 4242, any future date, any CVC/ZIP. Both keys must be test or both must be live.', 'church-event-manager' ); ?>
+				</p>
 				<?php endif; ?>
 
 			<?php elseif ( $tab === 'pages' ) : ?>

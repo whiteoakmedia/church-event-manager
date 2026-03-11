@@ -209,15 +209,16 @@ class CEM_Registration {
 		global $wpdb;
 
 		$defaults = [
-			'status'   => [],
-			'event_id' => 0,
-			'per_page' => 25,
-			'page'     => 1,
-			'search'   => '',
-			'orderby'  => 'created_at',
-			'order'    => 'DESC',
-			'date_from'=> '',
-			'date_to'  => '',
+			'status'    => [],
+			'event_id'  => 0,
+			'event_ids' => [], // array of IDs — used for filtering to a specific set
+			'per_page'  => 25,
+			'page'      => 1,
+			'search'    => '',
+			'orderby'   => 'created_at',
+			'order'     => 'DESC',
+			'date_from' => '',
+			'date_to'   => '',
 		];
 		$args   = wp_parse_args( $args, $defaults );
 		$where  = [ '1=1' ];
@@ -225,6 +226,10 @@ class CEM_Registration {
 
 		if ( $args['event_id'] ) {
 			$where[] = $wpdb->prepare( "event_id = %d", $args['event_id'] );
+		} elseif ( ! empty( $args['event_ids'] ) ) {
+			$ids          = array_map( 'absint', $args['event_ids'] );
+			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$where[]      = $wpdb->prepare( "event_id IN ($placeholders)", ...$ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders
 		}
 		if ( ! empty( $args['status'] ) ) {
 			$placeholders = implode( ',', array_fill( 0, count( $args['status'] ), '%s' ) );

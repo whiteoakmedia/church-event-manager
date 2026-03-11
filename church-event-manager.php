@@ -3,7 +3,7 @@
  * Plugin Name:  Church Event Manager
  * Plugin URI:   https://whiteoakmedia.io
  * Description:  A comprehensive event management system built for churches. Includes event registration, custom fields, bulk emailing, waitlists, check-ins, volunteer management, and a volunteer-friendly admin dashboard.
- * Version:      1.0.2
+ * Version:      1.0.3
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       White Oak Media LLC
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-define( 'CEM_VERSION',         '1.0.2' );
+define( 'CEM_VERSION',         '1.0.3' );
 define( 'CEM_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'CEM_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
 define( 'CEM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -38,6 +38,7 @@ function cem_load_dependencies() {
 		'includes/class-cem-shortcodes.php',
 		'includes/class-cem-ajax.php',
 		'includes/class-cem-notifications.php',
+		'includes/class-cem-group.php',
 		'admin/class-cem-admin.php',
 		'public/class-cem-public.php',
 	];
@@ -54,12 +55,18 @@ function cem_load_dependencies() {
  * permalinks are re-saved.
  */
 function cem_register_post_types_for_rewrites() {
-	if ( ! class_exists( 'CEM_Post_Types' ) ) {
-		return;
+	if ( class_exists( 'CEM_Post_Types' ) ) {
+		$post_types = new CEM_Post_Types();
+		if ( method_exists( $post_types, 'register' ) ) {
+			$post_types->register();
+		}
 	}
-	$post_types = new CEM_Post_Types();
-	if ( method_exists( $post_types, 'register' ) ) {
-		$post_types->register();
+	// Also register the cem_group CPT so its rewrite rules are included.
+	if ( class_exists( 'CEM_Group' ) ) {
+		$group = new CEM_Group();
+		if ( method_exists( $group, 'register_cpt' ) ) {
+			$group->register_cpt();
+		}
 	}
 }
 
@@ -99,6 +106,10 @@ function CEM_init() {
 	// Custom fields meta box
 	$custom_fields = new CEM_Custom_Fields();
 	$custom_fields->init();
+
+	// Groups (Event Series)
+	$group = new CEM_Group();
+	$group->init();
 
 	// Scheduled reminders
 	add_action( 'cem_send_reminders_hook', [ $notifications, 'send_event_reminders' ] );
