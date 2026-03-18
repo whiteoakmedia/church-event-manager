@@ -31,6 +31,9 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_get_recipients_preview', [ $this, 'get_recipients_preview' ] );
 		add_action( 'wp_ajax_cem_submit_ticket',          [ $this, 'submit_ticket' ] );
 		add_action( 'wp_ajax_cem_test_stripe',            [ $this, 'test_stripe_connection' ] );
+
+		// Check-in page
+		add_action( 'wp_ajax_cem_checkin_load',            [ $this, 'checkin_load' ] );
 	}
 
 	// ── Public handlers ───────────────────────────────────────────────────────
@@ -713,11 +716,72 @@ class CEM_Ajax {
 		}
 	}
 
+	// ── Check-In Page ────────────────────────────────────────────────────────
+
+	/**
+	 * Load all registrations for an event (for the check-in page).
+	 * Returns registrants + counts for the live check-in UI.
+	 */
+	public function checkin_load() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$event_id = (int) ( $_GET['event_id'] ?? $_POST['event_id'] ?? 0 );
+		if ( ! $event_id ) {
+			wp_send_json_error( [ 'message' => __( 'No event selected.', 'church-event-manager' ) ] );
+		}
+
+		$regs = CEM_Registration::get_for_event( $event_id, [
+			'status'   => [ 'confirmed', 'checked_in', 'pending' ],
+			'per_page' => 0,
+			'orderby'  => 'last_name',
+			'order'    => 'ASC',
+		] );
+
+		$registrants = [];
+		$checked_in  = 0;
+		$total       = 0;
+		foreach ( $regs as $r ) {
+			$registrants[] = [
+				'id'            => (int) $r->id,
+				'first_name'    => $r->first_name,
+				'last_name'     => $r->last_name,
+				'email'         => $r->email,
+				'phone'         => $r->phone,
+				'num_attendees' => (int) $r->num_attendees,
+				'status'        => $r->status,
+				'checked_in_at' => $r->checked_in_at,
+			];
+			$total += (int) $r->num_attendees;
+			if ( $r->status === 'checked_in' ) {
+				$checked_in += (int) $r->num_attendees;
+			}
+		}
+
+		$capacity = (int) get_post_meta( $event_id, '_cem_capacity', true );
+
+		wp_send_json_success( [
+			'registrants'    => $registrants,
+			'total'          => $total,
+			'checked_in'     => $checked_in,
+			'capacity'       => $capacity,
+			'event_title'    => get_the_title( $event_id ),
+		] );
+	}
+
 	// ── Utility ───────────────────────────────────────────────────────────────
 
 	private function require_admin() {
-		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'cem_manage_events' ) ) {
+		$this->require_capability( 'cem_manage_events' );
+	}
+
+	private function require_capability( $cap ) {
+		if ( ! current_user_can( $cap ) && ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'church-event-manager' ) ], 403 );
 		}
+	}
+
+	private function require_checkin() {
+		$this->require_capability( 'cem_check_in' );
 	}
 }

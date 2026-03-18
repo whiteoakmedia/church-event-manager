@@ -38,11 +38,11 @@ class CEM_Helpers {
 	/** Get status label with colour indicator. */
 	public static function status_badge( $status ) {
 		$labels = [
-			'pending'    => [ 'label' => __( 'Pending',    'church-event-manager' ), 'class' => 'cem-badge--yellow' ],
-			'confirmed'  => [ 'label' => __( 'Confirmed',  'church-event-manager' ), 'class' => 'cem-badge--green'  ],
-			'cancelled'  => [ 'label' => __( 'Cancelled',  'church-event-manager' ), 'class' => 'cem-badge--red'    ],
-			'waitlisted' => [ 'label' => __( 'Waitlisted', 'church-event-manager' ), 'class' => 'cem-badge--blue'   ],
-			'checked_in' => [ 'label' => __( 'Checked In', 'church-event-manager' ), 'class' => 'cem-badge--purple' ],
+			'pending'    => [ 'label' => __( 'Waiting for Approval', 'church-event-manager' ), 'class' => 'cem-badge--yellow' ],
+			'confirmed'  => [ 'label' => __( 'Approved',             'church-event-manager' ), 'class' => 'cem-badge--green'  ],
+			'cancelled'  => [ 'label' => __( 'Cancelled',            'church-event-manager' ), 'class' => 'cem-badge--red'    ],
+			'waitlisted' => [ 'label' => __( 'On Waiting List',      'church-event-manager' ), 'class' => 'cem-badge--blue'   ],
+			'checked_in' => [ 'label' => __( 'Here',                 'church-event-manager' ), 'class' => 'cem-badge--purple' ],
 		];
 		$info = $labels[ $status ] ?? [ 'label' => ucfirst( $status ), 'class' => 'cem-badge--grey' ];
 		return '<span class="cem-badge ' . esc_attr( $info['class'] ) . '">' . esc_html( $info['label'] ) . '</span>';

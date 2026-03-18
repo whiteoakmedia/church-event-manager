@@ -50,6 +50,7 @@ class CEM_Admin {
 		add_submenu_page( 'cem-dashboard', __( 'Groups',         'church-event-manager' ), __( 'Groups',         'church-event-manager' ), 'cem_manage_events', 'edit.php?post_type=cem_group' );
 		add_submenu_page( 'cem-dashboard', __( 'Add New Group',  'church-event-manager' ), __( 'Add New Group',  'church-event-manager' ), 'cem_manage_events', 'post-new.php?post_type=cem_group' );
 		add_submenu_page( 'cem-dashboard', __( 'Group Sign-ups', 'church-event-manager' ), __( 'Group Sign-ups', 'church-event-manager' ), 'cem_manage_events', 'cem-group-signups',  [ $this, 'page_group_signups' ] );
+		add_submenu_page( 'cem-dashboard', __( 'Check-In',       'church-event-manager' ), __( 'Check-In',       'church-event-manager' ), 'cem_manage_events', 'cem-checkin',        [ $this, 'page_checkin' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Email Center',   'church-event-manager' ), __( 'Email Center',   'church-event-manager' ), 'cem_manage_events', 'cem-emails',         [ $this, 'page_emails' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Reports',        'church-event-manager' ), __( 'Reports',        'church-event-manager' ), 'cem_manage_events', 'cem-reports',        [ $this, 'page_reports' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Settings',       'church-event-manager' ), __( 'Settings',       'church-event-manager' ), 'manage_options',    'cem-settings',       [ $this, 'page_settings' ] );
@@ -62,6 +63,7 @@ class CEM_Admin {
 		$cem_pages = [ 'toplevel_page_cem-dashboard', 'church-events_page_cem-registrations',
 			'church-events_page_cem-emails', 'church-events_page_cem-reports',
 			'church-events_page_cem-settings', 'church-events_page_cem-group-signups',
+			'church-events_page_cem-checkin',
 			'cem_event', 'post.php', 'post-new.php' ];
 
 		$on_cem = in_array( $hook, $cem_pages )
@@ -83,11 +85,30 @@ class CEM_Admin {
 			'confirmBulkEmail' => __( 'Send this email to all selected registrants?', 'church-event-manager' ),
 			'strings'    => [
 				'saved'   => __( 'Saved!', 'church-event-manager' ),
-				'error'   => __( 'An error occurred.', 'church-event-manager' ),
+				'error'   => __( 'Something went wrong. Please try again.', 'church-event-manager' ),
 				'sending' => __( 'Sending…', 'church-event-manager' ),
 				'loading' => __( 'Loading…', 'church-event-manager' ),
 			],
 		] );
+
+		// Dedicated check-in page assets
+		if ( $hook === 'church-events_page_cem-checkin' ) {
+			wp_enqueue_style( 'cem-checkin', CEM_PLUGIN_URL . 'admin/css/cem-checkin.css', [ 'cem-admin' ], CEM_VERSION );
+			wp_enqueue_script( 'cem-checkin', CEM_PLUGIN_URL . 'admin/js/cem-checkin.js', [ 'jquery' ], CEM_VERSION, true );
+			wp_localize_script( 'cem-checkin', 'cemCheckin', [
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'cem_admin_nonce' ),
+				'strings' => [
+					'searching'   => __( 'Searching…', 'church-event-manager' ),
+					'checkedIn'   => __( 'Checked In', 'church-event-manager' ),
+					'checkIn'     => __( 'Check In', 'church-event-manager' ),
+					'noResults'   => __( 'No one found. Try a different name.', 'church-event-manager' ),
+					'selectEvent' => __( 'Select an event above to get started.', 'church-event-manager' ),
+					'error'       => __( 'Something went wrong. Please try again.', 'church-event-manager' ),
+					'success'     => __( 'Checked in!', 'church-event-manager' ),
+				],
+			] );
+		}
 	}
 
 	// ── Admin Notices ─────────────────────────────────────────────────────────
@@ -182,20 +203,20 @@ class CEM_Admin {
 		}
 		?>
 		<div class="wrap cem-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Church Event Manager', 'church-event-manager' ); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Church Events', 'church-event-manager' ); ?></h1>
 			<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=cem_event' ) ); ?>" class="page-title-action">
-				+ <?php esc_html_e( 'Add New Event', 'church-event-manager' ); ?>
+				+ <?php esc_html_e( 'Create an Event', 'church-event-manager' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
 			<!-- Stat Cards -->
 			<div class="cem-stat-cards">
-				<?php $this->stat_card( __( 'Total Events',    'church-event-manager' ), $stats['total_events'],          'dashicons-calendar-alt', '#6c5ce7', admin_url('edit.php?post_type=cem_event') ); ?>
-				<?php $this->stat_card( __( 'Registrations',   'church-event-manager' ), $stats['total_registrations'],   'dashicons-groups',       '#00b894' ); ?>
-				<?php $this->stat_card( __( 'Registered Today','church-event-manager' ), $stats['registrations_today'],   'dashicons-star-filled',  '#fdcb6e' ); ?>
-				<?php $this->stat_card( __( 'Upcoming Events', 'church-event-manager' ), $stats['upcoming_events'],       'dashicons-clock',        '#0984e3', admin_url('admin.php?page=cem-registrations') ); ?>
-				<?php $this->stat_card( __( 'Pending Confirm', 'church-event-manager' ), $stats['pending_confirmations'], 'dashicons-yes-alt',      '#e17055', admin_url('admin.php?page=cem-registrations&status=pending') ); ?>
-				<?php $this->stat_card( __( 'Waitlisted',      'church-event-manager' ), $stats['total_waitlisted'],      'dashicons-list-view',    '#a29bfe', admin_url('admin.php?page=cem-registrations&status=waitlisted') ); ?>
+				<?php $this->stat_card( __( 'Events', 'church-event-manager' ), $stats['total_events'],          'dashicons-calendar-alt', '#6c5ce7', admin_url('edit.php?post_type=cem_event') ); ?>
+				<?php $this->stat_card( __( 'People Signed Up', 'church-event-manager' ), $stats['total_registrations'],   'dashicons-groups',       '#00b894' ); ?>
+				<?php $this->stat_card( __( 'Signed Up Today', 'church-event-manager' ), $stats['registrations_today'],   'dashicons-star-filled',  '#fdcb6e' ); ?>
+				<?php $this->stat_card( __( 'Coming Up', 'church-event-manager' ), $stats['upcoming_events'],       'dashicons-clock',        '#0984e3', admin_url('admin.php?page=cem-registrations') ); ?>
+				<?php $this->stat_card( __( 'Needs Approval', 'church-event-manager' ), $stats['pending_confirmations'], 'dashicons-yes-alt',      '#e17055', admin_url('admin.php?page=cem-registrations&status=pending') ); ?>
+				<?php $this->stat_card( __( 'Waiting List', 'church-event-manager' ), $stats['total_waitlisted'],      'dashicons-list-view',    '#a29bfe', admin_url('admin.php?page=cem-registrations&status=waitlisted') ); ?>
 			</div>
 
 			<div class="cem-dashboard-columns">
@@ -203,7 +224,7 @@ class CEM_Admin {
 				<div class="cem-dashboard-card">
 					<h2><?php esc_html_e( 'Recent Registrations', 'church-event-manager' ); ?></h2>
 					<?php if ( empty( $recent_regs ) ) : ?>
-					<p class="cem-muted"><?php esc_html_e( 'No registrations yet.', 'church-event-manager' ); ?></p>
+					<p class="cem-muted"><?php esc_html_e( 'No one has signed up yet. Once people register for your events, they will show up here.', 'church-event-manager' ); ?></p>
 					<?php else : ?>
 					<table class="cem-table">
 						<thead><tr>
@@ -249,7 +270,7 @@ class CEM_Admin {
 					<div class="cem-dashboard-card">
 						<h2><?php esc_html_e( 'Upcoming Events', 'church-event-manager' ); ?></h2>
 						<?php if ( empty( $upcoming ) ) : ?>
-						<p class="cem-muted"><?php esc_html_e( 'No upcoming events.', 'church-event-manager' ); ?></p>
+						<p class="cem-muted"><?php esc_html_e( 'No upcoming events. Create one to get started!', 'church-event-manager' ); ?></p>
 						<?php else : ?>
 						<ul class="cem-event-list">
 						<?php foreach ( $upcoming as $ev ) :
@@ -288,8 +309,9 @@ class CEM_Admin {
 
 					<!-- Quick Links -->
 					<div class="cem-dashboard-card">
-						<h2><?php esc_html_e( 'Quick Actions', 'church-event-manager' ); ?></h2>
+						<h2><?php esc_html_e( 'What would you like to do?', 'church-event-manager' ); ?></h2>
 						<div class="cem-quick-links">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-checkin' ) ); ?>" class="cem-quick-link cem-quick-link--primary">&#9745; <?php esc_html_e( 'Check People In', 'church-event-manager' ); ?></a>
 							<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=cem_event' ) ); ?>" class="cem-quick-link">📅 <?php esc_html_e( 'New Event', 'church-event-manager' ); ?></a>
 							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-emails' ) ); ?>"           class="cem-quick-link">✉️ <?php esc_html_e( 'Send Email', 'church-event-manager' ); ?></a>
 							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-reports' ) ); ?>"           class="cem-quick-link">📊 <?php esc_html_e( 'Reports',   'church-event-manager' ); ?></a>
@@ -643,6 +665,88 @@ class CEM_Admin {
 			<div class="cem-modal-content">
 				<button class="cem-modal-close">✕</button>
 				<div id="cem-reg-modal-body"></div>
+			</div>
+		</div>
+		<?php
+	}
+
+	// ── Email Center ──────────────────────────────────────────────────────────
+
+	// ── Check-In Page ─────────────────────────────────────────────────────────
+
+	public function page_checkin() {
+		// Get upcoming events for the dropdown
+		$events = get_posts( [
+			'post_type'      => 'cem_event',
+			'post_status'    => 'publish',
+			'posts_per_page' => 50,
+			'meta_key'       => '_cem_start_datetime',
+			'orderby'        => 'meta_value',
+			'order'          => 'ASC',
+			'meta_query'     => [ [
+				'key'     => '_cem_start_datetime',
+				'value'   => date( 'Y-m-d', strtotime( '-7 days' ) ),
+				'compare' => '>=',
+				'type'    => 'DATE',
+			] ],
+		] );
+
+		// Find today's event to auto-select
+		$today = current_time( 'Y-m-d' );
+		$today_event_id = 0;
+		$preselect = (int) ( $_GET['event_id'] ?? 0 );
+		foreach ( $events as $ev ) {
+			$ev_date = get_post_meta( $ev->ID, '_cem_start_datetime', true );
+			if ( $ev_date && date( 'Y-m-d', strtotime( $ev_date ) ) === $today ) {
+				$today_event_id = $ev->ID;
+				break;
+			}
+		}
+		$selected_id = $preselect ?: $today_event_id;
+		?>
+		<div class="wrap cem-wrap cem-checkin-wrap">
+			<div class="cem-checkin-header">
+				<div>
+					<h1><?php esc_html_e( 'Check-In', 'church-event-manager' ); ?></h1>
+					<p class="cem-checkin-subtitle"><?php esc_html_e( 'Select an event, search for someone, and tap to check them in.', 'church-event-manager' ); ?></p>
+				</div>
+				<div class="cem-checkin-counter-wrap" id="cem-checkin-counter" style="display:none">
+					<span class="cem-checkin-counter-num" id="cem-checkin-num">0</span>
+					<span class="cem-checkin-counter-label"><?php esc_html_e( 'checked in', 'church-event-manager' ); ?></span>
+					<div class="cem-checkin-progress" id="cem-checkin-progress">
+						<div class="cem-checkin-progress-bar" id="cem-checkin-bar"></div>
+					</div>
+					<span class="cem-checkin-counter-detail" id="cem-checkin-detail"></span>
+				</div>
+			</div>
+
+			<div class="cem-checkin-controls">
+				<select id="cem-checkin-event" class="cem-checkin-event-select">
+					<option value=""><?php esc_html_e( '-- Pick an event --', 'church-event-manager' ); ?></option>
+					<?php foreach ( $events as $ev ) :
+						$start = get_post_meta( $ev->ID, '_cem_start_datetime', true );
+						$date_label = $start ? CEM_Helpers::format_date( $start ) : '';
+						$is_today = $start && date( 'Y-m-d', strtotime( $start ) ) === $today;
+					?>
+					<option value="<?php echo esc_attr( $ev->ID ); ?>" <?php selected( $selected_id, $ev->ID ); ?>
+						<?php echo $is_today ? 'data-today="1"' : ''; ?>>
+						<?php echo esc_html( $ev->post_title ); ?>
+						<?php if ( $date_label ) echo ' — ' . esc_html( $date_label ); ?>
+						<?php if ( $is_today ) echo ' (' . esc_html__( 'TODAY', 'church-event-manager' ) . ')'; ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+
+				<input type="search" id="cem-checkin-search" class="cem-checkin-search"
+					placeholder="<?php esc_attr_e( 'Search by name...', 'church-event-manager' ); ?>"
+					autocomplete="off" disabled>
+			</div>
+
+			<div id="cem-checkin-grid" class="cem-checkin-grid">
+				<div class="cem-checkin-empty" id="cem-checkin-empty">
+					<div class="cem-checkin-empty-icon">&#9745;</div>
+					<p><?php esc_html_e( 'Pick an event above to load the guest list.', 'church-event-manager' ); ?></p>
+				</div>
 			</div>
 		</div>
 		<?php
@@ -1070,10 +1174,10 @@ class CEM_Admin {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	public function add_meta_boxes() {
-		add_meta_box( 'cem_event_details', __( 'Event Details',        'church-event-manager' ), [ $this, 'mb_event_details'    ], 'cem_event', 'normal',   'high' );
-		add_meta_box( 'cem_event_reg',     __( 'Registration Settings','church-event-manager' ), [ $this, 'mb_event_reg'        ], 'cem_event', 'normal',   'default' );
-		add_meta_box( 'cem_event_sidebar', __( 'Quick Stats',          'church-event-manager' ), [ $this, 'mb_event_sidebar'    ], 'cem_event', 'side',     'default' );
-		add_meta_box( 'cem_event_group',   __( 'Parent Group',         'church-event-manager' ), [ $this, 'mb_event_group'      ], 'cem_event', 'side',     'default' );
+		add_meta_box( 'cem_event_details', __( 'When & Where',             'church-event-manager' ), [ $this, 'mb_event_details'    ], 'cem_event', 'normal',   'high' );
+		add_meta_box( 'cem_event_reg',     __( 'Sign-Up Settings',         'church-event-manager' ), [ $this, 'mb_event_reg'        ], 'cem_event', 'normal',   'default' );
+		add_meta_box( 'cem_event_sidebar', __( 'At a Glance',              'church-event-manager' ), [ $this, 'mb_event_sidebar'    ], 'cem_event', 'side',     'high' );
+		add_meta_box( 'cem_event_group',   __( 'Linked Group (Optional)',  'church-event-manager' ), [ $this, 'mb_event_group'      ], 'cem_event', 'side',     'default' );
 	}
 
 	public function mb_event_details( $post ) {
@@ -1107,37 +1211,37 @@ class CEM_Admin {
 		?>
 		<div class="cem-meta-grid">
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Start Date & Time','church-event-manager'); ?></label>
+				<label><?php esc_html_e('When does it start?','church-event-manager'); ?></label>
 				<input type="datetime-local" name="_cem_start_datetime"
 					value="<?php echo esc_attr( $fields['_cem_start_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_start_datetime'])) : '' ); ?>">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('End Date & Time','church-event-manager'); ?></label>
+				<label><?php esc_html_e('When does it end?','church-event-manager'); ?></label>
 				<input type="datetime-local" name="_cem_end_datetime"
 					value="<?php echo esc_attr( $fields['_cem_end_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_end_datetime'])) : '' ); ?>">
 			</div>
 			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Venue / Location Name','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Where is it?','church-event-manager'); ?></label>
 				<input type="text" name="_cem_location" value="<?php echo esc_attr($fields['_cem_location']); ?>" placeholder="e.g. Fellowship Hall">
 			</div>
 			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Street Address','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Full Address','church-event-manager'); ?></label>
 				<input type="text" name="_cem_location_address" value="<?php echo esc_attr($fields['_cem_location_address']); ?>" placeholder="123 Church Street, City, ST 12345">
 			</div>
 			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Map/Directions URL','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Google Maps Link','church-event-manager'); ?></label>
 				<input type="url" name="_cem_location_url" value="<?php echo esc_attr($fields['_cem_location_url']); ?>" placeholder="https://maps.google.com/…">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Organizer / Contact','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Who is organizing this?','church-event-manager'); ?></label>
 				<input type="text" name="_cem_organizer" value="<?php echo esc_attr($fields['_cem_organizer']); ?>" placeholder="e.g. Pastor John">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Organizer Email','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Their Email','church-event-manager'); ?></label>
 				<input type="email" name="_cem_organizer_email" value="<?php echo esc_attr($fields['_cem_organizer_email']); ?>">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Price / Cost','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Cost (leave blank if free)','church-event-manager'); ?></label>
 				<input type="number" name="_cem_price" value="<?php echo esc_attr($fields['_cem_price']); ?>"
 					min="0" step="0.01" placeholder="0.00"
 					style="max-width:140px">
@@ -1151,7 +1255,7 @@ class CEM_Admin {
 				<span class="description"><?php esc_html_e( 'When checked, the Stripe payment form is hidden. Attendees register normally and pay at the door.', 'church-event-manager' ); ?></span>
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Event Status','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Is this event still happening?','church-event-manager'); ?></label>
 				<select name="_cem_event_status">
 					<option value=""         <?php selected($fields['_cem_event_status'],''); ?>><?php esc_html_e('Active','church-event-manager'); ?></option>
 					<option value="cancelled"<?php selected($fields['_cem_event_status'],'cancelled'); ?>><?php esc_html_e('Cancelled','church-event-manager'); ?></option>
@@ -1160,10 +1264,10 @@ class CEM_Admin {
 			</div>
 			<div class="cem-meta-row">
 				<label><input type="checkbox" name="_cem_online_event" value="1" <?php checked($fields['_cem_online_event'],'1'); ?>>
-					<?php esc_html_e('Online / Virtual Event','church-event-manager'); ?></label>
+					<?php esc_html_e('This is an online/virtual event','church-event-manager'); ?></label>
 			</div>
 			<div class="cem-meta-row cem-meta-full" id="cem-stream-url-row" <?php echo $fields['_cem_online_event'] ? '' : 'style="display:none"'; ?>>
-				<label><?php esc_html_e('Stream / Meeting URL','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Zoom/YouTube/Stream Link','church-event-manager'); ?></label>
 				<input type="url" name="_cem_stream_url" value="<?php echo esc_attr($fields['_cem_stream_url']); ?>" placeholder="https://zoom.us/j/…">
 			</div>
 
@@ -1392,20 +1496,20 @@ class CEM_Admin {
 				</script>
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Max Registrations (0 = unlimited)','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Maximum number of people','church-event-manager'); ?></label>
 				<input type="number" name="_cem_capacity" value="<?php echo esc_attr($cap); ?>" min="0" placeholder="0">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Max Attendees Per Registration','church-event-manager'); ?></label>
+				<label><?php esc_html_e('How many guests can one person sign up?','church-event-manager'); ?></label>
 				<input type="number" name="_cem_max_attendees_per_reg" value="<?php echo esc_attr($max_pp ?: 1); ?>" min="1">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Registration Deadline','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Last day to sign up','church-event-manager'); ?></label>
 				<input type="datetime-local" name="_cem_registration_deadline"
 					value="<?php echo esc_attr($deadline ? date('Y-m-d\TH:i', strtotime($deadline)) : ''); ?>">
 			</div>
 			<div class="cem-meta-row">
-				<label><?php esc_html_e('Registration Status','church-event-manager'); ?></label>
+				<label><?php esc_html_e('Sign-up status','church-event-manager'); ?></label>
 				<select name="_cem_registration_status">
 					<option value="open"   <?php selected($reg_st,'open'); ?>><?php esc_html_e('Open','church-event-manager'); ?></option>
 					<option value="closed" <?php selected($reg_st,'closed'); ?>><?php esc_html_e('Closed','church-event-manager'); ?></option>
@@ -1441,18 +1545,26 @@ class CEM_Admin {
 		$waitlist = CEM_Registration::get_waitlist_count( $post->ID );
 		?>
 		<div class="cem-sidebar-stats">
-			<div class="cem-ss-row"><span><?php esc_html_e('Registrations','church-event-manager'); ?></span><strong><?php echo esc_html($taken); ?></strong></div>
+			<div class="cem-ss-row"><span><?php esc_html_e('People signed up','church-event-manager'); ?></span><strong><?php echo esc_html($taken); ?></strong></div>
 			<?php if ( $capacity > 0 ) : ?>
-			<div class="cem-ss-row"><span><?php esc_html_e('Capacity','church-event-manager'); ?></span><strong><?php echo esc_html($capacity); ?></strong></div>
-			<div class="cem-ss-row"><span><?php esc_html_e('Spots Left','church-event-manager'); ?></span><strong><?php echo esc_html( max(0,$capacity-$taken) ); ?></strong></div>
+			<div class="cem-ss-row"><span><?php esc_html_e('Max capacity','church-event-manager'); ?></span><strong><?php echo esc_html($capacity); ?></strong></div>
+			<div class="cem-ss-row"><span><?php esc_html_e('Spots remaining','church-event-manager'); ?></span><strong><?php echo esc_html( max(0,$capacity-$taken) ); ?></strong></div>
 			<?php endif; ?>
-			<div class="cem-ss-row"><span><?php esc_html_e('Waitlisted','church-event-manager'); ?></span><strong><?php echo esc_html($waitlist); ?></strong></div>
+			<?php if ( $waitlist > 0 ) : ?>
+			<div class="cem-ss-row"><span><?php esc_html_e('On waiting list','church-event-manager'); ?></span><strong><?php echo esc_html($waitlist); ?></strong></div>
+			<?php endif; ?>
 		</div>
-		<p>
-			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-registrations&event_id=' . $post->ID) ); ?>" class="button button-small button-primary" style="width:100%;text-align:center;margin-top:8px">
-				<?php esc_html_e('View Registrations','church-event-manager'); ?>
+		<div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-checkin&event_id=' . $post->ID) ); ?>" class="button button-primary" style="width:100%;text-align:center;padding:8px">
+				&#9745; <?php esc_html_e('Start Check-In','church-event-manager'); ?>
 			</a>
-		</p>
+			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-registrations&event_id=' . $post->ID) ); ?>" class="button" style="width:100%;text-align:center">
+				<?php esc_html_e('See Who Signed Up','church-event-manager'); ?>
+			</a>
+			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-emails&event_id=' . $post->ID) ); ?>" class="button" style="width:100%;text-align:center">
+				<?php esc_html_e('Email Everyone','church-event-manager'); ?>
+			</a>
+		</div>
 		<?php
 	}
 

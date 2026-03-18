@@ -121,6 +121,22 @@ class CEM_Activator {
 		) $charset_collate;";
 		dbDelta( $sql );
 
+		// Volunteer assignments
+		$sql = "CREATE TABLE {$wpdb->prefix}cem_volunteer_assignments (
+			id              BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			event_id        BIGINT(20) UNSIGNED NOT NULL,
+			user_id         BIGINT(20) UNSIGNED NOT NULL,
+			role_label      VARCHAR(100) DEFAULT NULL,
+			notes           TEXT DEFAULT NULL,
+			reminder_sent   TINYINT(1) NOT NULL DEFAULT 0,
+			created_at      DATETIME NOT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY event_user (event_id, user_id),
+			KEY event_id (event_id),
+			KEY user_id (user_id)
+		) $charset_collate;";
+		dbDelta( $sql );
+
 		// Attendance / check-in log
 		$sql = "CREATE TABLE {$wpdb->prefix}cem_checkins (
 			id              BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -177,7 +193,6 @@ class CEM_Activator {
 		if ( get_option( 'cem_db_version' ) === CEM_DB_VERSION ) {
 			return;
 		}
-		// dbDelta safely adds any missing columns to existing tables.
 		self::create_tables();
 		self::set_default_options();
 		update_option( 'cem_db_version', CEM_DB_VERSION );
@@ -196,6 +211,11 @@ class CEM_Activator {
 				'title'   => __( 'My Registrations', 'church-event-manager' ),
 				'content' => '[cem_my_registrations]',
 				'slug'    => 'my-registrations',
+			],
+			'cem_volunteer_portal_page_id' => [
+				'title'   => __( 'Volunteer Portal', 'church-event-manager' ),
+				'content' => '[cem_volunteer_portal]',
+				'slug'    => 'volunteer-portal',
 			],
 		];
 

@@ -157,6 +157,21 @@
 
 .cem-quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
+.cem-quick-link--primary {
+  background: #38a169 !important;
+  color: #fff !important;
+  border-color: #38a169 !important;
+  font-weight: 600;
+  grid-column: 1 / -1;
+  font-size: 15px;
+  padding: 14px 12px;
+}
+.cem-quick-link--primary:hover {
+  background: #2f855a !important;
+  border-color: #2f855a !important;
+  color: #fff !important;
+}
+
 .cem-quick-link {
   display: block;
   background: var(--cem-bg);
