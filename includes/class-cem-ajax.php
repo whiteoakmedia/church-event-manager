@@ -66,13 +66,21 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => implode( '<br>', $field_errors ) ] );
 		}
 
+		// Registration type / pricing tier
+		$reg_type_index = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
+		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+		$selected_type  = ( $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) ? $reg_types[ $reg_type_index ] : null;
+
+		$num_attendees = (int) ( $_POST['num_attendees'] ?? 1 );
+
 		$data = [
 			'event_id'      => $event_id,
 			'first_name'    => sanitize_text_field( $_POST['first_name'] ?? '' ),
 			'last_name'     => sanitize_text_field( $_POST['last_name'] ?? '' ),
 			'email'         => sanitize_email( $_POST['email'] ?? '' ),
 			'phone'         => sanitize_text_field( $_POST['phone'] ?? '' ),
-			'num_attendees' => (int) ( $_POST['num_attendees'] ?? 1 ),
+			'num_attendees' => $num_attendees,
 			'notes'         => sanitize_textarea_field( $_POST['notes'] ?? '' ),
 			'custom_fields' => $custom_fields,
 			'user_id'       => is_user_logged_in() ? get_current_user_id() : null,
@@ -90,6 +98,11 @@ class CEM_Ajax {
 		$event_price    = $is_group ? '' : get_post_meta( $event_id, '_cem_price', true );
 		$price_num      = ( $event_price !== '' ) ? (float) $event_price : 0.0;
 		$allow_inperson = ! $is_group && get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';
+
+		// If a registration type/tier was selected, use its price instead
+		if ( $selected_type ) {
+			$price_num = (float) $selected_type['price'];
+		}
 
 		if ( ! $is_group && $price_num > 0 && ! $allow_inperson && get_option( 'cem_stripe_enabled' ) === '1' ) {
 			// ── Online payment required — verify with Stripe ──────────────────
@@ -124,15 +137,43 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
 		}
 
+		// Save registration type/tier metadata
+		if ( $selected_type ) {
+			global $wpdb;
+			$reg_meta_table = "{$wpdb->prefix}cem_registration_meta";
+
+			$wpdb->insert( $reg_meta_table, [
+				'registration_id' => $result,
+				'meta_key'        => '_registration_type',
+				'meta_value'      => sanitize_text_field( $selected_type['name'] ),
+			], [ '%d', '%s', '%s' ] );
+
+			$wpdb->insert( $reg_meta_table, [
+				'registration_id' => $result,
+				'meta_key'        => '_registration_type_price',
+				'meta_value'      => number_format( (float) $selected_type['price'], 2, '.', '' ),
+			], [ '%d', '%s', '%s' ] );
+		}
+
 		$reg = CEM_Registration::get( $result );
 		$message = $reg->status === 'waitlisted'
 			? __( 'You have been added to the waitlist! We will contact you if a spot becomes available.', 'church-event-manager' )
 			: __( 'You\'re registered! Check your email for a confirmation.', 'church-event-manager' );
 
+		// Redirect URL: per-event override → global setting → events archive
+		$redirect_url = get_post_meta( $event_id, '_cem_registration_redirect', true );
+		if ( ! $redirect_url ) {
+			$redirect_url = get_option( 'cem_registration_redirect_url', '' );
+		}
+		if ( ! $redirect_url ) {
+			$redirect_url = home_url( '/church-events/' );
+		}
+
 		wp_send_json_success( [
-			'message' => $message,
-			'code'    => $reg->registration_code,
-			'status'  => $reg->status,
+			'message'      => $message,
+			'code'         => $reg->registration_code,
+			'status'       => $reg->status,
+			'redirect_url' => $redirect_url ?: '',
 		] );
 	}
 

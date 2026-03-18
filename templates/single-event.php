@@ -47,6 +47,8 @@ while ( have_posts() ) :
 	$max_per_reg = (int) get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
 	$deadline    = get_post_meta( $event_id, '_cem_registration_deadline', true );
 	$reg_status  = get_post_meta( $event_id, '_cem_registration_status', true ) ?: 'open';
+	$reg_enabled = get_post_meta( $event_id, '_cem_registration_enabled', true );
+	if ( $reg_enabled === '' ) $reg_enabled = '1'; // Default on for existing events
 
 	// ── Format Dates & Times ──────────────────────────────────────────────────
 	$start_date    = '';
@@ -296,6 +298,7 @@ while ( have_posts() ) :
 					</div>
 					<?php endif; ?>
 
+		<?php if ( $reg_enabled === '1' ) : ?>
 		<section class="cem-event-body__reg-section" id="cem-registration-anchor">
 			<div class="cem-reg-full-card">
 
@@ -407,6 +410,7 @@ while ( have_posts() ) :
 
 			</div><!-- /.cem-reg-full-card -->
 		</section><!-- /.cem-event-body__reg-section -->
+		<?php endif; // reg_enabled ?>
 
 					<?php /* Tags */ ?>
 					<?php if ( $tax_tags && ! is_wp_error( $tax_tags ) ) : ?>

@@ -141,10 +141,9 @@ class CEM_Admin {
 
 		if ( $is_cem ) {
 			return sprintf(
-				/* translators: 1: plugin name, 2: company link */
-				__( 'Thank you for using %1$s &mdash; developed with ❤️ by %2$s', 'church-event-manager' ),
+				__( 'Thank you for using %1$s &mdash; built for the local church by %2$s', 'church-event-manager' ),
 				'<strong>Church Event Manager</strong>',
-				'<a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer"><strong>White Oak Media LLC</strong></a>'
+				'<a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer"><strong>White Oak Media</strong></a>'
 			);
 		}
 		return $text;
@@ -300,17 +299,21 @@ class CEM_Admin {
 				</div>
 			</div><!-- /.cem-dashboard-columns -->
 
-			<!-- White Oak Media LLC credit -->
+			<!-- White Oak Media -->
 			<div class="cem-wom-footer">
-				<?php printf(
-					/* translators: 1: plugin name, 2: company link */
-					__( '%1$s &mdash; developed by %2$s', 'church-event-manager' ),
-					'<strong>Church Event Manager</strong>',
-					'<a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer"><strong>White Oak Media LLC</strong></a>'
-				); ?>
-				<span class="cem-wom-footer__version">v<?php echo esc_html( CEM_VERSION ); ?></span>
-				&bull;
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-support' ) ); ?>"><?php esc_html_e( 'Submit a Ticket', 'church-event-manager' ); ?></a>
+				<div class="cem-wom-footer-left">
+					<?php printf(
+						__( '%1$s &mdash; built for the local church by %2$s', 'church-event-manager' ),
+						'<strong>Church Event Manager</strong>',
+						'<a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer"><strong>White Oak Media</strong></a>'
+					); ?>
+					<span class="cem-wom-footer__version">v<?php echo esc_html( CEM_VERSION ); ?></span>
+				</div>
+				<div class="cem-wom-footer-links">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-support' ) ); ?>"><?php esc_html_e( 'Support', 'church-event-manager' ); ?></a>
+					<a href="https://clients.whiteoakmedia.io" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Client Portal', 'church-event-manager' ); ?></a>
+					<a href="https://whiteoakmedia.io/pricing" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Services', 'church-event-manager' ); ?></a>
+				</div>
 			</div>
 
 		</div><!-- /.cem-wrap -->
@@ -1315,12 +1318,79 @@ class CEM_Admin {
 	}
 
 	public function mb_event_reg( $post ) {
-		$cap      = get_post_meta( $post->ID, '_cem_capacity', true );
-		$deadline = get_post_meta( $post->ID, '_cem_registration_deadline', true );
-		$max_pp   = get_post_meta( $post->ID, '_cem_max_attendees_per_reg', true );
-		$reg_st   = get_post_meta( $post->ID, '_cem_registration_status', true );
+		$cap        = get_post_meta( $post->ID, '_cem_capacity', true );
+		$deadline   = get_post_meta( $post->ID, '_cem_registration_deadline', true );
+		$max_pp     = get_post_meta( $post->ID, '_cem_max_attendees_per_reg', true );
+		$reg_st     = get_post_meta( $post->ID, '_cem_registration_status', true );
+		$reg_enabled = get_post_meta( $post->ID, '_cem_registration_enabled', true );
+		$reg_type   = get_post_meta( $post->ID, '_cem_registration_type', true ) ?: 'individual';
+		$redirect   = get_post_meta( $post->ID, '_cem_registration_redirect', true );
+
+		// Default to enabled for new/existing events without the meta set
+		if ( $reg_enabled === '' ) $reg_enabled = '1';
 		?>
 		<div class="cem-meta-grid">
+			<div class="cem-meta-row cem-meta-full">
+				<label style="font-size:14px;font-weight:600;">
+					<input type="checkbox" name="_cem_registration_enabled" value="1" id="cem-reg-enabled"
+						<?php checked( $reg_enabled, '1' ); ?>>
+					<?php esc_html_e( 'Enable Registration Form', 'church-event-manager' ); ?>
+				</label>
+				<span class="description"><?php esc_html_e( 'When unchecked, no registration form will be shown — the event page will display event information only.', 'church-event-manager' ); ?></span>
+			</div>
+
+			<div id="cem-reg-fields-wrap" <?php echo $reg_enabled !== '1' ? 'style="display:none;opacity:0.5;pointer-events:none"' : ''; ?>>
+
+			<div class="cem-meta-row cem-meta-full" id="cem-reg-types-section">
+				<label><?php esc_html_e( 'Registration Types / Pricing Tiers', 'church-event-manager' ); ?></label>
+				<p class="description" style="margin:4px 0 8px"><?php esc_html_e( 'Add multiple registration types with different prices (e.g., Adult $25, Student $10, Child Free). Leave empty to use the single price field above.', 'church-event-manager' ); ?></p>
+				<?php
+				$reg_types = get_post_meta( $post->ID, '_cem_registration_types', true );
+				$reg_types = $reg_types ? json_decode( $reg_types, true ) : [];
+				?>
+				<table class="widefat cem-reg-types-table" id="cem-reg-types-table">
+					<thead>
+						<tr>
+							<th style="width:30%"><?php esc_html_e( 'Type Name', 'church-event-manager' ); ?></th>
+							<th style="width:15%"><?php esc_html_e( 'Price', 'church-event-manager' ); ?></th>
+							<th style="width:15%"><?php esc_html_e( 'Capacity', 'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'church-event-manager' ); ?></th>
+							<th style="width:40px"></th>
+						</tr>
+					</thead>
+					<tbody id="cem-reg-types-body">
+						<?php if ( ! empty( $reg_types ) ) : foreach ( $reg_types as $i => $rt ) : ?>
+						<tr class="cem-reg-type-row">
+							<td><input type="text" name="cem_reg_types[<?php echo $i; ?>][name]" value="<?php echo esc_attr( $rt['name'] ?? '' ); ?>" placeholder="<?php esc_attr_e( 'e.g., Adult', 'church-event-manager' ); ?>" class="widefat"></td>
+							<td><input type="number" name="cem_reg_types[<?php echo $i; ?>][price]" value="<?php echo esc_attr( $rt['price'] ?? '0' ); ?>" min="0" step="0.01" class="widefat" placeholder="0.00"></td>
+							<td><input type="number" name="cem_reg_types[<?php echo $i; ?>][capacity]" value="<?php echo esc_attr( $rt['capacity'] ?? '0' ); ?>" min="0" class="widefat" placeholder="0 = unlimited"></td>
+							<td><input type="text" name="cem_reg_types[<?php echo $i; ?>][description]" value="<?php echo esc_attr( $rt['description'] ?? '' ); ?>" placeholder="<?php esc_attr_e( 'Brief description (optional)', 'church-event-manager' ); ?>" class="widefat"></td>
+							<td><button type="button" class="button cem-remove-reg-type" title="<?php esc_attr_e( 'Remove', 'church-event-manager' ); ?>">&times;</button></td>
+						</tr>
+						<?php endforeach; endif; ?>
+					</tbody>
+				</table>
+				<button type="button" class="button" id="cem-add-reg-type" style="margin-top:8px">+ <?php esc_html_e( 'Add Registration Type', 'church-event-manager' ); ?></button>
+				<script>
+				(function($){
+					var idx = <?php echo max( count( $reg_types ), 0 ); ?>;
+					$('#cem-add-reg-type').on('click', function(){
+						var row = '<tr class="cem-reg-type-row">'
+							+ '<td><input type="text" name="cem_reg_types['+idx+'][name]" placeholder="<?php echo esc_js( __( 'e.g., Adult', 'church-event-manager' ) ); ?>" class="widefat"></td>'
+							+ '<td><input type="number" name="cem_reg_types['+idx+'][price]" value="0" min="0" step="0.01" class="widefat" placeholder="0.00"></td>'
+							+ '<td><input type="number" name="cem_reg_types['+idx+'][capacity]" value="0" min="0" class="widefat" placeholder="0 = unlimited"></td>'
+							+ '<td><input type="text" name="cem_reg_types['+idx+'][description]" placeholder="<?php echo esc_js( __( 'Brief description (optional)', 'church-event-manager' ) ); ?>" class="widefat"></td>'
+							+ '<td><button type="button" class="button cem-remove-reg-type" title="Remove">&times;</button></td>'
+							+ '</tr>';
+						$('#cem-reg-types-body').append(row);
+						idx++;
+					});
+					$(document).on('click', '.cem-remove-reg-type', function(){
+						$(this).closest('tr').remove();
+					});
+				})(jQuery);
+				</script>
+			</div>
 			<div class="cem-meta-row">
 				<label><?php esc_html_e('Max Registrations (0 = unlimited)','church-event-manager'); ?></label>
 				<input type="number" name="_cem_capacity" value="<?php echo esc_attr($cap); ?>" min="0" placeholder="0">
@@ -1341,7 +1411,26 @@ class CEM_Admin {
 					<option value="closed" <?php selected($reg_st,'closed'); ?>><?php esc_html_e('Closed','church-event-manager'); ?></option>
 				</select>
 			</div>
+			<div class="cem-meta-row cem-meta-full">
+				<label><?php esc_html_e( 'After Registration Redirect', 'church-event-manager' ); ?></label>
+				<input type="url" name="_cem_registration_redirect" value="<?php echo esc_attr( $redirect ); ?>"
+					placeholder="<?php esc_attr_e( 'Leave blank to show success message inline, or enter a URL (e.g. /events/)', 'church-event-manager' ); ?>"
+					class="large-text">
+				<span class="description"><?php esc_html_e( 'If set, the user will see a brief success message then be redirected to this URL after registering.', 'church-event-manager' ); ?></span>
+			</div>
+
+			</div><!-- /#cem-reg-fields-wrap -->
 		</div>
+		<script>
+		jQuery('#cem-reg-enabled').on('change', function(){
+			var wrap = jQuery('#cem-reg-fields-wrap');
+			if (this.checked) {
+				wrap.show().css({opacity:1,pointerEvents:'auto'});
+			} else {
+				wrap.css({opacity:0.5,pointerEvents:'none'});
+			}
+		});
+		</script>
 		<?php
 	}
 
@@ -1403,9 +1492,9 @@ class CEM_Admin {
 
 		$datetime_fields = [ '_cem_start_datetime', '_cem_end_datetime', '_cem_registration_deadline' ];
 		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
-		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
+		$url_fields      = [ '_cem_location_url', '_cem_stream_url', '_cem_registration_redirect' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
-		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson' ];
+		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled' ];
 
 		foreach ( $datetime_fields as $key ) {
 			if ( isset( $_POST[$key] ) && $_POST[$key] !== '' ) {
@@ -1429,6 +1518,25 @@ class CEM_Admin {
 
 		foreach ( $checkbox_fields as $key ) {
 			update_post_meta( $post_id, $key, ! empty( $_POST[$key] ) ? '1' : '0' );
+		}
+
+		// Registration types / pricing tiers (JSON)
+		if ( isset( $_POST['cem_reg_types'] ) && is_array( $_POST['cem_reg_types'] ) ) {
+			$reg_types = [];
+			foreach ( $_POST['cem_reg_types'] as $rt ) {
+				$name = sanitize_text_field( $rt['name'] ?? '' );
+				if ( ! $name ) continue; // Skip empty rows
+				$reg_types[] = [
+					'name'        => $name,
+					'price'       => number_format( (float) ( $rt['price'] ?? 0 ), 2, '.', '' ),
+					'capacity'    => absint( $rt['capacity'] ?? 0 ),
+					'description' => sanitize_text_field( $rt['description'] ?? '' ),
+				];
+			}
+			update_post_meta( $post_id, '_cem_registration_types', wp_json_encode( $reg_types ) );
+		} else {
+			// No types submitted — clear the meta
+			update_post_meta( $post_id, '_cem_registration_types', '' );
 		}
 
 		// Parent Group link
@@ -1686,17 +1794,25 @@ class CEM_Admin {
 		$theme        = wp_get_theme();
 		?>
 		<div class="wrap cem-wrap">
-			<h1><?php esc_html_e( 'Support', 'church-event-manager' ); ?></h1>
+			<h1><?php esc_html_e( 'Support & Resources', 'church-event-manager' ); ?></h1>
 			<hr class="wp-header-end">
+
+			<!-- ── Ministry Partnership Banner ─────────────────────── -->
+			<div class="cem-partnership-banner">
+				<div class="cem-partnership-content">
+					<h2><?php esc_html_e( 'Helping Churches Reach More People', 'church-event-manager' ); ?></h2>
+					<p><?php esc_html_e( 'Church Event Manager is built by White Oak Media — a team that partners with churches and ministries to strengthen their digital presence and connect with their communities. We believe every church deserves tools that make it easier to welcome new visitors, engage members, and share the Gospel.', 'church-event-manager' ); ?></p>
+				</div>
+			</div>
 
 			<div class="cem-support-layout">
 
 				<!-- ── Ticket Form ─────────────────────────────────────── -->
 				<div class="cem-support-form-wrap">
 					<div class="cem-dashboard-card">
-						<h2><?php esc_html_e( 'Submit a Support Ticket', 'church-event-manager' ); ?></h2>
+						<h2><?php esc_html_e( 'Need Help? Send Us a Message', 'church-event-manager' ); ?></h2>
 						<p class="cem-muted">
-							<?php esc_html_e( 'Describe your issue or question and our team at White Oak Media LLC will get back to you as soon as possible.', 'church-event-manager' ); ?>
+							<?php esc_html_e( 'Whether it\'s a question about the plugin, an idea for a feature, or you just want to say hello — we\'d love to hear from you. Our team personally reads and responds to every message.', 'church-event-manager' ); ?>
 						</p>
 
 						<div id="cem-ticket-messages"></div>
@@ -1719,67 +1835,99 @@ class CEM_Admin {
 
 							<div class="cem-form-row cem-form-row-2">
 								<div class="cem-field">
-									<label for="cem_ticket_type"><?php esc_html_e( 'Request Type', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+									<label for="cem_ticket_type"><?php esc_html_e( 'How Can We Help?', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
 									<select id="cem_ticket_type" name="ticket_type" required>
 										<option value=""><?php esc_html_e( '— Select —', 'church-event-manager' ); ?></option>
-										<option value="Bug Report"><?php esc_html_e( '🐛 Bug Report', 'church-event-manager' ); ?></option>
-										<option value="Feature Request"><?php esc_html_e( '💡 Feature Request', 'church-event-manager' ); ?></option>
-										<option value="General Help"><?php esc_html_e( '🙋 General Help', 'church-event-manager' ); ?></option>
-										<option value="Other"><?php esc_html_e( '📋 Other', 'church-event-manager' ); ?></option>
+										<option value="Plugin Help"><?php esc_html_e( 'Plugin Help', 'church-event-manager' ); ?></option>
+										<option value="Bug Report"><?php esc_html_e( 'Bug Report', 'church-event-manager' ); ?></option>
+										<option value="Feature Idea"><?php esc_html_e( 'Feature Idea', 'church-event-manager' ); ?></option>
+										<option value="Website & Digital Services"><?php esc_html_e( 'Website & Digital Services', 'church-event-manager' ); ?></option>
+										<option value="Other"><?php esc_html_e( 'Other', 'church-event-manager' ); ?></option>
 									</select>
 								</div>
 								<div class="cem-field">
 									<label for="cem_ticket_subject"><?php esc_html_e( 'Subject', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
 									<input type="text" id="cem_ticket_subject" name="ticket_subject" required
-										placeholder="<?php esc_attr_e( 'Brief summary of your issue', 'church-event-manager' ); ?>">
+										placeholder="<?php esc_attr_e( 'Brief summary', 'church-event-manager' ); ?>">
 								</div>
 							</div>
 
 							<div class="cem-field">
-								<label for="cem_ticket_description"><?php esc_html_e( 'Description', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
-								<textarea id="cem_ticket_description" name="ticket_description" rows="7" required
-									placeholder="<?php esc_attr_e( 'Please describe the issue in detail. Include steps to reproduce if it is a bug.', 'church-event-manager' ); ?>"></textarea>
+								<label for="cem_ticket_description"><?php esc_html_e( 'Message', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+								<textarea id="cem_ticket_description" name="ticket_description" rows="6" required
+									placeholder="<?php esc_attr_e( 'Tell us what\'s on your mind...', 'church-event-manager' ); ?>"></textarea>
 							</div>
 
 							<div class="cem-field cem-field-checkbox">
 								<label>
 									<input type="checkbox" name="ticket_include_sysinfo" value="1" checked>
-									<?php esc_html_e( 'Include system information (recommended — helps us diagnose issues faster)', 'church-event-manager' ); ?>
+									<?php esc_html_e( 'Include system information (helps us help you faster)', 'church-event-manager' ); ?>
 								</label>
 							</div>
 
-							<div class="cem-form-submit" style="margin-top:20px">
+							<div class="cem-form-submit" style="margin-top:16px">
 								<button type="submit" class="button button-primary button-large" id="cem-ticket-submit">
-									📨 <?php esc_html_e( 'Send to Support Team', 'church-event-manager' ); ?>
+									<?php esc_html_e( 'Send Message', 'church-event-manager' ); ?>
 								</button>
 							</div>
 						</form>
 					</div>
 				</div>
 
-				<!-- ── Contact Info Sidebar ────────────────────────────── -->
+				<!-- ── Sidebar ─────────────────────────────────────────── -->
 				<div class="cem-support-sidebar">
 
-					<!-- White Oak Media LLC Card -->
+					<!-- White Oak Media Card -->
 					<div class="cem-dashboard-card cem-wom-card">
-						<div class="cem-wom-logo">🌳</div>
-						<h2>White Oak Media LLC</h2>
-						<p class="cem-muted"><?php esc_html_e( 'Church Event Manager is developed and maintained by White Oak Media LLC.', 'church-event-manager' ); ?></p>
+						<img src="<?php echo esc_url( CEM_PLUGIN_URL . 'admin/img/wom-logo.svg' ); ?>" alt="White Oak Media" class="cem-wom-logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+						<div class="cem-wom-logo" style="display:none">WOM</div>
+						<h2>White Oak Media</h2>
+						<p class="cem-muted" style="font-size:13px;line-height:1.5"><?php esc_html_e( 'We partner with churches and nonprofits to strengthen their digital outreach and help them connect with the people God has called them to serve.', 'church-event-manager' ); ?></p>
 						<ul class="cem-support-links">
-							<li><a href="mailto:zach@whiteoakmedia.io">✉️ zach@whiteoakmedia.io</a></li>
-							<li><a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer">🌐 whiteoakmedia.io</a></li>
+							<li><a href="mailto:zach@whiteoakmedia.io">zach@whiteoakmedia.io</a></li>
+							<li><a href="https://whiteoakmedia.io" target="_blank" rel="noopener noreferrer">whiteoakmedia.io</a></li>
 						</ul>
+					</div>
+
+					<!-- Client Portal Card -->
+					<div class="cem-dashboard-card cem-portal-card">
+						<h3><?php esc_html_e( 'Client Portal', 'church-event-manager' ); ?></h3>
+						<p class="cem-muted" style="font-size:13px;line-height:1.5"><?php esc_html_e( 'Already working with us? Access your project dashboard, invoices, and website editor from your client portal.', 'church-event-manager' ); ?></p>
+						<a href="https://clients.whiteoakmedia.io" target="_blank" rel="noopener noreferrer" class="button" style="width:100%;text-align:center">
+							<?php esc_html_e( 'Open Client Portal', 'church-event-manager' ); ?>
+						</a>
+					</div>
+
+					<!-- Services Card -->
+					<div class="cem-dashboard-card cem-services-card">
+						<h3><?php esc_html_e( 'Grow Your Church\'s Reach', 'church-event-manager' ); ?></h3>
+						<p class="cem-muted" style="font-size:13px;line-height:1.5;margin-bottom:12px">
+							<?php esc_html_e( 'Beyond this plugin, we help churches and ministries reach their communities through:', 'church-event-manager' ); ?>
+						</p>
+						<ul class="cem-services-list">
+							<li><?php esc_html_e( 'Custom church websites', 'church-event-manager' ); ?></li>
+							<li><?php esc_html_e( 'Google Ad Grant management', 'church-event-manager' ); ?></li>
+							<li><?php esc_html_e( 'Social media strategy', 'church-event-manager' ); ?></li>
+							<li><?php esc_html_e( 'SEO & local search visibility', 'church-event-manager' ); ?></li>
+							<li><?php esc_html_e( 'Analytics & visitor insights', 'church-event-manager' ); ?></li>
+							<li><?php esc_html_e( 'Branding & design', 'church-event-manager' ); ?></li>
+						</ul>
+						<p class="cem-muted" style="font-size:12px;margin-top:10px;font-style:italic">
+							<?php esc_html_e( 'Every church has a message worth hearing. We help make sure people can find you.', 'church-event-manager' ); ?>
+						</p>
+						<a href="https://whiteoakmedia.io/pricing" target="_blank" rel="noopener noreferrer" class="button button-primary" style="width:100%;text-align:center;margin-top:8px">
+							<?php esc_html_e( 'See How We Can Help', 'church-event-manager' ); ?>
+						</a>
 					</div>
 
 					<!-- System Info Card -->
 					<div class="cem-dashboard-card">
 						<h3><?php esc_html_e( 'System Information', 'church-event-manager' ); ?></h3>
 						<table class="cem-sysinfo-table">
-							<tr><th><?php esc_html_e( 'Plugin Version', 'church-event-manager' ); ?></th><td><?php echo esc_html( CEM_VERSION ); ?></td></tr>
+							<tr><th><?php esc_html_e( 'Plugin', 'church-event-manager' ); ?></th><td>v<?php echo esc_html( CEM_VERSION ); ?></td></tr>
 							<tr><th><?php esc_html_e( 'WordPress', 'church-event-manager' ); ?></th><td><?php echo esc_html( $wp_version ); ?></td></tr>
 							<tr><th><?php esc_html_e( 'PHP', 'church-event-manager' ); ?></th><td><?php echo esc_html( $php_version ); ?></td></tr>
-							<tr><th><?php esc_html_e( 'Active Theme', 'church-event-manager' ); ?></th><td><?php echo esc_html( $theme->get('Name') . ' ' . $theme->get('Version') ); ?></td></tr>
-							<tr><th><?php esc_html_e( 'Site URL', 'church-event-manager' ); ?></th><td><?php echo esc_html( $site_url ); ?></td></tr>
+							<tr><th><?php esc_html_e( 'Theme', 'church-event-manager' ); ?></th><td><?php echo esc_html( $theme->get('Name') . ' ' . $theme->get('Version') ); ?></td></tr>
 						</table>
 					</div>
 
@@ -1794,7 +1942,7 @@ class CEM_Admin {
 				var $btn  = $('#cem-ticket-submit');
 				var $msgs = $('#cem-ticket-messages');
 				$msgs.html('');
-				$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Sending…', 'church-event-manager' ) ); ?>');
+				$btn.prop('disabled', true).text('<?php echo esc_js( __( 'Sending...', 'church-event-manager' ) ); ?>');
 
 				$.post(ajaxurl, {
 					action:              'cem_submit_ticket',
@@ -1810,18 +1958,17 @@ class CEM_Admin {
 					if ( res.success ) {
 						$msgs.html('<div class="cem-notice cem-notice-success" style="margin-bottom:16px">' + res.data.message + '</div>');
 						$('#cem-ticket-form')[0].reset();
-						// Re-populate name/email after reset
 						$('#cem_ticket_name').val('<?php echo esc_js( $current_user->display_name ); ?>');
 						$('#cem_ticket_email').val('<?php echo esc_js( $current_user->user_email ); ?>');
 					} else {
-						$msgs.html('<div class="cem-notice cem-notice-error" style="margin-bottom:16px">' + (res.data.message || '<?php echo esc_js( __( 'An error occurred. Please try again.', 'church-event-manager' ) ); ?>') + '</div>');
+						$msgs.html('<div class="cem-notice cem-notice-error" style="margin-bottom:16px">' + (res.data.message || '<?php echo esc_js( __( 'Something went wrong. Please try again.', 'church-event-manager' ) ); ?>') + '</div>');
 					}
 				})
 				.fail(function(){
-					$msgs.html('<div class="cem-notice cem-notice-error" style="margin-bottom:16px"><?php echo esc_js( __( 'Could not reach the server. Please check your connection and try again.', 'church-event-manager' ) ); ?></div>');
+					$msgs.html('<div class="cem-notice cem-notice-error" style="margin-bottom:16px"><?php echo esc_js( __( 'Could not reach the server. Please try again.', 'church-event-manager' ) ); ?></div>');
 				})
 				.always(function(){
-					$btn.prop('disabled', false).html('📨 <?php echo esc_js( __( 'Send to Support Team', 'church-event-manager' ) ); ?>');
+					$btn.prop('disabled', false).text('<?php echo esc_js( __( 'Send Message', 'church-event-manager' ) ); ?>');
 				});
 			});
 		})(jQuery);

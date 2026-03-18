@@ -45,6 +45,7 @@ class CEM_Group {
 
 	public function init() {
 		add_action( 'init', [ $this, 'register_cpt' ], 0 );
+		add_action( 'init', [ $this, 'register_taxonomies' ], 0 );
 
 		// Admin columns
 		add_filter( 'manage_cem_group_posts_columns',       [ $this, 'group_columns' ] );
@@ -56,6 +57,44 @@ class CEM_Group {
 
 		// Template override for single cem_group
 		add_filter( 'template_include', [ $this, 'single_group_template' ], 99 );
+	}
+
+	// ── Taxonomies ───────────────────────────────────────────────────────────
+
+	public function register_taxonomies() {
+		// Group Category
+		register_taxonomy( 'cem_group_category', 'cem_group', [
+			'labels'            => [
+				'name'          => _x( 'Group Categories', 'taxonomy general name', 'church-event-manager' ),
+				'singular_name' => _x( 'Group Category',  'taxonomy singular name', 'church-event-manager' ),
+				'search_items'  => __( 'Search Categories', 'church-event-manager' ),
+				'all_items'     => __( 'All Categories',    'church-event-manager' ),
+				'edit_item'     => __( 'Edit Category',     'church-event-manager' ),
+				'add_new_item'  => __( 'Add New Category',  'church-event-manager' ),
+				'menu_name'     => __( 'Categories',        'church-event-manager' ),
+			],
+			'hierarchical'      => true,
+			'public'            => true,
+			'show_ui'           => true,
+			'show_admin_column' => true,
+			'show_in_rest'      => true,
+			'rewrite'           => [ 'slug' => 'group-category' ],
+		] );
+
+		// Group Tag
+		register_taxonomy( 'cem_group_tag', 'cem_group', [
+			'labels'            => [
+				'name'          => _x( 'Group Tags', 'taxonomy general name', 'church-event-manager' ),
+				'singular_name' => _x( 'Group Tag',  'taxonomy singular name', 'church-event-manager' ),
+				'menu_name'     => __( 'Tags', 'church-event-manager' ),
+			],
+			'hierarchical'      => false,
+			'public'            => true,
+			'show_ui'           => true,
+			'show_admin_column' => false,
+			'show_in_rest'      => true,
+			'rewrite'           => [ 'slug' => 'group-tag' ],
+		] );
 	}
 
 	// ── CPT Registration ─────────────────────────────────────────────────────
@@ -174,21 +213,35 @@ class CEM_Group {
 			'normal',
 			'default'
 		);
+		add_meta_box(
+			'cem_group_members',
+			__( 'Group Members', 'church-event-manager' ),
+			[ $this, 'mb_group_members' ],
+			'cem_group',
+			'normal',
+			'default'
+		);
 	}
 
 	public function mb_group_details( $post ) {
 		wp_nonce_field( 'cem_group_meta', 'cem_group_nonce' );
 
-		$type       = get_post_meta( $post->ID, '_cem_group_type',         true );
-		$day        = get_post_meta( $post->ID, '_cem_group_day',          true );
-		$time       = get_post_meta( $post->ID, '_cem_group_time',         true );
-		$frequency  = get_post_meta( $post->ID, '_cem_group_frequency',    true );
-		$leader     = get_post_meta( $post->ID, '_cem_group_leader',       true );
+		$type         = get_post_meta( $post->ID, '_cem_group_type',         true );
+		$day          = get_post_meta( $post->ID, '_cem_group_day',          true );
+		$time         = get_post_meta( $post->ID, '_cem_group_time',         true );
+		$frequency    = get_post_meta( $post->ID, '_cem_group_frequency',    true );
+		$leader       = get_post_meta( $post->ID, '_cem_group_leader',       true );
 		$leader_email = get_post_meta( $post->ID, '_cem_group_leader_email', true );
-		$location   = get_post_meta( $post->ID, '_cem_group_location',     true );
-		$address    = get_post_meta( $post->ID, '_cem_group_address',      true );
-		$capacity   = get_post_meta( $post->ID, '_cem_group_capacity',     true );
-		$status     = get_post_meta( $post->ID, '_cem_group_status',       true ) ?: 'open';
+		$location     = get_post_meta( $post->ID, '_cem_group_location',     true );
+		$address      = get_post_meta( $post->ID, '_cem_group_address',      true );
+		$capacity     = get_post_meta( $post->ID, '_cem_group_capacity',     true );
+		$status       = get_post_meta( $post->ID, '_cem_group_status',       true ) ?: 'open';
+		$start_date   = get_post_meta( $post->ID, '_cem_group_start_date',   true );
+		$end_date     = get_post_meta( $post->ID, '_cem_group_end_date',     true );
+		$childcare    = get_post_meta( $post->ID, '_cem_group_childcare',    true );
+		$online       = get_post_meta( $post->ID, '_cem_group_online',       true );
+		$meeting_url  = get_post_meta( $post->ID, '_cem_group_meeting_url',  true );
+		$contact_phone = get_post_meta( $post->ID, '_cem_group_contact_phone', true );
 
 		$days = [ '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Various' ];
 		$freqs = [ '' => '', 'weekly' => 'Weekly', 'biweekly' => 'Bi-weekly', 'monthly' => 'Monthly', 'custom' => 'Custom' ];
@@ -258,8 +311,108 @@ class CEM_Group {
 				<th><label for="_cem_group_address"><?php esc_html_e( 'Address', 'church-event-manager' ); ?></label></th>
 				<td><input type="text" id="_cem_group_address" name="_cem_group_address" value="<?php echo esc_attr( $address ); ?>" class="large-text"></td>
 			</tr>
+			<tr>
+				<th><label for="_cem_group_start_date"><?php esc_html_e( 'Start Date', 'church-event-manager' ); ?></label></th>
+				<td><input type="date" id="_cem_group_start_date" name="_cem_group_start_date" value="<?php echo esc_attr( $start_date ); ?>">
+					<p class="description"><?php esc_html_e( 'When the group begins meeting (optional).', 'church-event-manager' ); ?></p>
+				</td>
+				<th><label for="_cem_group_end_date"><?php esc_html_e( 'End Date', 'church-event-manager' ); ?></label></th>
+				<td><input type="date" id="_cem_group_end_date" name="_cem_group_end_date" value="<?php echo esc_attr( $end_date ); ?>">
+					<p class="description"><?php esc_html_e( 'When the group season ends (optional).', 'church-event-manager' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="_cem_group_contact_phone"><?php esc_html_e( 'Contact Phone', 'church-event-manager' ); ?></label></th>
+				<td><input type="tel" id="_cem_group_contact_phone" name="_cem_group_contact_phone" value="<?php echo esc_attr( $contact_phone ); ?>" class="regular-text"></td>
+				<th><?php esc_html_e( 'Options', 'church-event-manager' ); ?></th>
+				<td>
+					<label style="display:block;margin-bottom:6px">
+						<input type="checkbox" name="_cem_group_childcare" value="1" <?php checked( $childcare, '1' ); ?>>
+						<?php esc_html_e( 'Childcare Available', 'church-event-manager' ); ?>
+					</label>
+					<label style="display:block">
+						<input type="checkbox" name="_cem_group_online" value="1" id="cem-group-online" <?php checked( $online, '1' ); ?>>
+						<?php esc_html_e( 'Online / Virtual Option', 'church-event-manager' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr id="cem-group-meeting-url-row" <?php echo $online !== '1' ? 'style="display:none"' : ''; ?>>
+				<th><label for="_cem_group_meeting_url"><?php esc_html_e( 'Meeting URL', 'church-event-manager' ); ?></label></th>
+				<td colspan="3"><input type="url" id="_cem_group_meeting_url" name="_cem_group_meeting_url" value="<?php echo esc_attr( $meeting_url ); ?>" class="large-text" placeholder="https://zoom.us/j/..."></td>
+			</tr>
 		</table>
+		<script>
+		jQuery('#cem-group-online').on('change', function(){
+			jQuery('#cem-group-meeting-url-row').toggle(this.checked);
+		});
+		</script>
 		<?php
+	}
+
+	/**
+	 * Group Members meta box — shows all active registrations (members) for this group.
+	 */
+	public function mb_group_members( $post ) {
+		$members = CEM_Registration::get_for_event( $post->ID, [
+			'status'   => [ 'confirmed', 'pending', 'checked_in' ],
+			'per_page' => 0,
+			'orderby'  => 'last_name',
+			'order'    => 'ASC',
+		] );
+
+		$count = count( $members );
+		?>
+		<p class="description">
+			<?php printf(
+				/* translators: %d: member count */
+				esc_html( _n( '%d active member', '%d active members', $count, 'church-event-manager' ) ),
+				$count
+			); ?>
+			<?php if ( $count > 0 ) : ?>
+			&nbsp;·&nbsp;
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-group-signups&group_id=' . $post->ID ) ); ?>">
+				<?php esc_html_e( 'View Full List →', 'church-event-manager' ); ?>
+			</a>
+			<?php endif; ?>
+		</p>
+
+		<?php if ( ! empty( $members ) ) : ?>
+		<table class="widefat striped" style="margin-top:8px">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Name', 'church-event-manager' ); ?></th>
+					<th><?php esc_html_e( 'Email', 'church-event-manager' ); ?></th>
+					<th><?php esc_html_e( 'Phone', 'church-event-manager' ); ?></th>
+					<th><?php esc_html_e( 'Joined', 'church-event-manager' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'church-event-manager' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php foreach ( array_slice( $members, 0, 20 ) as $m ) : ?>
+				<tr>
+					<td><?php echo esc_html( trim( $m->first_name . ' ' . $m->last_name ) ); ?></td>
+					<td><a href="mailto:<?php echo esc_attr( $m->email ); ?>"><?php echo esc_html( $m->email ); ?></a></td>
+					<td><?php echo esc_html( $m->phone ?: '—' ); ?></td>
+					<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $m->created_at ) ) ); ?></td>
+					<td><?php echo esc_html( ucfirst( $m->status ) ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php if ( $count > 20 ) : ?>
+		<p class="description" style="margin-top:8px">
+			<?php printf(
+				esc_html__( 'Showing 20 of %d members.', 'church-event-manager' ),
+				$count
+			); ?>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-group-signups&group_id=' . $post->ID ) ); ?>">
+				<?php esc_html_e( 'View All →', 'church-event-manager' ); ?>
+			</a>
+		</p>
+		<?php endif; ?>
+		<?php else : ?>
+		<p style="color:#6b7280;font-style:italic;margin-top:8px"><?php esc_html_e( 'No members yet.', 'church-event-manager' ); ?></p>
+		<?php endif;
 	}
 
 	public function save_meta( $post_id, $post ) {
@@ -271,7 +424,7 @@ class CEM_Group {
 
 		$text_fields = [
 			'_cem_group_leader', '_cem_group_location', '_cem_group_address',
-			'_cem_group_day', '_cem_group_time',
+			'_cem_group_day', '_cem_group_time', '_cem_group_contact_phone',
 		];
 		foreach ( $text_fields as $field ) {
 			if ( isset( $_POST[ $field ] ) ) {
@@ -284,6 +437,27 @@ class CEM_Group {
 		}
 		if ( isset( $_POST['_cem_group_capacity'] ) ) {
 			update_post_meta( $post_id, '_cem_group_capacity', absint( $_POST['_cem_group_capacity'] ) );
+		}
+
+		// Date fields
+		$date_fields = [ '_cem_group_start_date', '_cem_group_end_date' ];
+		foreach ( $date_fields as $field ) {
+			if ( isset( $_POST[ $field ] ) && $_POST[ $field ] !== '' ) {
+				update_post_meta( $post_id, $field, sanitize_text_field( $_POST[ $field ] ) );
+			} else {
+				delete_post_meta( $post_id, $field );
+			}
+		}
+
+		// URL fields
+		if ( isset( $_POST['_cem_group_meeting_url'] ) ) {
+			update_post_meta( $post_id, '_cem_group_meeting_url', esc_url_raw( $_POST['_cem_group_meeting_url'] ) );
+		}
+
+		// Checkbox fields
+		$checkbox_fields = [ '_cem_group_childcare', '_cem_group_online' ];
+		foreach ( $checkbox_fields as $field ) {
+			update_post_meta( $post_id, $field, ! empty( $_POST[ $field ] ) ? '1' : '0' );
 		}
 
 		$allowed_types  = array_keys( self::group_types() );
@@ -299,6 +473,31 @@ class CEM_Group {
 		if ( isset( $_POST['_cem_group_frequency'] ) && in_array( $_POST['_cem_group_frequency'], $allowed_freqs, true ) ) {
 			update_post_meta( $post_id, '_cem_group_frequency', $_POST['_cem_group_frequency'] );
 		}
+	}
+
+	// ── Email Group Members ──────────────────────────────────────────────────
+
+	/**
+	 * Get all active member emails for a group.
+	 *
+	 * @param int $group_id
+	 * @return array [ ['name' => '...', 'email' => '...', 'registration_id' => int], ... ]
+	 */
+	public static function get_member_emails( $group_id ) {
+		$members = CEM_Registration::get_for_event( $group_id, [
+			'status'   => [ 'confirmed', 'checked_in' ],
+			'per_page' => 0,
+		] );
+
+		$result = [];
+		foreach ( $members as $m ) {
+			$result[] = [
+				'name'            => trim( $m->first_name . ' ' . $m->last_name ),
+				'email'           => $m->email,
+				'registration_id' => $m->id,
+			];
+		}
+		return $result;
 	}
 
 	// ── Template override ─────────────────────────────────────────────────────

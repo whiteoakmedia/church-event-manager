@@ -500,27 +500,106 @@
 .cem-field-checkbox label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
 .cem-field-checkbox input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
 
-/* White Oak Media LLC card */
+/* Partnership Banner */
+.cem-partnership-banner {
+  background: linear-gradient(135deg, #2d4a3e 0%, #1a2f26 100%);
+  border-radius: var(--cem-radius);
+  padding: 28px 32px;
+  margin: 20px 0;
+  color: #fff;
+}
+
+.cem-partnership-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #fff;
+  border: none;
+  padding: 0;
+}
+
+.cem-partnership-content p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255,255,255,.85);
+  margin: 0;
+  max-width: 720px;
+}
+
+/* White Oak Media card */
 .cem-wom-card { text-align: center; }
 .cem-wom-logo {
-  font-size: 3rem;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #2d4a3e;
+  letter-spacing: 2px;
   margin-bottom: 8px;
   display: block;
+}
+.cem-wom-logo-img {
+  width: 140px;
+  height: auto;
+  margin-bottom: 8px;
 }
 .cem-wom-card h2 {
   font-size: 1.1rem;
   font-weight: 700;
   margin: 0 0 8px;
   color: var(--cem-text);
+  border: none;
+  padding: 0;
 }
 .cem-support-links {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
-  text-align: left;
+  text-align: center;
 }
-.cem-support-links li { margin-bottom: 8px; }
-.cem-support-links a  { text-decoration: none; font-size: 13px; }
+.cem-support-links li { margin-bottom: 6px; }
+.cem-support-links a  { text-decoration: none; font-size: 13px; color: var(--cem-primary); }
+.cem-support-links a:hover { text-decoration: underline; }
+
+/* Portal Card */
+.cem-portal-card {
+  border-left: 3px solid var(--cem-primary);
+}
+.cem-portal-card h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Services Card */
+.cem-services-card {
+  border-left: 3px solid #2d4a3e;
+}
+.cem-services-card h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d4a3e;
+}
+.cem-services-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cem-services-list li {
+  font-size: 13px;
+  padding: 5px 0;
+  padding-left: 20px;
+  position: relative;
+  color: var(--cem-text);
+  border-bottom: 1px solid var(--cem-border);
+}
+.cem-services-list li:last-child { border-bottom: none; }
+.cem-services-list li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: #2d4a3e;
+  font-weight: 700;
+}
 
 /* System info table inside sidebar card */
 .cem-sysinfo-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -537,8 +616,8 @@
 
 .cem-wom-footer {
   margin-top: 32px;
-  padding: 14px 20px;
-  background: var(--cem-bg);
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #fafbfc 0%, #f0f2f5 100%);
   border: 1px solid var(--cem-border);
   border-radius: var(--cem-radius);
   font-size: 12px;
@@ -547,9 +626,16 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: space-between;
+}
+.cem-wom-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .cem-wom-footer a { color: var(--cem-muted); text-decoration: none; }
-.cem-wom-footer a:hover { color: var(--cem-primary); }
+.cem-wom-footer a:hover { color: var(--cem-primary); text-decoration: underline; }
 .cem-wom-footer__version {
   background: #e2e8f0;
   color: #4a5568;
@@ -558,6 +644,12 @@
   padding: 1px 7px;
   border-radius: 20px;
 }
+.cem-wom-footer-links {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+.cem-wom-footer-links a { color: var(--cem-primary); }
 
 @media (max-width: 900px) {
   .cem-support-layout { grid-template-columns: 1fr; }

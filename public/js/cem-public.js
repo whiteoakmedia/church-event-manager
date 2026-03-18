@@ -63,6 +63,13 @@
         $('html, body').animate({
           scrollTop: $('#cem-success-message').offset().top - 80
         }, 400);
+
+        // Redirect after a short delay if a redirect URL is set
+        if (res.data.redirect_url) {
+          setTimeout(function () {
+            window.location.href = res.data.redirect_url;
+          }, 2500);
+        }
       } else {
         msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
         $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
@@ -82,6 +89,24 @@
   // Remove field error class on input
   $(document).on('input change', '.cem-field-error', function () {
     $(this).removeClass('cem-field-error');
+  });
+
+  // ── Registration Type / Pricing Tier Selection ─────────────────────────────
+
+  $(document).on('change', 'input[name="registration_type_index"]', function () {
+    var price = parseFloat($(this).data('price')) || 0;
+    var name  = $(this).data('name') || '';
+    var btn   = $(this).closest('form').find('#cem-submit-btn');
+
+    // Update submit button text to reflect selected tier price
+    if (price > 0 && btn.length) {
+      var symbol = (typeof cemStripe !== 'undefined' && cemStripe.priceDisplay)
+        ? cemStripe.priceDisplay.charAt(0)
+        : '$';
+      btn.text(symbol + price.toFixed(2) + ' — Register Now');
+    } else if (btn.length) {
+      btn.text(btn.data('original-text') || 'Register Now');
+    }
   });
 
   // ── Attendee count validation ──────────────────────────────────────────────
@@ -112,9 +137,35 @@
     }
   });
 
-  // ── Calendar: highlight today ──────────────────────────────────────────────
+  // ── Calendar: event tooltips ────────────────────────────────────────────────
 
-  // Already done with CSS class, nothing extra needed.
+  var tooltip = $('#cem-cal-tooltip');
+  if (tooltip.length) {
+    $(document).on('mouseenter', '.cem-cal-event-item', function (e) {
+      var el    = $(this);
+      var title = el.data('event-title') || '';
+      var time  = el.data('event-time')  || '';
+      var loc   = el.data('event-location') || '';
+      var type  = el.data('event-type') || 'event';
+
+      $('#cem-tooltip-title').text(title);
+      $('#cem-tooltip-time').text(time).toggle(!!time);
+      $('#cem-tooltip-location').text(loc).toggle(!!loc);
+      $('#cem-tooltip-badge').text(type === 'group' ? 'Group' : 'Event')
+        .attr('class', 'cem-cal-tooltip__badge cem-cal-tooltip__badge--' + type);
+
+      var rect = el[0].getBoundingClientRect();
+      var wrapRect = el.closest('.cem-calendar-wrap')[0].getBoundingClientRect();
+      tooltip.css({
+        top:  (rect.bottom - wrapRect.top + 4) + 'px',
+        left: Math.max(0, rect.left - wrapRect.left - 40) + 'px',
+      }).show();
+    });
+
+    $(document).on('mouseleave', '.cem-cal-event-item', function () {
+      tooltip.hide();
+    });
+  }
 
   // ── Field error styles ─────────────────────────────────────────────────────
 

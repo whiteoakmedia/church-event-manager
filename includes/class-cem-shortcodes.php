@@ -246,7 +246,11 @@ class CEM_Shortcodes {
 							<?php endif; ?>
 
 							<div class="cem-event-actions">
-								<?php if ( $full && get_option( 'cem_waitlist_enabled' ) ) : ?>
+								<?php
+								$card_reg_enabled = get_post_meta( $event_id, '_cem_registration_enabled', true );
+								if ( $card_reg_enabled === '0' ) :
+								// Registration disabled — show only Learn More
+								elseif ( $full && get_option( 'cem_waitlist_enabled' ) ) : ?>
 								<a href="<?php the_permalink(); ?>?register=1" class="cem-btn cem-btn-secondary">
 									<?php esc_html_e( 'Join Waitlist', 'church-event-manager' ); ?>
 								</a>
@@ -297,18 +301,26 @@ class CEM_Shortcodes {
 
 	public function groups_list( $atts ) {
 		$atts = shortcode_atts( [
-			'layout'   => 'grid',  // grid | list
-			'per_page' => 12,
-			'type'     => '',      // bible-study, prayer, mens, womens, etc.
-			'status'   => 'open',  // open | closed | full | inactive | '' = all
+			'layout'      => 'grid',  // grid | list
+			'per_page'    => 12,
+			'type'        => '',      // bible-study, prayer, mens, womens, etc.
+			'status'      => 'open',  // open | closed | full | inactive | '' = all
+			'category'    => '',      // group category slug
+			'show_filter' => 'yes',   // Show filter dropdowns
 		], $atts );
+
+		// URL overrides for filters
+		$type_filter = sanitize_key( $_GET['cem_group_type'] ?? $atts['type'] );
+		$cat_filter  = sanitize_text_field( $_GET['cem_group_cat'] ?? $atts['category'] );
+		$day_filter  = sanitize_text_field( $_GET['cem_group_day'] ?? '' );
+		$search      = sanitize_text_field( $_GET['cem_group_search'] ?? '' );
 
 		$meta_query = [ 'relation' => 'AND' ];
 
-		if ( $atts['type'] ) {
+		if ( $type_filter ) {
 			$meta_query[] = [
 				'key'     => '_cem_group_type',
-				'value'   => sanitize_key( $atts['type'] ),
+				'value'   => $type_filter,
 				'compare' => '=',
 			];
 		}
@@ -319,19 +331,36 @@ class CEM_Shortcodes {
 				'compare' => '=',
 			];
 		}
+		if ( $day_filter ) {
+			$meta_query[] = [
+				'key'     => '_cem_group_day',
+				'value'   => $day_filter,
+				'compare' => '=',
+			];
+		}
 
-		$query = new WP_Query( [
+		$query_args = [
 			'post_type'      => 'cem_group',
 			'post_status'    => 'publish',
 			'posts_per_page' => (int) $atts['per_page'],
 			'orderby'        => 'title',
 			'order'          => 'ASC',
 			'meta_query'     => count( $meta_query ) > 1 ? $meta_query : [],
-		] );
+		];
 
-		if ( ! $query->have_posts() ) {
-			return '<p class="cem-no-events">' . esc_html__( 'No groups found.', 'church-event-manager' ) . '</p>';
+		if ( $cat_filter ) {
+			$query_args['tax_query'] = [ [
+				'taxonomy' => 'cem_group_category',
+				'field'    => 'slug',
+				'terms'    => $cat_filter,
+			] ];
 		}
+
+		if ( $search ) {
+			$query_args['s'] = $search;
+		}
+
+		$query = new WP_Query( $query_args );
 
 		$group_types = CEM_Group::group_types();
 		$layout      = in_array( $atts['layout'], [ 'grid', 'list' ], true ) ? $atts['layout'] : 'grid';
@@ -343,20 +372,81 @@ class CEM_Shortcodes {
 		];
 
 		ob_start();
-		echo '<div class="cem-events-grid cem-groups-' . esc_attr( $layout ) . '">';
+		?>
+		<div class="cem-groups-wrap">
 
+		<?php if ( $atts['show_filter'] === 'yes' ) : ?>
+		<form class="cem-filter-form cem-groups-filter" method="get" action="">
+			<div class="cem-filter-row">
+				<input type="text" name="cem_group_search" value="<?php echo esc_attr( $search ); ?>"
+					placeholder="<?php esc_attr_e( 'Search groups…', 'church-event-manager' ); ?>"
+					class="cem-group-search-input">
+
+				<select name="cem_group_type" onchange="this.form.submit()">
+					<option value=""><?php esc_html_e( 'All Types', 'church-event-manager' ); ?></option>
+					<?php foreach ( $group_types as $val => $label ) :
+						if ( ! $val ) continue; ?>
+					<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $type_filter, $val ); ?>>
+						<?php echo esc_html( $label ); ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+
+				<select name="cem_group_day" onchange="this.form.submit()">
+					<option value=""><?php esc_html_e( 'Any Day', 'church-event-manager' ); ?></option>
+					<?php foreach ( [ 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ] as $d ) : ?>
+					<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $day_filter, $d ); ?>>
+						<?php echo esc_html( $d ); ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+
+				<?php
+				$cats = get_terms( [ 'taxonomy' => 'cem_group_category', 'hide_empty' => true ] );
+				if ( ! empty( $cats ) && ! is_wp_error( $cats ) ) : ?>
+				<select name="cem_group_cat" onchange="this.form.submit()">
+					<option value=""><?php esc_html_e( 'All Categories', 'church-event-manager' ); ?></option>
+					<?php foreach ( $cats as $cat ) : ?>
+					<option value="<?php echo esc_attr( $cat->slug ); ?>" <?php selected( $cat_filter, $cat->slug ); ?>>
+						<?php echo esc_html( $cat->name ); ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+				<?php endif; ?>
+
+				<?php if ( $type_filter || $cat_filter || $day_filter || $search ) : ?>
+				<a href="<?php echo esc_url( remove_query_arg( [ 'cem_group_type', 'cem_group_cat', 'cem_group_day', 'cem_group_search' ] ) ); ?>" class="cem-clear-filter">
+					<?php esc_html_e( '✕ Clear', 'church-event-manager' ); ?>
+				</a>
+				<?php endif; ?>
+			</div>
+		</form>
+		<?php endif; ?>
+
+		<?php if ( ! $query->have_posts() ) : ?>
+			<div class="cem-no-events">
+				<div class="cem-no-events-icon">👥</div>
+				<h3><?php esc_html_e( 'No groups found.', 'church-event-manager' ); ?></h3>
+				<p><?php esc_html_e( 'Try adjusting your filters or check back soon for new groups!', 'church-event-manager' ); ?></p>
+			</div>
+		<?php else : ?>
+
+		<div class="cem-events-grid cem-groups-<?php echo esc_attr( $layout ); ?>">
+		<?php
 		while ( $query->have_posts() ) {
 			$query->the_post();
-			$id        = get_the_ID();
-			$type      = get_post_meta( $id, '_cem_group_type',      true );
-			$day       = get_post_meta( $id, '_cem_group_day',       true );
-			$time      = get_post_meta( $id, '_cem_group_time',      true );
-			$freq      = get_post_meta( $id, '_cem_group_frequency', true );
-			$location  = get_post_meta( $id, '_cem_group_location',  true );
-			$leader    = get_post_meta( $id, '_cem_group_leader',    true );
-			$status    = get_post_meta( $id, '_cem_group_status',    true ) ?: 'open';
-			$capacity  = (int) get_post_meta( $id, '_cem_group_capacity', true );
-			$members   = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
+			$id         = get_the_ID();
+			$type       = get_post_meta( $id, '_cem_group_type',      true );
+			$day        = get_post_meta( $id, '_cem_group_day',       true );
+			$time       = get_post_meta( $id, '_cem_group_time',      true );
+			$freq       = get_post_meta( $id, '_cem_group_frequency', true );
+			$location   = get_post_meta( $id, '_cem_group_location',  true );
+			$leader     = get_post_meta( $id, '_cem_group_leader',    true );
+			$status     = get_post_meta( $id, '_cem_group_status',    true ) ?: 'open';
+			$capacity   = (int) get_post_meta( $id, '_cem_group_capacity', true );
+			$members    = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
+			$childcare  = get_post_meta( $id, '_cem_group_childcare', true ) === '1';
+			$online     = get_post_meta( $id, '_cem_group_online',    true ) === '1';
 
 			$type_label    = $group_types[ $type ] ?? '';
 			$status_label  = $status_labels[ $status ] ?? ucfirst( $status );
@@ -377,10 +467,19 @@ class CEM_Shortcodes {
 						<span class="cem-badge cem-group-status cem-group-status--<?php echo esc_attr( $status ); ?>">
 							<?php echo esc_html( $status_label ); ?>
 						</span>
+						<?php if ( $childcare ) : ?>
+						<span class="cem-badge cem-badge--childcare"><?php esc_html_e( 'Childcare', 'church-event-manager' ); ?></span>
+						<?php endif; ?>
+						<?php if ( $online ) : ?>
+						<span class="cem-badge cem-badge--online"><?php esc_html_e( 'Online', 'church-event-manager' ); ?></span>
+						<?php endif; ?>
 					</div>
 					<h3 class="cem-card-title">
 						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 					</h3>
+					<?php if ( has_excerpt() ) : ?>
+					<p class="cem-card-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 15 ) ); ?></p>
+					<?php endif; ?>
 					<?php if ( $schedule ) : ?>
 					<p class="cem-card-date">🗓 <?php echo esc_html( $schedule ); ?></p>
 					<?php endif; ?>
@@ -410,8 +509,9 @@ class CEM_Shortcodes {
 			<?php
 		}
 		wp_reset_postdata();
-
 		echo '</div>';
+		endif; // have_posts
+		echo '</div><!-- .cem-groups-wrap -->';
 		return ob_get_clean();
 	}
 
@@ -428,15 +528,30 @@ class CEM_Shortcodes {
 		$event = get_post( $event_id );
 		if ( ! $event || $event->post_type !== 'cem_event' ) return '';
 
+		// Check if registration is enabled for this event
+		$reg_enabled = get_post_meta( $event_id, '_cem_registration_enabled', true );
+		if ( $reg_enabled === '0' ) return '';
+
 		$reg_status = get_post_meta( $event_id, '_cem_registration_status', true );
 		$deadline   = get_post_meta( $event_id, '_cem_registration_deadline', true );
 		$full       = CEM_Helpers::is_at_capacity( $event_id );
 		$waitlist   = get_option( 'cem_waitlist_enabled', '1' );
 		$custom_fields = CEM_Custom_Fields::get_fields( $event_id );
 
+		// ── Registration types / pricing tiers ───────────────────────────────────
+		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+		$has_reg_types  = ! empty( $reg_types );
+
 		// ── Payment detection ────────────────────────────────────────────────────
 		$event_price      = get_post_meta( $event_id, '_cem_price', true );
 		$price_num        = ( $event_price !== '' ) ? (float) $event_price : 0.0;
+
+		// If registration types exist, determine max price for Stripe loading
+		if ( $has_reg_types ) {
+			$max_type_price = max( array_column( $reg_types, 'price' ) );
+			$price_num = (float) $max_type_price;
+		}
 		$stripe_enabled   = get_option( 'cem_stripe_enabled', '0' ) === '1';
 		$stripe_pub_key   = get_option( 'cem_stripe_publishable_key', '' );
 		$allow_inperson   = get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';
@@ -498,6 +613,52 @@ class CEM_Shortcodes {
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>">
 				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
 
+				<?php
+				$max_attendees = get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
+				$spots         = CEM_Helpers::get_spots_remaining( $event_id );
+				$currency_sym  = get_option( 'cem_currency_symbol', '$' );
+			?>
+
+				<?php if ( $has_reg_types ) : ?>
+				<!-- Registration Type / Pricing Tier Selection -->
+				<div class="cem-form-section">
+					<h3 class="cem-section-title"><?php esc_html_e( 'Select Registration Type', 'church-event-manager' ); ?></h3>
+					<div class="cem-reg-type-options" id="cem-reg-type-options">
+						<?php foreach ( $reg_types as $i => $rt ) :
+							$rt_price     = (float) $rt['price'];
+							$rt_cap       = (int) ( $rt['capacity'] ?? 0 );
+							$rt_price_lbl = $rt_price > 0 ? $currency_sym . number_format( $rt_price, 2 ) : __( 'Free', 'church-event-manager' );
+							$rt_sold      = 0; // TODO: count per-type registrations if needed
+							$rt_avail     = ( $rt_cap > 0 ) ? max( 0, $rt_cap - $rt_sold ) : null;
+							$rt_disabled  = ( $rt_cap > 0 && $rt_avail <= 0 );
+						?>
+						<label class="cem-reg-type-option <?php echo $rt_disabled ? 'cem-reg-type-disabled' : ''; ?>"
+							<?php echo $rt_disabled ? 'title="' . esc_attr__( 'Sold out', 'church-event-manager' ) . '"' : ''; ?>>
+							<input type="radio" name="registration_type_index" value="<?php echo esc_attr( $i ); ?>"
+								data-price="<?php echo esc_attr( $rt_price ); ?>"
+								data-name="<?php echo esc_attr( $rt['name'] ); ?>"
+								<?php echo $i === 0 && ! $rt_disabled ? 'checked' : ''; ?>
+								<?php echo $rt_disabled ? 'disabled' : ''; ?>>
+							<span class="cem-reg-type-info">
+								<span class="cem-reg-type-name"><?php echo esc_html( $rt['name'] ); ?></span>
+								<?php if ( ! empty( $rt['description'] ) ) : ?>
+								<span class="cem-reg-type-desc"><?php echo esc_html( $rt['description'] ); ?></span>
+								<?php endif; ?>
+								<?php if ( $rt_cap > 0 && $rt_avail !== null ) : ?>
+								<span class="cem-reg-type-avail">
+									<?php echo $rt_disabled
+										? esc_html__( 'Sold Out', 'church-event-manager' )
+										: sprintf( esc_html__( '%d spots left', 'church-event-manager' ), $rt_avail ); ?>
+								</span>
+								<?php endif; ?>
+							</span>
+							<span class="cem-reg-type-price"><?php echo esc_html( $rt_price_lbl ); ?></span>
+						</label>
+						<?php endforeach; ?>
+					</div>
+				</div>
+				<?php endif; ?>
+
 				<div class="cem-form-section">
 					<h3 class="cem-section-title"><?php esc_html_e( 'Your Information', 'church-event-manager' ); ?></h3>
 
@@ -523,11 +684,7 @@ class CEM_Shortcodes {
 						</div>
 					</div>
 
-					<?php
-					$max_attendees = get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
-					$spots = CEM_Helpers::get_spots_remaining( $event_id );
-					if ( (int) $max_attendees !== 1 ) :
-					?>
+					<?php if ( (int) $max_attendees !== 1 ) : ?>
 					<div class="cem-form-row">
 						<div class="cem-field">
 							<label for="cem_num_attendees"><?php esc_html_e( 'Number of Attendees', 'church-event-manager' ); ?></label>
@@ -875,7 +1032,13 @@ class CEM_Shortcodes {
 	// ── [cem_event_calendar] ──────────────────────────────────────────────────
 
 	public function event_calendar( $atts ) {
-		$atts  = shortcode_atts( [ 'months' => 1 ], $atts );
+		$atts  = shortcode_atts( [
+			'months'       => 1,
+			'show_groups'  => 'no',       // Include cem_group posts on the calendar
+			'category'     => '',
+			'ministry'     => '',
+		], $atts );
+
 		$month = isset( $_GET['cem_month'] ) ? (int) $_GET['cem_month'] : (int) date( 'n' );
 		$year  = isset( $_GET['cem_year'] )  ? (int) $_GET['cem_year']  : (int) date( 'Y' );
 
@@ -885,7 +1048,9 @@ class CEM_Shortcodes {
 
 		// Get events for the month
 		$events_by_day = [];
-		$events = get_posts( [
+		$event_data    = []; // Keyed by post ID for tooltip data
+
+		$query_args = [
 			'post_type'      => 'cem_event',
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
@@ -894,36 +1059,143 @@ class CEM_Shortcodes {
 			'order'          => 'ASC',
 			'meta_query'     => [ [
 				'key'     => '_cem_start_datetime',
-				'value'   => [ date( 'Y-m-d', $first_day ), date( 'Y-m-d', mktime( 0,0,0,$month,$days_in,$year ) ) ],
+				'value'   => [ date( 'Y-m-d', $first_day ), date( 'Y-m-d', mktime( 0, 0, 0, $month, $days_in, $year ) ) ],
 				'compare' => 'BETWEEN',
 				'type'    => 'DATE',
 			] ],
-		] );
+		];
+
+		// Category / ministry filters
+		if ( $atts['category'] || $atts['ministry'] ) {
+			$query_args['tax_query'] = [];
+			if ( $atts['category'] ) {
+				$query_args['tax_query'][] = [
+					'taxonomy' => 'cem_event_category',
+					'field'    => 'slug',
+					'terms'    => sanitize_text_field( $atts['category'] ),
+				];
+			}
+			if ( $atts['ministry'] ) {
+				$query_args['tax_query'][] = [
+					'taxonomy' => 'cem_ministry',
+					'field'    => 'slug',
+					'terms'    => sanitize_text_field( $atts['ministry'] ),
+				];
+			}
+		}
+
+		$events = get_posts( $query_args );
 
 		foreach ( $events as $e ) {
-			$start = get_post_meta( $e->ID, '_cem_start_datetime', true );
-			$day   = (int) date( 'j', strtotime( $start ) );
+			$start    = get_post_meta( $e->ID, '_cem_start_datetime', true );
+			$end      = get_post_meta( $e->ID, '_cem_end_datetime', true );
+			$location = get_post_meta( $e->ID, '_cem_location', true );
+			$day      = (int) date( 'j', strtotime( $start ) );
+
 			$events_by_day[ $day ][] = $e;
+			$event_data[ $e->ID ] = [
+				'title'    => $e->post_title,
+				'start'    => $start,
+				'end'      => $end,
+				'location' => $location,
+				'url'      => get_permalink( $e->ID ),
+				'type'     => 'event',
+			];
+		}
+
+		// Optionally include group meetings on the calendar
+		if ( $atts['show_groups'] === 'yes' ) {
+			$groups = get_posts( [
+				'post_type'      => 'cem_group',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'meta_query'     => [ [
+					'key'     => '_cem_group_status',
+					'value'   => [ 'open', 'full' ],
+					'compare' => 'IN',
+				] ],
+			] );
+			$day_map = [ 'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6 ];
+			foreach ( $groups as $g ) {
+				$g_day  = get_post_meta( $g->ID, '_cem_group_day', true );
+				$g_time = get_post_meta( $g->ID, '_cem_group_time', true );
+				$g_freq = get_post_meta( $g->ID, '_cem_group_frequency', true );
+				$g_loc  = get_post_meta( $g->ID, '_cem_group_location', true );
+				if ( ! isset( $day_map[ $g_day ] ) ) continue;
+
+				$target_dow = $day_map[ $g_day ];
+				// Place group on each matching weekday in this month
+				for ( $d = 1; $d <= $days_in; $d++ ) {
+					$date_ts = mktime( 0, 0, 0, $month, $d, $year );
+					if ( (int) date( 'w', $date_ts ) === $target_dow ) {
+						// Skip bi-weekly odd/even weeks if needed
+						if ( $g_freq === 'biweekly' ) {
+							$week_num = (int) date( 'W', $date_ts );
+							if ( $week_num % 2 !== 0 ) continue;
+						}
+
+						$events_by_day[ $d ][] = $g;
+						$event_data[ $g->ID ] = [
+							'title'    => $g->post_title,
+							'start'    => date( 'Y-m-d', $date_ts ) . ( $g_time ? ' ' . $g_time . ':00' : '' ),
+							'end'      => '',
+							'location' => $g_loc,
+							'url'      => get_permalink( $g->ID ),
+							'type'     => 'group',
+						];
+					}
+				}
+			}
 		}
 
 		$prev = $month === 1 ? [ 12, $year - 1 ] : [ $month - 1, $year ];
 		$next = $month === 12 ? [ 1, $year + 1 ] : [ $month + 1, $year ];
-		$cur_url = remove_query_arg( [ 'cem_month', 'cem_year' ] );
+		$today_url = remove_query_arg( [ 'cem_month', 'cem_year' ] );
+		$cur_url   = $today_url;
 
 		ob_start();
 		?>
 		<div class="cem-calendar-wrap">
 			<div class="cem-calendar-header">
-				<a href="<?php echo esc_url( add_query_arg( [ 'cem_month' => $prev[0], 'cem_year' => $prev[1] ], $cur_url ) ); ?>" class="cem-cal-nav">← <?php esc_html_e( 'Previous', 'church-event-manager' ); ?></a>
-				<h3><?php echo esc_html( date_i18n( 'F Y', $first_day ) ); ?></h3>
-				<a href="<?php echo esc_url( add_query_arg( [ 'cem_month' => $next[0], 'cem_year' => $next[1] ], $cur_url ) ); ?>" class="cem-cal-nav"><?php esc_html_e( 'Next', 'church-event-manager' ); ?> →</a>
+				<div class="cem-calendar-nav">
+					<a href="<?php echo esc_url( add_query_arg( [ 'cem_month' => $prev[0], 'cem_year' => $prev[1] ], $cur_url ) ); ?>" class="cem-cal-nav cem-cal-nav--prev" aria-label="<?php esc_attr_e( 'Previous month', 'church-event-manager' ); ?>">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+					</a>
+					<h3 class="cem-calendar-title"><?php echo esc_html( date_i18n( 'F Y', $first_day ) ); ?></h3>
+					<a href="<?php echo esc_url( add_query_arg( [ 'cem_month' => $next[0], 'cem_year' => $next[1] ], $cur_url ) ); ?>" class="cem-cal-nav cem-cal-nav--next" aria-label="<?php esc_attr_e( 'Next month', 'church-event-manager' ); ?>">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+					</a>
+				</div>
+				<a href="<?php echo esc_url( $today_url ); ?>" class="cem-btn cem-btn-ghost cem-btn-small cem-cal-today-btn"><?php esc_html_e( 'Today', 'church-event-manager' ); ?></a>
 			</div>
 
 			<table class="cem-calendar">
 				<thead>
 					<tr>
-						<?php foreach ( [ 'Sun','Mon','Tue','Wed','Thu','Fri','Sat' ] as $d ) : ?>
-						<th><?php echo esc_html( $d ); ?></th>
+						<?php
+						$day_labels = [
+							__( 'Sun', 'church-event-manager' ),
+							__( 'Mon', 'church-event-manager' ),
+							__( 'Tue', 'church-event-manager' ),
+							__( 'Wed', 'church-event-manager' ),
+							__( 'Thu', 'church-event-manager' ),
+							__( 'Fri', 'church-event-manager' ),
+							__( 'Sat', 'church-event-manager' ),
+						];
+						$full_day_labels = [
+							__( 'Sunday', 'church-event-manager' ),
+							__( 'Monday', 'church-event-manager' ),
+							__( 'Tuesday', 'church-event-manager' ),
+							__( 'Wednesday', 'church-event-manager' ),
+							__( 'Thursday', 'church-event-manager' ),
+							__( 'Friday', 'church-event-manager' ),
+							__( 'Saturday', 'church-event-manager' ),
+						];
+						foreach ( $day_labels as $i => $d ) : ?>
+						<th>
+							<span class="cem-cal-day-short"><?php echo esc_html( $d ); ?></span>
+							<span class="cem-cal-day-full"><?php echo esc_html( $full_day_labels[ $i ] ); ?></span>
+						</th>
 						<?php endforeach; ?>
 					</tr>
 				</thead>
@@ -938,13 +1210,44 @@ class CEM_Shortcodes {
 						if ( $cell < $start_dow || $day > $days_in ) {
 							echo '<td class="cem-cal-empty"></td>';
 						} else {
-							$is_today = ( $day === (int) date('j') && $month === (int) date('n') && $year === (int) date('Y') );
-							echo '<td class="cem-cal-day' . ( $is_today ? ' cem-cal-today' : '' ) . ( ! empty( $events_by_day[$day] ) ? ' cem-cal-has-events' : '' ) . '">';
+							$is_today    = ( $day === (int) date('j') && $month === (int) date('n') && $year === (int) date('Y') );
+							$has_events  = ! empty( $events_by_day[ $day ] );
+							$event_count = $has_events ? count( $events_by_day[ $day ] ) : 0;
+							$td_class    = 'cem-cal-day' . ( $is_today ? ' cem-cal-today' : '' ) . ( $has_events ? ' cem-cal-has-events' : '' );
+
+							echo '<td class="' . esc_attr( $td_class ) . '">';
 							echo '<span class="cem-cal-date">' . $day . '</span>';
-							if ( ! empty( $events_by_day[$day] ) ) {
+
+							if ( $has_events ) {
 								echo '<div class="cem-cal-events">';
-								foreach ( $events_by_day[$day] as $ce ) {
-									echo '<a class="cem-cal-event-dot" href="' . esc_url( get_permalink( $ce->ID ) ) . '" title="' . esc_attr( $ce->post_title ) . '">' . esc_html( wp_trim_words( $ce->post_title, 4 ) ) . '</a>';
+								$shown = 0;
+								foreach ( $events_by_day[ $day ] as $ce ) {
+									$ed = $event_data[ $ce->ID ] ?? [];
+									$time_str = '';
+									if ( ! empty( $ed['start'] ) ) {
+										$ts = strtotime( $ed['start'] );
+										$time_str = date_i18n( get_option( 'time_format', 'g:i a' ), $ts );
+									}
+									$type_class = ( $ed['type'] ?? 'event' ) === 'group' ? 'cem-cal-event--group' : 'cem-cal-event--event';
+
+									if ( $shown < 3 ) {
+										echo '<a class="cem-cal-event-item ' . esc_attr( $type_class ) . '" href="' . esc_url( get_permalink( $ce->ID ) ) . '"'
+											. ' data-event-id="' . esc_attr( $ce->ID ) . '"'
+											. ' data-event-title="' . esc_attr( $ce->post_title ) . '"'
+											. ' data-event-time="' . esc_attr( $time_str ) . '"'
+											. ' data-event-location="' . esc_attr( $ed['location'] ?? '' ) . '"'
+											. ' data-event-type="' . esc_attr( $ed['type'] ?? 'event' ) . '"'
+											. '>';
+										if ( $time_str ) {
+											echo '<span class="cem-cal-event-time">' . esc_html( $time_str ) . '</span> ';
+										}
+										echo '<span class="cem-cal-event-name">' . esc_html( wp_trim_words( $ce->post_title, 4 ) ) . '</span>';
+										echo '</a>';
+									}
+									$shown++;
+								}
+								if ( $event_count > 3 ) {
+									echo '<span class="cem-cal-more">+' . ( $event_count - 3 ) . ' ' . esc_html__( 'more', 'church-event-manager' ) . '</span>';
 								}
 								echo '</div>';
 							}
@@ -957,6 +1260,17 @@ class CEM_Shortcodes {
 				?>
 				</tbody>
 			</table>
+
+			<!-- Event Tooltip (populated by JS on hover) -->
+			<div class="cem-cal-tooltip" id="cem-cal-tooltip" style="display:none">
+				<div class="cem-cal-tooltip__content">
+					<span class="cem-cal-tooltip__badge" id="cem-tooltip-badge"></span>
+					<strong class="cem-cal-tooltip__title" id="cem-tooltip-title"></strong>
+					<span class="cem-cal-tooltip__time" id="cem-tooltip-time"></span>
+					<span class="cem-cal-tooltip__location" id="cem-tooltip-location"></span>
+					<span class="cem-cal-tooltip__action"><?php esc_html_e( 'Click for details →', 'church-event-manager' ); ?></span>
+				</div>
+			</div>
 		</div>
 		<?php
 		return ob_get_clean();

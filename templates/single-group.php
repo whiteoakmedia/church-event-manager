@@ -32,6 +32,11 @@ while ( have_posts() ) :
 	$address      = get_post_meta( $group_id, '_cem_group_address',      true );
 	$capacity     = (int) get_post_meta( $group_id, '_cem_group_capacity', true );
 	$status       = get_post_meta( $group_id, '_cem_group_status',       true ) ?: 'open';
+	$start_date   = get_post_meta( $group_id, '_cem_group_start_date',   true );
+	$end_date     = get_post_meta( $group_id, '_cem_group_end_date',     true );
+	$childcare    = get_post_meta( $group_id, '_cem_group_childcare',    true ) === '1';
+	$online       = get_post_meta( $group_id, '_cem_group_online',       true ) === '1';
+	$meeting_url  = get_post_meta( $group_id, '_cem_group_meeting_url',  true );
 
 	// ── Computed Values ───────────────────────────────────────────────────────
 	$members    = $capacity > 0 ? CEM_Group::get_signup_count( $group_id ) : 0;
@@ -181,6 +186,46 @@ while ( have_posts() ) :
 						</small>
 						<?php endif; ?>
 					</span>
+				</div>
+				<?php endif; ?>
+
+				<?php if ( $start_date || $end_date ) : ?>
+				<div class="cem-detail-row">
+					<span class="cem-detail-icon">📅</span>
+					<span class="cem-detail-text">
+						<?php if ( $start_date && $end_date ) : ?>
+							<?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $start_date ) ) ); ?>
+							–
+							<?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $end_date ) ) ); ?>
+						<?php elseif ( $start_date ) : ?>
+							<?php printf( esc_html__( 'Starts %s', 'church-event-manager' ), esc_html( date_i18n( get_option( 'date_format' ), strtotime( $start_date ) ) ) ); ?>
+						<?php elseif ( $end_date ) : ?>
+							<?php printf( esc_html__( 'Ends %s', 'church-event-manager' ), esc_html( date_i18n( get_option( 'date_format' ), strtotime( $end_date ) ) ) ); ?>
+						<?php endif; ?>
+					</span>
+				</div>
+				<?php endif; ?>
+
+				<?php if ( $childcare ) : ?>
+				<div class="cem-detail-row">
+					<span class="cem-detail-icon">👶</span>
+					<span class="cem-detail-text"><?php esc_html_e( 'Childcare Available', 'church-event-manager' ); ?></span>
+				</div>
+				<?php endif; ?>
+
+				<?php if ( $online && $meeting_url ) : ?>
+				<div class="cem-detail-row">
+					<span class="cem-detail-icon">💻</span>
+					<span class="cem-detail-text">
+						<a href="<?php echo esc_url( $meeting_url ); ?>" target="_blank" rel="noopener noreferrer">
+							<?php esc_html_e( 'Join Online →', 'church-event-manager' ); ?>
+						</a>
+					</span>
+				</div>
+				<?php elseif ( $online ) : ?>
+				<div class="cem-detail-row">
+					<span class="cem-detail-icon">💻</span>
+					<span class="cem-detail-text"><?php esc_html_e( 'Online Option Available', 'church-event-manager' ); ?></span>
 				</div>
 				<?php endif; ?>
 			</div><!-- .cem-group-details-card -->
