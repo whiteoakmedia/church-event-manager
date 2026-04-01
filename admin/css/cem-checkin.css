@@ -250,8 +250,14 @@
 }
 
 .cem-checkin-empty-icon {
-  font-size: 48px;
   margin-bottom: 8px;
+}
+
+.cem-checkin-empty-icon .dashicons {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--cem-muted);
 }
 
 .cem-checkin-empty p {

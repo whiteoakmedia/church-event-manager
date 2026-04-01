@@ -54,7 +54,7 @@ class CEM_Admin {
 		add_submenu_page( 'cem-dashboard', __( 'Email Center',   'church-event-manager' ), __( 'Email Center',   'church-event-manager' ), 'cem_manage_events', 'cem-emails',         [ $this, 'page_emails' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Reports',        'church-event-manager' ), __( 'Reports',        'church-event-manager' ), 'cem_manage_events', 'cem-reports',        [ $this, 'page_reports' ] );
 		add_submenu_page( 'cem-dashboard', __( 'Settings',       'church-event-manager' ), __( 'Settings',       'church-event-manager' ), 'manage_options',    'cem-settings',       [ $this, 'page_settings' ] );
-		add_submenu_page( 'cem-dashboard', __( 'Support',        'church-event-manager' ), __( '🎫 Support',      'church-event-manager' ), 'manage_options',    'cem-support',        [ $this, 'page_support'   ] );
+		add_submenu_page( 'cem-dashboard', __( 'Support',        'church-event-manager' ), __( 'Support',         'church-event-manager' ), 'manage_options',    'cem-support',        [ $this, 'page_support'   ] );
 	}
 
 	// ── Assets ────────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ class CEM_Admin {
 		array_unshift( $links,
 			'<a href="' . admin_url( 'admin.php?page=cem-dashboard' ) . '">' . __( 'Dashboard', 'church-event-manager' ) . '</a>',
 			'<a href="' . admin_url( 'admin.php?page=cem-settings' ) . '">'  . __( 'Settings',  'church-event-manager' ) . '</a>',
-			'<a href="' . admin_url( 'admin.php?page=cem-support' ) . '" style="color:#e17055;font-weight:600">'  . __( '🎫 Support',  'church-event-manager' ) . '</a>'
+			'<a href="' . admin_url( 'admin.php?page=cem-support' ) . '" style="color:#e17055;font-weight:600">'  . __( 'Support',  'church-event-manager' ) . '</a>'
 		);
 		return $links;
 	}
@@ -245,9 +245,9 @@ class CEM_Admin {
 							<td><?php
 								$pay_status = $reg->payment_status ?? 'free';
 								if ( $pay_status === 'paid' ) {
-									echo '<span class="cem-badge cem-badge--paid">&#10003; Paid</span>';
+									echo '<span class="cem-badge cem-badge--paid"><span class="dashicons dashicons-yes" style="font-size:14px;width:14px;height:14px;vertical-align:text-bottom"></span> Paid</span>';
 								} elseif ( $pay_status === 'in_person' ) {
-									echo '<span class="cem-badge cem-badge--in-person">&#128197; At Door</span>';
+									echo '<span class="cem-badge cem-badge--in-person"><span class="dashicons dashicons-location" style="font-size:14px;width:14px;height:14px;vertical-align:text-bottom"></span> At Door</span>';
 								} elseif ( $pay_status === 'free' ) {
 									echo '<span class="cem-badge cem-badge--free">Free</span>';
 								} else {
@@ -292,7 +292,7 @@ class CEM_Admin {
 					<!-- Capacity Alerts -->
 					<?php if ( ! empty( $alerts ) ) : ?>
 					<div class="cem-dashboard-card cem-card-alert">
-						<h2>⚠️ <?php esc_html_e( 'Capacity Alerts', 'church-event-manager' ); ?></h2>
+						<h2><span class="dashicons dashicons-warning"></span> <?php esc_html_e( 'Capacity Alerts', 'church-event-manager' ); ?></h2>
 						<ul class="cem-alert-list">
 						<?php foreach ( $alerts as $alert ) : ?>
 						<li>
@@ -311,11 +311,11 @@ class CEM_Admin {
 					<div class="cem-dashboard-card">
 						<h2><?php esc_html_e( 'What would you like to do?', 'church-event-manager' ); ?></h2>
 						<div class="cem-quick-links">
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-checkin' ) ); ?>" class="cem-quick-link cem-quick-link--primary">&#9745; <?php esc_html_e( 'Check People In', 'church-event-manager' ); ?></a>
-							<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=cem_event' ) ); ?>" class="cem-quick-link">📅 <?php esc_html_e( 'New Event', 'church-event-manager' ); ?></a>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-emails' ) ); ?>"           class="cem-quick-link">✉️ <?php esc_html_e( 'Send Email', 'church-event-manager' ); ?></a>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-reports' ) ); ?>"           class="cem-quick-link">📊 <?php esc_html_e( 'Reports',   'church-event-manager' ); ?></a>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-settings' ) ); ?>"          class="cem-quick-link">⚙️ <?php esc_html_e( 'Settings',  'church-event-manager' ); ?></a>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-checkin' ) ); ?>" class="cem-quick-link cem-quick-link--primary"><span class="dashicons dashicons-yes-alt"></span> <?php esc_html_e( 'Check People In', 'church-event-manager' ); ?></a>
+							<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=cem_event' ) ); ?>" class="cem-quick-link"><span class="dashicons dashicons-calendar-alt"></span> <?php esc_html_e( 'New Event', 'church-event-manager' ); ?></a>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-emails' ) ); ?>"           class="cem-quick-link"><span class="dashicons dashicons-email"></span> <?php esc_html_e( 'Send Email', 'church-event-manager' ); ?></a>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-reports' ) ); ?>"           class="cem-quick-link"><span class="dashicons dashicons-chart-bar"></span> <?php esc_html_e( 'Reports',   'church-event-manager' ); ?></a>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-settings' ) ); ?>"          class="cem-quick-link"><span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e( 'Settings',  'church-event-manager' ); ?></a>
 						</div>
 					</div>
 				</div>
@@ -394,7 +394,7 @@ class CEM_Admin {
 				'status'   => $status,
 				'nonce'    => wp_create_nonce('cem_export_nonce'),
 			], admin_url('admin-ajax.php') ) ); ?>" class="page-title-action">
-				⬇️ <?php esc_html_e( 'Export CSV', 'church-event-manager' ); ?>
+				<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export CSV', 'church-event-manager' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
@@ -488,13 +488,13 @@ class CEM_Admin {
 					<td class="cem-muted"><?php echo esc_html( CEM_Helpers::format_datetime( $reg->created_at ) ); ?></td>
 					<td class="cem-actions">
 						<?php if ( $reg->status !== 'checked_in' ) : ?>
-						<button class="button button-small cem-check-in-btn" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Check In','church-event-manager'); ?>">✔</button>
+						<button class="button button-small cem-check-in-btn" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Check In','church-event-manager'); ?>"><span class="dashicons dashicons-yes"></span></button>
 						<?php endif; ?>
-						<button class="button button-small cem-view-reg" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('View Details','church-event-manager'); ?>">👁</button>
+						<button class="button button-small cem-view-reg" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('View Details','church-event-manager'); ?>"><span class="dashicons dashicons-visibility"></span></button>
 						<?php if ( $reg->status === 'waitlisted' ) : ?>
-						<button class="button button-small cem-promote-btn" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Promote from Waitlist','church-event-manager'); ?>">⬆</button>
+						<button class="button button-small cem-promote-btn" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Promote from Waitlist','church-event-manager'); ?>"><span class="dashicons dashicons-arrow-up-alt"></span></button>
 						<?php endif; ?>
-						<button class="button button-small cem-delete-reg" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Delete','church-event-manager'); ?>">🗑</button>
+						<button class="button button-small cem-delete-reg" data-id="<?php echo esc_attr( $reg->id ); ?>" title="<?php esc_attr_e('Delete','church-event-manager'); ?>"><span class="dashicons dashicons-trash"></span></button>
 					</td>
 				</tr>
 				<?php endforeach; ?>
@@ -744,7 +744,7 @@ class CEM_Admin {
 
 			<div id="cem-checkin-grid" class="cem-checkin-grid">
 				<div class="cem-checkin-empty" id="cem-checkin-empty">
-					<div class="cem-checkin-empty-icon">&#9745;</div>
+					<div class="cem-checkin-empty-icon"><span class="dashicons dashicons-yes-alt"></span></div>
 					<p><?php esc_html_e( 'Pick an event above to load the guest list.', 'church-event-manager' ); ?></p>
 				</div>
 			</div>
@@ -824,7 +824,7 @@ class CEM_Admin {
 					<div id="cem-recipient-list" class="cem-recipient-list"></div>
 					<p>
 						<button type="button" class="button button-primary" id="cem-send-bulk-email">
-							✉️ <?php esc_html_e( 'Send Email to All Recipients', 'church-event-manager' ); ?>
+							<span class="dashicons dashicons-email" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> <?php esc_html_e( 'Send Email to All Recipients', 'church-event-manager' ); ?>
 						</button>
 					</p>
 				</div>
@@ -910,7 +910,7 @@ class CEM_Admin {
 					<a href="<?php echo esc_url( add_query_arg([
 						'action'=>'cem_export_registrations','nonce'=>wp_create_nonce('cem_export_nonce')
 					], admin_url('admin-ajax.php') ) ); ?>" class="button">
-						⬇️ <?php esc_html_e( 'Export All as CSV', 'church-event-manager' ); ?>
+						<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export All as CSV', 'church-event-manager' ); ?>
 					</a>
 				</div>
 				<table class="wp-list-table widefat fixed striped">
@@ -952,7 +952,7 @@ class CEM_Admin {
 								'event_id'=>$row->event_id,
 								'nonce'=>wp_create_nonce('cem_export_nonce')
 							], admin_url('admin-ajax.php') ) ); ?>" class="button button-small">
-								⬇️
+								<span class="dashicons dashicons-download"></span>
 							</a>
 						</td>
 					</tr>
@@ -1000,7 +1000,7 @@ class CEM_Admin {
 					'general'      => __( 'General',      'church-event-manager' ),
 					'email'        => __( 'Email',        'church-event-manager' ),
 					'registration' => __( 'Registration', 'church-event-manager' ),
-					'payments'     => __( '💳 Payments',  'church-event-manager' ),
+					'payments'     => __( 'Payments',     'church-event-manager' ),
 					'pages'        => __( 'Pages',        'church-event-manager' ),
 				] as $t => $label ) : ?>
 				<a href="?page=cem-settings&tab=<?php echo esc_attr($t); ?>" class="nav-tab <?php echo $tab===$t ? 'nav-tab-active' : ''; ?>">
@@ -1092,11 +1092,11 @@ class CEM_Admin {
 				$has_keys   = get_option( 'cem_stripe_publishable_key' ) && get_option( 'cem_stripe_secret_key' );
 				if ( $stripe_on && $has_keys ) : ?>
 				<div class="notice notice-success inline"><p>
-					✅ <?php esc_html_e( 'Stripe is active. Paid events will show a payment form on registration.', 'church-event-manager' ); ?>
+					<?php esc_html_e( 'Stripe is active. Paid events will show a payment form on registration.', 'church-event-manager' ); ?>
 				</p></div>
 				<?php elseif ( $stripe_on ) : ?>
 				<div class="notice notice-warning inline"><p>
-					⚠️ <?php esc_html_e( 'Stripe is enabled but API keys are missing. Enter both keys above.', 'church-event-manager' ); ?>
+					<?php esc_html_e( 'Stripe is enabled but API keys are missing. Enter both keys above.', 'church-event-manager' ); ?>
 				</p></div>
 				<?php endif; ?>
 
@@ -1556,7 +1556,7 @@ class CEM_Admin {
 		</div>
 		<div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
 			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-checkin&event_id=' . $post->ID) ); ?>" class="button button-primary" style="width:100%;text-align:center;padding:8px">
-				&#9745; <?php esc_html_e('Start Check-In','church-event-manager'); ?>
+				<span class="dashicons dashicons-yes-alt" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> <?php esc_html_e('Start Check-In','church-event-manager'); ?>
 			</a>
 			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-registrations&event_id=' . $post->ID) ); ?>" class="button" style="width:100%;text-align:center">
 				<?php esc_html_e('See Who Signed Up','church-event-manager'); ?>

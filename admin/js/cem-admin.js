@@ -37,7 +37,7 @@
         btn.remove();
       } else {
         alert(res.data.message);
-        btn.prop('disabled', false).text('✔');
+        btn.prop('disabled', false).html('<span class="dashicons dashicons-yes"></span>');
       }
     });
   });
@@ -82,9 +82,9 @@
 
       html += '<div style="margin-top:14px;display:flex;gap:8px">';
       if (r.status !== 'checked_in') {
-        html += '<button class="button button-primary cem-check-in-btn" data-id="' + r.id + '">✔ Check In</button>';
+        html += '<button class="button button-primary cem-check-in-btn" data-id="' + r.id + '"><span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Check In</button>';
       }
-      html += '<button class="button cem-delete-reg" data-id="' + r.id + '">🗑 Delete</button>';
+      html += '<button class="button cem-delete-reg" data-id="' + r.id + '"><span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Delete</button>';
       html += '</div>';
 
       body.html(html);
@@ -132,7 +132,7 @@
         location.reload();
       } else {
         alert(res.data.message);
-        btn.prop('disabled', false).text('⬆');
+        btn.prop('disabled', false).html('<span class="dashicons dashicons-arrow-up-alt"></span>');
       }
     });
   });
@@ -222,7 +222,7 @@
       message,
       event_id: $('#cem-email-event').val(),
     }, function (res) {
-      btn.prop('disabled', false).text('✉️ Send Email to All Recipients');
+      btn.prop('disabled', false).html('<span class="dashicons dashicons-email" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Send Email to All Recipients');
       const type = res.success ? 'success' : 'error';
       showNotice('#cem-email-result', res.data.message, type);
     });

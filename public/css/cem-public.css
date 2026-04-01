@@ -597,6 +597,7 @@
 
 .cem-calendar {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--cem-border);
@@ -626,6 +627,7 @@
   height: 100px;
   background: #fff;
   transition: background .15s;
+  overflow: hidden;
 }
 
 .cem-cal-day:hover { background: #f7f9fc; }
@@ -659,6 +661,8 @@
   flex-direction: column;
   gap: 2px;
   margin-top: 2px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .cem-cal-event-item {
@@ -675,6 +679,8 @@
   transition: all .15s;
   line-height: 1.4;
   cursor: pointer;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .cem-cal-event--event {

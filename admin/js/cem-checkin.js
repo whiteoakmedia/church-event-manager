@@ -22,7 +22,7 @@
     if (!eventId) {
       search.prop('disabled', true).val('');
       counter.hide();
-      grid.html('<div class="cem-checkin-empty" id="cem-checkin-empty"><div class="cem-checkin-empty-icon">&#9745;</div><p>' + cemCheckin.strings.selectEvent + '</p></div>');
+      grid.html('<div class="cem-checkin-empty" id="cem-checkin-empty"><div class="cem-checkin-empty-icon"><span class="dashicons dashicons-yes-alt"></span></div><p>' + cemCheckin.strings.selectEvent + '</p></div>');
       return;
     }
 

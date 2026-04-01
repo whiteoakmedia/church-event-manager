@@ -67,13 +67,15 @@
   transition: box-shadow .2s;
 }
 
-.cem-stat-card:hover { box-shadow: var(--cem-shadow-md); }
+.cem-stat-card:hover { box-shadow: var(--cem-shadow-md); cursor: pointer; }
 
 .cem-stat-icon {
   font-size: 28px;
   width: 36px;
+  height: 36px;
   text-align: center;
   flex-shrink: 0;
+  line-height: 36px;
 }
 
 .cem-stat-info { display: flex; flex-direction: column; }
@@ -124,6 +126,15 @@
 }
 
 .cem-card-alert { border-left: 4px solid var(--cem-warning); }
+
+.cem-card-alert h2 .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--cem-warning);
+  vertical-align: text-bottom;
+  margin-right: 4px;
+}
 
 /* ── Event list in dashboard ─────────────────────────────── */
 
@@ -191,6 +202,27 @@
   color: #fff;
 }
 
+.cem-quick-link:focus-visible {
+  outline: 2px solid var(--cem-primary);
+  outline-offset: 2px;
+}
+
+/* ── Quick link icon alignment ───────────────────────────── */
+
+.cem-quick-link .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  vertical-align: text-bottom;
+  margin-right: 2px;
+}
+
+.cem-quick-link--primary .dashicons {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
 /* ── Tables ──────────────────────────────────────────────── */
 
 .cem-table, .cem-reg-table {
@@ -206,6 +238,37 @@
 }
 
 .cem-muted { color: var(--cem-muted); font-size: 12px; }
+
+/* ── Table row hover ────────────────────────────────────── */
+
+.cem-table tbody tr:hover,
+.cem-reg-table tbody tr:hover {
+  background: #f7fafc;
+}
+
+/* ── Focus-visible for interactive elements ─────────────── */
+
+.cem-stat-card:focus-within,
+.cem-stat-value:focus-visible {
+  outline: 2px solid var(--cem-primary);
+  outline-offset: 2px;
+  border-radius: var(--cem-radius);
+}
+
+.cem-actions .button-small:focus-visible {
+  outline: 2px solid var(--cem-primary);
+  outline-offset: 1px;
+}
+
+/* ── Action button icons ────────────────────────────────── */
+
+.cem-actions .button-small .dashicons {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+  vertical-align: text-top;
+}
 
 /* ── Badges ──────────────────────────────────────────────── */
 
