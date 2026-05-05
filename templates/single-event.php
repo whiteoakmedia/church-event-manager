@@ -38,7 +38,8 @@ while ( have_posts() ) :
 	$location    = get_post_meta( $event_id, '_cem_location', true );
 	$address     = get_post_meta( $event_id, '_cem_location_address', true );
 	$map_url     = get_post_meta( $event_id, '_cem_location_url', true );
-	$organizer   = get_post_meta( $event_id, '_cem_organizer', true );
+	$organizer       = get_post_meta( $event_id, '_cem_organizer',       true );
+	$organizer_email = get_post_meta( $event_id, '_cem_organizer_email', true );
 	$price       = get_post_meta( $event_id, '_cem_price', true );
 	$status      = get_post_meta( $event_id, '_cem_event_status', true ) ?: 'open';
 	$is_online   = get_post_meta( $event_id, '_cem_online_event', true );
@@ -477,8 +478,11 @@ while ( have_posts() ) :
 							<?php esc_html_e( 'Event Organizer', 'church-event-manager' ); ?>
 						</h4>
 						<p class="cem-organizer-name"><?php echo esc_html( $organizer ?: $church_name ); ?></p>
-						<?php if ( $church_email ) : ?>
-							<a href="mailto:<?php echo esc_attr( $church_email ); ?>" class="cem-subtle-link">
+						<?php
+						// Prefer the per-event organizer email; fall back to the church-wide email.
+						$contact_email = $organizer_email ?: $church_email;
+						if ( $contact_email ) : ?>
+							<a href="mailto:<?php echo esc_attr( $contact_email ); ?>" class="cem-subtle-link">
 								<?php esc_html_e( 'Contact Organizer', 'church-event-manager' ); ?>
 							</a>
 						<?php endif; ?>

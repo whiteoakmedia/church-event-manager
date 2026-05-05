@@ -6,9 +6,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class CEM_Helpers {
 
-	/** Generate a unique registration code. */
+	/** Generate a cryptographically random registration code. */
 	public static function generate_code( $length = 12 ) {
-		return strtoupper( substr( md5( uniqid( mt_rand(), true ) ), 0, $length ) );
+		return strtoupper( substr( bin2hex( random_bytes( 8 ) ), 0, $length ) );
 	}
 
 	/** Format a MySQL datetime for display. */

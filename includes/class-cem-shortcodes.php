@@ -619,7 +619,23 @@ class CEM_Shortcodes {
 				$currency_sym  = get_option( 'cem_currency_symbol', '$' );
 			?>
 
-				<?php if ( $has_reg_types ) : ?>
+				<?php if ( $has_reg_types ) :
+				// Batch-load sold counts per registration type for this event.
+				global $wpdb;
+				$type_sold_raw = $wpdb->get_results( $wpdb->prepare(
+					"SELECT m.meta_value AS type_name, COUNT(*) AS sold
+					 FROM {$wpdb->prefix}cem_registration_meta m
+					 INNER JOIN {$wpdb->prefix}cem_registrations r ON r.id = m.registration_id
+					 WHERE r.event_id = %d AND m.meta_key = '_registration_type'
+					   AND r.status IN ('confirmed','pending','checked_in','waitlisted')
+					 GROUP BY m.meta_value",
+					$event_id
+				) );
+				$type_sold_counts = [];
+				foreach ( $type_sold_raw as $row ) {
+					$type_sold_counts[ $row->type_name ] = (int) $row->sold;
+				}
+			?>
 				<!-- Registration Type / Pricing Tier Selection -->
 				<div class="cem-form-section">
 					<h3 class="cem-section-title"><?php esc_html_e( 'Select Registration Type', 'church-event-manager' ); ?></h3>
@@ -628,7 +644,7 @@ class CEM_Shortcodes {
 							$rt_price     = (float) $rt['price'];
 							$rt_cap       = (int) ( $rt['capacity'] ?? 0 );
 							$rt_price_lbl = $rt_price > 0 ? $currency_sym . number_format( $rt_price, 2 ) : __( 'Free', 'church-event-manager' );
-							$rt_sold      = 0; // TODO: count per-type registrations if needed
+							$rt_sold      = $type_sold_counts[ $rt['name'] ] ?? 0;
 							$rt_avail     = ( $rt_cap > 0 ) ? max( 0, $rt_cap - $rt_sold ) : null;
 							$rt_disabled  = ( $rt_cap > 0 && $rt_avail <= 0 );
 						?>
@@ -772,8 +788,10 @@ class CEM_Shortcodes {
 		}
 
 		// Logged-in user: show their registrations
+		$summary_email = '';
 		if ( is_user_logged_in() ) {
-			$regs = CEM_Registration::get_for_user( '', get_current_user_id() );
+			$regs          = CEM_Registration::get_for_user( '', get_current_user_id() );
+			$summary_email = wp_get_current_user()->user_email;
 		} else {
 			// Show search form
 			?>
@@ -792,7 +810,8 @@ class CEM_Shortcodes {
 			<?php
 
 			if ( ! empty( $_GET['cem_email'] ) ) {
-				$regs = CEM_Registration::get_for_user( sanitize_email( $_GET['cem_email'] ) );
+				$summary_email = sanitize_email( $_GET['cem_email'] );
+				$regs          = CEM_Registration::get_for_user( $summary_email );
 			} else {
 				return ob_get_clean();
 			}
@@ -844,6 +863,19 @@ class CEM_Shortcodes {
 				<?php endforeach; ?>
 			</div>
 		</div>
+
+		<?php if ( $summary_email ) : ?>
+		<div class="cem-email-summary-wrap">
+			<p class="cem-muted"><?php esc_html_e( 'Want a copy in your inbox?', 'church-event-manager' ); ?></p>
+			<button type="button" class="cem-btn cem-btn-ghost cem-btn-small cem-email-summary-btn"
+				data-email="<?php echo esc_attr( $summary_email ); ?>"
+				data-nonce="<?php echo esc_attr( wp_create_nonce( 'cem_public_nonce' ) ); ?>">
+				<?php esc_html_e( 'Email me my registrations', 'church-event-manager' ); ?>
+			</button>
+			<span class="cem-email-summary-msg" style="margin-left:10px"></span>
+		</div>
+		<?php endif; ?>
+
 		<?php
 		return ob_get_clean();
 	}

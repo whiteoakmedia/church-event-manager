@@ -25,7 +25,7 @@ class CEM_Admin {
 
 	public function add_custom_capabilities() {
 		$role = get_role( 'administrator' );
-		if ( $role ) {
+		if ( $role && ! $role->has_cap( 'cem_manage_events' ) ) {
 			$role->add_cap( 'cem_manage_events' );
 		}
 	}
@@ -822,11 +822,29 @@ class CEM_Admin {
 				<div id="cem-email-preview-wrap" style="display:none">
 					<h3><?php esc_html_e( 'Recipients', 'church-event-manager' ); ?> (<span id="cem-recipient-count">0</span>)</h3>
 					<div id="cem-recipient-list" class="cem-recipient-list"></div>
-					<p>
+					<p style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+						<button type="button" class="button" id="cem-preview-email-btn">
+							<span class="dashicons dashicons-visibility" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> <?php esc_html_e( 'Preview Email', 'church-event-manager' ); ?>
+						</button>
 						<button type="button" class="button button-primary" id="cem-send-bulk-email">
 							<span class="dashicons dashicons-email" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> <?php esc_html_e( 'Send Email to All Recipients', 'church-event-manager' ); ?>
 						</button>
 					</p>
+				</div>
+
+				<!-- Email preview panel -->
+				<div id="cem-email-preview-panel" style="display:none;margin-top:16px;border:1px solid #ddd;border-radius:4px;overflow:hidden">
+					<div style="background:#f0f0f1;padding:10px 14px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center">
+						<div>
+							<strong><?php esc_html_e( 'Preview for:', 'church-event-manager' ); ?></strong>
+							<span id="cem-preview-recipient" style="margin-left:6px"></span>
+							&nbsp;&mdash;&nbsp;
+							<strong><?php esc_html_e( 'Subject:', 'church-event-manager' ); ?></strong>
+							<span id="cem-preview-subject" style="margin-left:6px"></span>
+						</div>
+						<button type="button" class="button button-small" id="cem-close-preview"><?php esc_html_e( 'Close Preview', 'church-event-manager' ); ?></button>
+					</div>
+					<iframe id="cem-preview-frame" style="width:100%;height:500px;border:none;display:block"></iframe>
 				</div>
 
 				<div id="cem-email-result"></div>

@@ -203,8 +203,16 @@ class CEM_Email {
 			$reg->first_name, $reg->last_name
 		);
 
+		// Use the per-event organizer email if set, otherwise fall back to the
+		// global notify address, then the site admin email.
+		$organizer_email = $event
+			? sanitize_email( get_post_meta( $event->ID, '_cem_organizer_email', true ) )
+			: '';
+		$to_email = $organizer_email
+			?: get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) );
+
 		return self::send( [
-			'to_email'        => get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) ),
+			'to_email'        => $to_email,
 			'subject'         => $subject,
 			'message'         => $message,
 			'event_id'        => $reg->event_id,
@@ -409,11 +417,14 @@ class CEM_Email {
 
 	private static function log( array $data ) {
 		global $wpdb;
-		$wpdb->insert(
-			"{$wpdb->prefix}cem_email_log",
-			array_merge( $data, [ 'created_at' => current_time( 'mysql' ), 'sent_at' => current_time( 'mysql' ) ] ),
-			[ '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
-		);
+		$row    = array_merge( $data, [
+			'created_at' => current_time( 'mysql' ),
+			'sent_at'    => current_time( 'mysql' ),
+		] );
+		$format = array_map( function ( $col ) {
+			return in_array( $col, [ 'event_id', 'registration_id' ], true ) ? '%d' : '%s';
+		}, array_keys( $row ) );
+		$wpdb->insert( "{$wpdb->prefix}cem_email_log", $row, $format );
 	}
 
 	/** Get email log for admin display. */

@@ -137,6 +137,35 @@
     }
   });
 
+  // ── Email me my registrations ──────────────────────────────────────────────
+
+  $(document).on('click', '.cem-email-summary-btn', function () {
+    var btn   = $(this);
+    var msg   = btn.siblings('.cem-email-summary-msg');
+    var email = btn.data('email');
+    var nonce = btn.data('nonce');
+
+    btn.prop('disabled', true).text(cemPublic.strings.submitting);
+    msg.text('').css('color', '');
+
+    $.post(ajax, {
+      action: 'cem_email_my_registrations',
+      nonce:  nonce,
+      email:  email,
+    }, function (res) {
+      btn.prop('disabled', false).text(cemPublic.strings.emailMyRegistrations || 'Email me my registrations');
+      if (res.success) {
+        msg.css('color', '#2e7d32').text(res.data.message);
+        btn.prop('disabled', true);
+      } else {
+        msg.css('color', '#c62828').text(res.data.message);
+      }
+    }).fail(function () {
+      btn.prop('disabled', false).text(cemPublic.strings.emailMyRegistrations || 'Email me my registrations');
+      msg.css('color', '#c62828').text(cemPublic.strings.error);
+    });
+  });
+
   // ── Calendar: event tooltips ────────────────────────────────────────────────
 
   var tooltip = $('#cem-cal-tooltip');

@@ -16,6 +16,10 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_nopriv_cem_leave_group',           [ $this, 'leave_group' ] );
 		add_action( 'wp_ajax_cem_create_payment_intent',        [ $this, 'create_payment_intent' ] );
 		add_action( 'wp_ajax_nopriv_cem_create_payment_intent', [ $this, 'create_payment_intent' ] );
+		add_action( 'wp_ajax_cem_update_payment_intent',        [ $this, 'update_payment_intent' ] );
+		add_action( 'wp_ajax_nopriv_cem_update_payment_intent', [ $this, 'update_payment_intent' ] );
+		add_action( 'wp_ajax_cem_email_my_registrations',        [ $this, 'email_my_registrations' ] );
+		add_action( 'wp_ajax_nopriv_cem_email_my_registrations', [ $this, 'email_my_registrations' ] );
 
 		// Admin only
 		add_action( 'wp_ajax_cem_check_in',               [ $this, 'check_in' ] );
@@ -31,6 +35,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_get_recipients_preview', [ $this, 'get_recipients_preview' ] );
 		add_action( 'wp_ajax_cem_submit_ticket',          [ $this, 'submit_ticket' ] );
 		add_action( 'wp_ajax_cem_test_stripe',            [ $this, 'test_stripe_connection' ] );
+		add_action( 'wp_ajax_cem_preview_bulk_email',     [ $this, 'preview_bulk_email' ] );
 
 		// Check-in page
 		add_action( 'wp_ajax_cem_checkin_load',            [ $this, 'checkin_load' ] );
@@ -324,6 +329,18 @@ class CEM_Ajax {
 		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
 
 		$reg_id = (int) ( $_POST['registration_id'] ?? 0 );
+		$reg    = CEM_Registration::get( $reg_id );
+
+		if ( ! $reg ) {
+			wp_send_json_error( [ 'message' => __( 'Registration not found.', 'church-event-manager' ) ] );
+		}
+
+		// Guard: don't promote if the event is already at capacity (race condition
+		// protection — two admins clicking promote simultaneously).
+		if ( CEM_Helpers::is_at_capacity( $reg->event_id ) ) {
+			wp_send_json_error( [ 'message' => __( 'Cannot promote: event is already at capacity.', 'church-event-manager' ) ] );
+		}
+
 		$result = CEM_Registration::update_status( $reg_id, 'confirmed' );
 
 		if ( is_wp_error( $result ) ) {
@@ -332,14 +349,11 @@ class CEM_Ajax {
 
 		// Remove from waitlist table
 		global $wpdb;
-		$reg = CEM_Registration::get( $reg_id );
-		if ( $reg ) {
-			$wpdb->delete( "{$wpdb->prefix}cem_waitlist",
-				[ 'event_id' => $reg->event_id, 'email' => $reg->email ],
-				[ '%d', '%s' ]
-			);
-			CEM_Email::send_waitlist_promotion( $reg_id );
-		}
+		$wpdb->delete( "{$wpdb->prefix}cem_waitlist",
+			[ 'event_id' => $reg->event_id, 'email' => $reg->email ],
+			[ '%d', '%s' ]
+		);
+		CEM_Email::send_waitlist_promotion( $reg_id );
 
 		wp_send_json_success( [ 'message' => __( 'Registration promoted from waitlist.', 'church-event-manager' ) ] );
 	}
@@ -380,10 +394,17 @@ class CEM_Ajax {
 		$this->require_admin();
 		check_ajax_referer( 'cem_settings_nonce', 'nonce' );
 
-		// Plain text / number / email / color settings.
+		// Email address settings — sanitized as email, not plain text.
+		$email_settings = [ 'cem_from_email', 'cem_reply_to_email', 'cem_admin_notify_email' ];
+		foreach ( $email_settings as $key ) {
+			if ( isset( $_POST[ $key ] ) ) {
+				update_option( $key, sanitize_email( wp_unslash( $_POST[ $key ] ) ) );
+			}
+		}
+
+		// Plain text / number / color settings.
 		$text_settings = [
-			'cem_from_name', 'cem_from_email', 'cem_reply_to_email',
-			'cem_admin_notify_email',
+			'cem_from_name',
 			'cem_cancellation_days_before', 'cem_reminder_days_before',
 			'cem_confirmation_subject', 'cem_reminder_subject', 'cem_cancellation_subject',
 			'cem_events_per_page', 'cem_date_format', 'cem_time_format',
@@ -490,8 +511,18 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
 		}
 
-		$price     = get_post_meta( $event_id, '_cem_price', true );
-		$price_num = ( $price !== '' ) ? (float) $price : 0.0;
+		// Resolve price: use the selected registration tier if provided, otherwise
+		// fall back to the event-level _cem_price meta.
+		$reg_type_index = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
+		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+
+		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
+			$price_num = (float) $reg_types[ $reg_type_index ]['price'];
+		} else {
+			$price     = get_post_meta( $event_id, '_cem_price', true );
+			$price_num = ( $price !== '' ) ? (float) $price : 0.0;
+		}
 
 		if ( $price_num <= 0 ) {
 			wp_send_json_error( [ 'message' => __( 'This event is free — no payment required.', 'church-event-manager' ) ] );
@@ -544,6 +575,81 @@ class CEM_Ajax {
 		wp_send_json_success( [
 			'client_secret'     => $body['client_secret'],
 			'payment_intent_id' => $body['id'],
+		] );
+	}
+
+	/**
+	 * Update an existing PaymentIntent's amount when the user switches tier.
+	 * Called by cem-stripe.js on registration_type_index change.
+	 */
+	public function update_payment_intent() {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'cem_payment_nonce' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Security check failed.', 'church-event-manager' ) ] );
+		}
+
+		$event_id          = (int) ( $_POST['event_id'] ?? 0 );
+		$payment_intent_id = sanitize_text_field( $_POST['payment_intent_id'] ?? '' );
+		$reg_type_index    = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
+
+		if ( ! $event_id || get_post_type( $event_id ) !== 'cem_event' ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
+		}
+
+		if ( ! preg_match( '/^pi_[a-zA-Z0-9_]+$/', $payment_intent_id ) ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid payment reference.', 'church-event-manager' ) ] );
+		}
+
+		// Resolve the tier price
+		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+
+		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
+			$price_num = (float) $reg_types[ $reg_type_index ]['price'];
+		} else {
+			$price     = get_post_meta( $event_id, '_cem_price', true );
+			$price_num = ( $price !== '' ) ? (float) $price : 0.0;
+		}
+
+		if ( $price_num <= 0 ) {
+			wp_send_json_error( [ 'message' => __( 'Selected tier is free — no payment required.', 'church-event-manager' ) ] );
+		}
+
+		$secret_key = get_option( 'cem_stripe_secret_key', '' );
+		if ( empty( $secret_key ) ) {
+			wp_send_json_error( [ 'message' => __( 'Payment processing is not configured.', 'church-event-manager' ) ] );
+		}
+
+		$amount_cents = (int) round( $price_num * 100 );
+		$currency     = strtolower( get_option( 'cem_stripe_currency', 'usd' ) );
+
+		$response = wp_remote_post(
+			'https://api.stripe.com/v1/payment_intents/' . rawurlencode( $payment_intent_id ),
+			[
+				'headers' => [
+					'Authorization' => 'Bearer ' . $secret_key,
+					'Content-Type'  => 'application/x-www-form-urlencoded',
+				],
+				'body'    => [
+					'amount'   => $amount_cents,
+					'currency' => $currency,
+				],
+				'timeout' => 15,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			wp_send_json_error( [ 'message' => __( 'Could not connect to payment processor. Please try again.', 'church-event-manager' ) ] );
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( ! empty( $body['error'] ) ) {
+			wp_send_json_error( [ 'message' => esc_html( $body['error']['message'] ?? __( 'Payment error.', 'church-event-manager' ) ) ] );
+		}
+
+		wp_send_json_success( [
+			'amount'        => $amount_cents,
+			'amount_display' => get_option( 'cem_currency_symbol', '$' ) . number_format( $price_num, 2 ),
 		] );
 	}
 
@@ -766,6 +872,108 @@ class CEM_Ajax {
 			'checked_in'     => $checked_in,
 			'capacity'       => $capacity,
 			'event_title'    => get_the_title( $event_id ),
+		] );
+	}
+
+	// ── Email My Registrations (public) ──────────────────────────────────────
+
+	public function email_my_registrations() {
+		check_ajax_referer( 'cem_public_nonce', 'nonce' );
+
+		$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+		if ( ! is_email( $email ) ) {
+			wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'church-event-manager' ) ] );
+		}
+
+		$regs = CEM_Registration::get_for_user( $email );
+		if ( empty( $regs ) ) {
+			wp_send_json_error( [ 'message' => __( 'No registrations found for that email address.', 'church-event-manager' ) ] );
+		}
+
+		$rows = '';
+		foreach ( $regs as $reg ) {
+			$event      = get_post( $reg->event_id );
+			$start      = get_post_meta( $reg->event_id, '_cem_start_datetime', true );
+			$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
+			$title      = $event ? esc_html( $event->post_title ) : esc_html__( '(removed)', 'church-event-manager' );
+			$date       = $start ? esc_html( CEM_Helpers::format_date( $start ) ) : '—';
+			$status     = esc_html( ucfirst( $reg->status ) );
+			$code       = esc_html( $reg->registration_code );
+			$link       = '<a href="' . esc_url( $manage_url ) . '">' . esc_html__( 'View / Manage', 'church-event-manager' ) . '</a>';
+
+			$rows .= "<tr style='border-bottom:1px solid #eee'>"
+				. "<td style='padding:10px 8px'>$title</td>"
+				. "<td style='padding:10px 8px'>$date</td>"
+				. "<td style='padding:10px 8px'>$status</td>"
+				. "<td style='padding:10px 8px'><code>$code</code></td>"
+				. "<td style='padding:10px 8px'>$link</td>"
+				. '</tr>';
+		}
+
+		$header_style = "padding:8px;text-align:left;background:#f5f5f5;border-bottom:2px solid #ddd";
+		$message = '<h2 style="margin-top:0">' . esc_html__( 'Your Registrations', 'church-event-manager' ) . '</h2>'
+			. '<table style="width:100%;border-collapse:collapse;font-size:14px">'
+			. '<thead><tr>'
+			. "<th style='$header_style'>" . esc_html__( 'Event',  'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Date',   'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Status', 'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Code',   'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Link',   'church-event-manager' ) . '</th>'
+			. '</tr></thead>'
+			. "<tbody>$rows</tbody></table>"
+			. '<p style="margin-top:16px;color:#555">'
+			. esc_html__( 'Click "View / Manage" to update your details or cancel a registration.', 'church-event-manager' )
+			. '</p>';
+
+		CEM_Email::send( [
+			'to_email' => $email,
+			'subject'  => sprintf(
+				/* translators: %s: site name */
+				__( 'Your Registrations at %s', 'church-event-manager' ),
+				get_bloginfo( 'name' )
+			),
+			'message'  => $message,
+			'type'     => 'registration_lookup',
+		] );
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				/* translators: %s: email address */
+				__( 'Your registrations have been sent to %s.', 'church-event-manager' ),
+				$email
+			),
+		] );
+	}
+
+	// ── Bulk Email Preview (admin) ─────────────────────────────────────────────
+
+	public function preview_bulk_email() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$reg_id  = (int) ( $_POST['registration_id'] ?? 0 );
+		$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? '' ) );
+		$message = wp_kses_post( wp_unslash( $_POST['message'] ?? '' ) );
+
+		if ( ! $reg_id || ! $subject || ! $message ) {
+			wp_send_json_error( [ 'message' => __( 'Enter a subject and message, then preview recipients first.', 'church-event-manager' ) ] );
+		}
+
+		$reg = CEM_Registration::get( $reg_id );
+		if ( ! $reg ) {
+			wp_send_json_error( [ 'message' => __( 'Recipient not found.', 'church-event-manager' ) ] );
+		}
+
+		$event   = get_post( $reg->event_id );
+		$vars    = CEM_Email::get_template_vars( $reg, $event );
+		$subject_parsed = CEM_Helpers::parse_template( $subject, $vars );
+		$body_parsed    = CEM_Helpers::parse_template( $message, $vars );
+
+		wp_send_json_success( [
+			'subject'         => $subject_parsed,
+			'html'            => CEM_Email::wrap_in_layout( $body_parsed, $subject_parsed ),
+			'recipient_name'  => esc_html( trim( $reg->first_name . ' ' . $reg->last_name ) ),
+			'recipient_email' => esc_html( $reg->email ),
 		] );
 	}
 

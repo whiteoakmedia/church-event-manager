@@ -31,8 +31,9 @@ class CEM_Notifications {
 	}
 
 	public function on_waitlist_promotion( $registration_id, $event_id ) {
+		// Waitlist promotion email already explains the spot is confirmed —
+		// sending a separate confirmation email on top would be a duplicate.
 		CEM_Email::send_waitlist_promotion( $registration_id );
-		CEM_Email::send_confirmation( $registration_id );
 	}
 
 	// ── Scheduled Reminders ───────────────────────────────────────────────────

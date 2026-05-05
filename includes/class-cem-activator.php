@@ -212,11 +212,6 @@ class CEM_Activator {
 				'content' => '[cem_my_registrations]',
 				'slug'    => 'my-registrations',
 			],
-			'cem_volunteer_portal_page_id' => [
-				'title'   => __( 'Volunteer Portal', 'church-event-manager' ),
-				'content' => '[cem_volunteer_portal]',
-				'slug'    => 'volunteer-portal',
-			],
 		];
 
 		foreach ( $pages as $option_key => $page ) {

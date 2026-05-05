@@ -76,9 +76,10 @@ class CEM_Public {
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'cem_public_nonce' ),
 			'strings' => [
-				'submitting'   => __( 'Submitting…', 'church-event-manager' ),
-				'error'        => __( 'An error occurred. Please try again.', 'church-event-manager' ),
-				'confirmCancel'=> __( 'Are you sure you want to cancel your registration?', 'church-event-manager' ),
+				'submitting'          => __( 'Submitting…', 'church-event-manager' ),
+				'error'               => __( 'An error occurred. Please try again.', 'church-event-manager' ),
+				'confirmCancel'       => __( 'Are you sure you want to cancel your registration?', 'church-event-manager' ),
+				'emailMyRegistrations'=> __( 'Email me my registrations', 'church-event-manager' ),
 			],
 		] );
 	}

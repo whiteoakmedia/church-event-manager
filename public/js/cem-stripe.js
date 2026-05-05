@@ -62,10 +62,15 @@
     const $mount = $('#cem-stripe-element');
     if (!$mount.length) return;
 
+    // Pass whichever tier is selected when the page loads so the PaymentIntent
+    // is created with the correct amount from the very first request.
+    const initialTier = $('input[name="registration_type_index"]:checked').val();
+
     $.post(cemStripe.ajaxUrl, {
-      action:   'cem_create_payment_intent',
-      nonce:    cemStripe.nonce,
-      event_id: cemStripe.eventId,
+      action:                  'cem_create_payment_intent',
+      nonce:                   cemStripe.nonce,
+      event_id:                cemStripe.eventId,
+      registration_type_index: initialTier !== undefined ? parseInt(initialTier, 10) : -1,
     })
     .done(function (res) {
       if (!res.success) {
@@ -216,6 +221,34 @@
 
   $(function () {
     initCardElement();
+
+    // When the registrant switches pricing tier, update the PaymentIntent amount
+    // on Stripe's side so the eventual charge matches what they selected.
+    $(document).on('change', 'input[name="registration_type_index"]', function () {
+      const tierIndex = parseInt(this.value, 10);
+      const piId      = $('#cem-payment-intent-id').val();
+
+      // PI may not be ready yet if Stripe is still initialising — skip silently;
+      // the correct tier index will be used if initCardElement hasn't finished.
+      if (!piId) return;
+
+      $.post(cemStripe.ajaxUrl, {
+        action:                  'cem_update_payment_intent',
+        nonce:                   cemStripe.nonce,
+        event_id:                cemStripe.eventId,
+        payment_intent_id:       piId,
+        registration_type_index: tierIndex,
+      }).done(function (res) {
+        if (!res.success) {
+          console.error('[CEM Stripe] update_payment_intent failed:', res.data);
+          showStripeError(cemStripe.strings.error);
+        }
+        // No card remounting needed — Stripe's Card Element is amount-agnostic;
+        // the new amount is reflected when confirmCardPayment is called.
+      }).fail(function () {
+        console.error('[CEM Stripe] update_payment_intent request failed.');
+      });
+    });
   });
 
 })(jQuery);

@@ -195,6 +195,55 @@
     });
   });
 
+  // ── Email Center — Preview Email ─────────────────────────────────────────
+
+  $('#cem-preview-email-btn').on('click', function () {
+    const subject = $('#cem-email-subject').val().trim();
+    const message = (typeof tinyMCE !== 'undefined' && tinyMCE.activeEditor)
+      ? tinyMCE.activeEditor.getContent()
+      : $('#cem_email_body').val();
+
+    if (!subject) return alert('Please enter a subject before previewing.');
+    if (!message) return alert('Please enter a message before previewing.');
+
+    const ids = window.cemEmailRecipientIds;
+    if (!ids || !ids.length) return alert('Preview Recipients first to load recipients.');
+
+    const btn = $(this);
+    btn.prop('disabled', true).text('Loading…');
+
+    $.post(ajax, {
+      action:          'cem_preview_bulk_email',
+      nonce:           nonce,
+      registration_id: ids[0],
+      subject:         subject,
+      message:         message,
+    }, function (res) {
+      btn.prop('disabled', false).html('<span class="dashicons dashicons-visibility" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Preview Email');
+      if (!res.success) { alert(res.data.message); return; }
+
+      const d = res.data;
+      $('#cem-preview-recipient').text(d.recipient_name + ' <' + d.recipient_email + '>');
+      $('#cem-preview-subject').text(d.subject);
+
+      // Write rendered HTML into the sandboxed iframe
+      const frame = document.getElementById('cem-preview-frame');
+      frame.contentDocument.open();
+      frame.contentDocument.write(d.html);
+      frame.contentDocument.close();
+
+      $('#cem-email-preview-panel').slideDown();
+      $('html, body').animate({ scrollTop: $('#cem-email-preview-panel').offset().top - 60 }, 400);
+    }).fail(function () {
+      btn.prop('disabled', false).html('<span class="dashicons dashicons-visibility" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Preview Email');
+      alert('Request failed. Check browser console.');
+    });
+  });
+
+  $('#cem-close-preview').on('click', function () {
+    $('#cem-email-preview-panel').slideUp();
+  });
+
   // ── Email Center — Send Bulk Email ───────────────────────────────────────
 
   $('#cem-send-bulk-email').on('click', function () {
