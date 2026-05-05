@@ -150,7 +150,17 @@
   line-height: 1;
 }
 
-.cem-event-info { flex: 1; }
+.cem-event-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pin action buttons to the bottom of every card so they align across a row */
+.cem-event-actions {
+  margin-top: auto;
+  padding-top: 12px;
+}
 
 .cem-event-title {
   margin: 0 0 8px;
