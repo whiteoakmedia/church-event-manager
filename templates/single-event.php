@@ -478,11 +478,8 @@ while ( have_posts() ) :
 							<?php esc_html_e( 'Event Organizer', 'church-event-manager' ); ?>
 						</h4>
 						<p class="cem-organizer-name"><?php echo esc_html( $organizer ?: $church_name ); ?></p>
-						<?php
-						// Prefer the per-event organizer email; fall back to the church-wide email.
-						$contact_email = $organizer_email ?: $church_email;
-						if ( $contact_email ) : ?>
-							<a href="mailto:<?php echo esc_attr( $contact_email ); ?>" class="cem-subtle-link">
+						<?php if ( $organizer_email ) : ?>
+							<a href="mailto:<?php echo esc_attr( $organizer_email ); ?>" class="cem-subtle-link">
 								<?php esc_html_e( 'Contact Organizer', 'church-event-manager' ); ?>
 							</a>
 						<?php endif; ?>
