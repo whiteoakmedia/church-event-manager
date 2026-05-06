@@ -36,6 +36,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_submit_ticket',          [ $this, 'submit_ticket' ] );
 		add_action( 'wp_ajax_cem_test_stripe',            [ $this, 'test_stripe_connection' ] );
 		add_action( 'wp_ajax_cem_preview_bulk_email',     [ $this, 'preview_bulk_email' ] );
+		add_action( 'wp_ajax_cem_preview_email_log',      [ $this, 'preview_email_log' ] );
 
 		// Check-in page
 		add_action( 'wp_ajax_cem_checkin_load',            [ $this, 'checkin_load' ] );
@@ -1021,5 +1022,36 @@ class CEM_Ajax {
 
 	private function require_checkin() {
 		$this->require_capability( 'cem_check_in' );
+	}
+
+	// ── Email Log Preview ─────────────────────────────────────────────────────
+
+	/**
+	 * Return the stored HTML for a logged email so the admin can preview it
+	 * in a modal iframe without re-sending anything.
+	 */
+	public function preview_email_log() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$log_id = (int) ( $_POST['log_id'] ?? 0 );
+		if ( ! $log_id ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid log ID.', 'church-event-manager' ) ] );
+		}
+
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT subject, message FROM {$wpdb->prefix}cem_email_log WHERE id = %d LIMIT 1",
+			$log_id
+		) );
+
+		if ( ! $row ) {
+			wp_send_json_error( [ 'message' => __( 'Log entry not found.', 'church-event-manager' ) ] );
+		}
+
+		wp_send_json_success( [
+			'subject' => $row->subject,
+			'html'    => $row->message,
+		] );
 	}
 }

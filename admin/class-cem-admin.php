@@ -873,6 +873,7 @@ class CEM_Admin {
 						<th><?php esc_html_e('Type','church-event-manager'); ?></th>
 						<th><?php esc_html_e('Status','church-event-manager'); ?></th>
 						<th><?php esc_html_e('Sent','church-event-manager'); ?></th>
+						<th style="width:80px"><?php esc_html_e('','church-event-manager'); ?></th>
 					</tr></thead>
 					<tbody>
 					<?php foreach ( $log['emails'] as $email ) : ?>
@@ -884,10 +885,28 @@ class CEM_Admin {
 							? '<span class="cem-badge cem-badge--green">Sent</span>'
 							: '<span class="cem-badge cem-badge--red">Failed</span>'; ?></td>
 						<td class="cem-muted"><?php echo esc_html( CEM_Helpers::format_datetime( $email->sent_at ) ); ?></td>
+						<td>
+							<button type="button" class="button button-small cem-preview-email-btn"
+								data-id="<?php echo esc_attr( $email->id ); ?>"
+								data-subject="<?php echo esc_attr( $email->subject ); ?>">
+								<?php esc_html_e( 'Preview', 'church-event-manager' ); ?>
+							</button>
+						</td>
 					</tr>
 					<?php endforeach; ?>
 					</tbody>
 				</table>
+
+				<?php /* ── Email Preview Modal ── */ ?>
+				<div id="cem-email-preview-modal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;">
+					<div style="background:#fff;width:90%;max-width:720px;max-height:90vh;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+						<div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;">
+							<strong id="cem-email-preview-subject" style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></strong>
+							<button type="button" id="cem-email-preview-close" class="button" style="flex-shrink:0;">✕ Close</button>
+						</div>
+						<iframe id="cem-email-preview-iframe" style="flex:1;border:none;width:100%;min-height:500px;" sandbox="allow-same-origin"></iframe>
+					</div>
+				</div>
 				<?php endif; ?>
 			</div>
 			<?php endif; ?>

@@ -333,4 +333,55 @@
     $('#cem-fields-list tbody').sortable({ handle: '.cem-drag-handle', axis: 'y' });
   }
 
+  // ── Email Log Preview ─────────────────────────────────────────────────────
+
+  const $previewModal   = $('#cem-email-preview-modal');
+  const $previewIframe  = $('#cem-email-preview-iframe');
+  const $previewSubject = $('#cem-email-preview-subject');
+
+  $(document).on('click', '.cem-preview-email-btn', function () {
+    const logId   = $(this).data('id');
+    const subject = $(this).data('subject');
+
+    $previewSubject.text(subject);
+    $previewIframe.attr('src', '').contents().find('body').html('');
+    $previewModal.css('display', 'flex');
+
+    $.post(ajax, { action: 'cem_preview_email_log', nonce: nonce, log_id: logId }, function (res) {
+      if (res.success) {
+        // Write the stored HTML directly into the sandboxed iframe
+        const doc = $previewIframe[0].contentDocument || $previewIframe[0].contentWindow.document;
+        doc.open();
+        doc.write(res.data.html);
+        doc.close();
+      } else {
+        const doc = $previewIframe[0].contentDocument || $previewIframe[0].contentWindow.document;
+        doc.open();
+        doc.write('<p style="padding:20px;color:#c62828;">Could not load email preview.</p>');
+        doc.close();
+      }
+    });
+  });
+
+  $('#cem-email-preview-close').on('click', function () {
+    $previewModal.hide();
+    $previewIframe.attr('src', '');
+  });
+
+  // Close on backdrop click
+  $previewModal.on('click', function (e) {
+    if (e.target === this) {
+      $previewModal.hide();
+      $previewIframe.attr('src', '');
+    }
+  });
+
+  // Close on Escape key
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $previewModal.is(':visible')) {
+      $previewModal.hide();
+      $previewIframe.attr('src', '');
+    }
+  });
+
 })(jQuery);
