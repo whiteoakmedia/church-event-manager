@@ -530,25 +530,87 @@
 .cem-badge--childcare { background: #fce4ec; color: #c2185b; }
 .cem-badge--online { background: #e8eaf6; color: #283593; }
 
-/* Group card excerpt */
+/* ── Group cards — mirror event card styling ──────────────── */
+
+/* Search input: inline with the selects, not a full-width block */
+.cem-group-search-input {
+  padding: 8px 14px;
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--cem-text);
+  width: auto;
+  min-width: 180px;
+}
+
+/* Card image */
+.cem-card-img-wrap { display: block; overflow: hidden; }
+.cem-card-img-wrap img,
+.cem-card-img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+  transition: transform .3s;
+}
+.cem-event-card:hover .cem-card-img { transform: scale(1.03); }
+
+/* Card body */
+.cem-card-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Badges row */
+.cem-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* Title — match event card, override theme h3 */
+.cem-card-title {
+  margin: 0 0 8px;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+.cem-card-title a {
+  color: var(--cem-text);
+  text-decoration: none;
+}
+.cem-card-title a:hover { color: var(--cem-primary); }
+
+/* Excerpt */
 .cem-card-excerpt {
   font-size: 13px;
   color: var(--cem-muted);
   margin: 0 0 8px;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Groups filter bar */
-.cem-groups-filter .cem-filter-row {
-  flex-wrap: wrap;
+/* Meta lines (date, location, leader) */
+.cem-card-date,
+.cem-card-location,
+.cem-card-leader,
+.cem-card-capacity {
+  font-size: 13px;
+  color: var(--cem-muted);
+  margin: 0 0 4px;
 }
 
-.cem-group-search-input {
-  min-width: 180px;
-  padding: 8px 12px;
-  border: 1px solid var(--cem-border);
-  border-radius: var(--cem-radius-sm);
-  font-size: 14px;
+/* Pin action button to card bottom */
+.cem-card-actions {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 /* ── Calendar ─────────────────────────────────────────────── */
