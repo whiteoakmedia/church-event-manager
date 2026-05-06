@@ -179,7 +179,7 @@ if ( $has_main_elements ) {
 			<?php if ( $can_join ) : ?>
 			<div class="cem-group-signup-wrap">
 				<h3 class="cem-card-heading"><?php esc_html_e( 'Join This Group', 'church-event-manager' ); ?></h3>
-				<?php echo do_shortcode( '[cem_registration_form event_id="' . esc_attr( $group_id ) . '"]' ); ?>
+				<?php echo CEM_Group::render_signup_form( $group_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</div>
 			<?php elseif ( $is_full || $status === 'full' ) : ?>
 			<div class="cem-group-signup-wrap cem-group-full">

@@ -497,6 +497,59 @@ class CEM_Group {
 		}
 	}
 
+	// ── Group Signup Form ─────────────────────────────────────────────────────
+
+	/**
+	 * Render the "Join This Group" signup form HTML.
+	 * Submits to the existing `cem_register` AJAX action which already handles
+	 * cem_group post types (free, no Stripe).
+	 *
+	 * @param int $group_id
+	 * @return string
+	 */
+	public static function render_signup_form( $group_id ) {
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		ob_start();
+		?>
+		<div class="cem-registration-wrap" id="cem-registration-<?php echo esc_attr( $group_id ); ?>">
+			<div id="cem-group-form-messages"></div>
+			<form class="cem-form" id="cem-group-signup-form" novalidate
+				data-event-id="<?php echo esc_attr( $group_id ); ?>"
+				data-ajax="<?php echo esc_url( $ajax_url ); ?>">
+				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
+				<input type="hidden" name="event_id" value="<?php echo esc_attr( $group_id ); ?>">
+				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
+
+				<div class="cem-form-row">
+					<div class="cem-form-group">
+						<label for="cem-group-first-name"><?php esc_html_e( 'First Name', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+						<input type="text" id="cem-group-first-name" name="first_name" required class="cem-input" autocomplete="given-name">
+					</div>
+					<div class="cem-form-group">
+						<label for="cem-group-last-name"><?php esc_html_e( 'Last Name', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+						<input type="text" id="cem-group-last-name" name="last_name" required class="cem-input" autocomplete="family-name">
+					</div>
+				</div>
+
+				<div class="cem-form-group">
+					<label for="cem-group-email"><?php esc_html_e( 'Email Address', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+					<input type="email" id="cem-group-email" name="email" required class="cem-input" autocomplete="email">
+				</div>
+
+				<div class="cem-form-group">
+					<label for="cem-group-phone"><?php esc_html_e( 'Phone Number', 'church-event-manager' ); ?></label>
+					<input type="tel" id="cem-group-phone" name="phone" class="cem-input" autocomplete="tel">
+				</div>
+
+				<button type="submit" class="cem-submit-btn" id="cem-group-signup-btn">
+					<?php esc_html_e( 'Join Group', 'church-event-manager' ); ?>
+				</button>
+			</form>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
 	// ── AJAX: Link / Unlink Event ────────────────────────────────────────────
 
 	public function ajax_link_event_to_group() {

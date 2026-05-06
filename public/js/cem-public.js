@@ -91,6 +91,53 @@
     $(this).removeClass('cem-field-error');
   });
 
+  // ── Group Signup Form ─────────────────────────────────────────────────────
+
+  $(document).on('submit', '#cem-group-signup-form', function (e) {
+    e.preventDefault();
+    var form = $(this);
+    var btn  = form.find('#cem-group-signup-btn');
+    var msgs = $('#cem-group-form-messages');
+
+    // Basic required field validation
+    var valid = true;
+    form.find('[required]').each(function () {
+      var el = $(this);
+      if (!el.val() || !el.val().trim()) {
+        el.addClass('cem-field-error');
+        valid = false;
+      } else {
+        el.removeClass('cem-field-error');
+      }
+    });
+    if (!valid) {
+      msgs.html('<div class="cem-notice cem-notice-error">Please fill in all required fields.</div>');
+      return;
+    }
+
+    btn.prop('disabled', true).text(cemPublic.strings.submitting || 'Submitting…');
+    msgs.html('');
+
+    $.post(ajax, form.serialize() + '&action=cem_register', function (res) {
+      btn.prop('disabled', false).text('Join Group');
+      if (res.success) {
+        form.slideUp(300);
+        msgs.html(
+          '<div class="cem-notice cem-notice-success">' +
+          res.data.message +
+          '</div>'
+        ).show();
+        $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 400);
+      } else {
+        msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
+        $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
+      }
+    }).fail(function () {
+      btn.prop('disabled', false).text('Join Group');
+      msgs.html('<div class="cem-notice cem-notice-error">' + (cemPublic.strings.error || 'Something went wrong. Please try again.') + '</div>');
+    });
+  });
+
   // ── Registration Type / Pricing Tier Selection ─────────────────────────────
 
   $(document).on('change', 'input[name="registration_type_index"]', function () {
