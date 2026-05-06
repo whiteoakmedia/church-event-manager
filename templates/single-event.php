@@ -124,8 +124,11 @@ while ( have_posts() ) :
 	$my_regs_url     = $my_regs_page_id ? get_permalink( $my_regs_page_id ) : '';
 
 	// ── Back-to-Events URL ────────────────────────────────────────────────────
-	$events_page_id  = get_option( 'cem_events_page_id' );
-	$events_url      = $events_page_id ? get_permalink( $events_page_id ) : '';
+	$events_page_id = get_option( 'cem_events_page_id' );
+	// Always has a destination: configured page → archive → hardcoded fallback
+	$events_url = $events_page_id
+		? get_permalink( $events_page_id )
+		: ( get_post_type_archive_link( 'cem_event' ) ?: 'https://www.hillsidebristol.org/church-events/' );
 
 	// ── Price Display ─────────────────────────────────────────────────────────
 	$price_display = ( $price === '' || (float) $price === 0.0 )

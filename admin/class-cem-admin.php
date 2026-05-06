@@ -1520,7 +1520,6 @@ class CEM_Admin {
 		$reg_st     = get_post_meta( $post->ID, '_cem_registration_status', true );
 		$reg_enabled = get_post_meta( $post->ID, '_cem_registration_enabled', true );
 		$reg_type   = get_post_meta( $post->ID, '_cem_registration_type', true ) ?: 'individual';
-		$redirect   = get_post_meta( $post->ID, '_cem_registration_redirect', true );
 
 		// Default to enabled for new/existing events without the meta set
 		if ( $reg_enabled === '' ) $reg_enabled = '1';
@@ -1607,13 +1606,6 @@ class CEM_Admin {
 					<option value="closed" <?php selected($reg_st,'closed'); ?>><?php esc_html_e('Closed','church-event-manager'); ?></option>
 				</select>
 			</div>
-			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e( 'After Registration Redirect', 'church-event-manager' ); ?></label>
-				<input type="url" name="_cem_registration_redirect" value="<?php echo esc_attr( $redirect ); ?>"
-					placeholder="<?php esc_attr_e( 'Leave blank to show success message inline, or enter a URL (e.g. /events/)', 'church-event-manager' ); ?>"
-					class="large-text">
-				<span class="description"><?php esc_html_e( 'If set, the user will see a brief success message then be redirected to this URL after registering.', 'church-event-manager' ); ?></span>
-			</div>
 
 			</div><!-- /#cem-reg-fields-wrap -->
 		</div>
@@ -1696,7 +1688,7 @@ class CEM_Admin {
 
 		$datetime_fields = [ '_cem_start_datetime', '_cem_end_datetime', '_cem_registration_deadline' ];
 		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
-		$url_fields      = [ '_cem_location_url', '_cem_stream_url', '_cem_registration_redirect' ];
+		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
 		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled' ];
 
