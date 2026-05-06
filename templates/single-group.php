@@ -170,30 +170,30 @@ if ( $has_main_elements ) {
 			</section>
 			<?php endif; ?>
 
-		</div><!-- .cem-group-main -->
-
-		<!-- Sidebar -->
-		<aside class="cem-group-sidebar">
-
-			<!-- Join / Signup Card -->
+			<!-- Signup form — lives in the main column so it fills the space -->
 			<?php if ( $can_join ) : ?>
-			<div class="cem-group-signup-wrap">
-				<h3 class="cem-card-heading"><?php esc_html_e( 'Join This Group', 'church-event-manager' ); ?></h3>
+			<section class="cem-group-join-section">
+				<h2 class="cem-group-join-heading"><?php esc_html_e( 'Join This Group', 'church-event-manager' ); ?></h2>
 				<?php echo CEM_Group::render_signup_form( $group_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			</div>
+			</section>
 			<?php elseif ( $is_full || $status === 'full' ) : ?>
-			<div class="cem-group-signup-wrap cem-group-full">
+			<div class="cem-group-status-notice cem-group-full">
 				<p><?php esc_html_e( 'This group is currently full. Check back for openings!', 'church-event-manager' ); ?></p>
 			</div>
 			<?php elseif ( $status === 'closed' ) : ?>
-			<div class="cem-group-signup-wrap cem-group-closed">
+			<div class="cem-group-status-notice cem-group-closed">
 				<p><?php esc_html_e( 'This group is not currently accepting new members.', 'church-event-manager' ); ?></p>
 			</div>
 			<?php elseif ( $status === 'inactive' ) : ?>
-			<div class="cem-group-signup-wrap cem-group-ended">
+			<div class="cem-group-status-notice cem-group-ended">
 				<p><?php esc_html_e( 'This group is no longer active.', 'church-event-manager' ); ?></p>
 			</div>
 			<?php endif; ?>
+
+		</div><!-- .cem-group-main -->
+
+		<!-- Sidebar: details + leave group only -->
+		<aside class="cem-group-sidebar">
 
 			<!-- Details Card -->
 			<div class="cem-group-details-card">

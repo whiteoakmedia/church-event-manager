@@ -217,7 +217,108 @@
 .cem-group-status--full     { background: #fef3c7; color: #92400e; }
 .cem-group-status--inactive { background: #fee2e2; color: #991b1b; }
 
-/* ── Sign-up wrapper states ─────────────────────────────────────────────────── */
+/* ── Join Section (main column) ─────────────────────────────────────────────── */
+
+.cem-group-join-section {
+	margin-top: 2.5rem;
+	padding-top: 2rem;
+	border-top: 1px solid #e2e8f0;
+}
+
+.cem-group-join-heading {
+	font-size: 1.3rem;
+	font-weight: 700;
+	margin: 0 0 1.25rem;
+}
+
+/* Constrain the form to a readable width within the wide main column */
+.cem-group-join-section .cem-registration-wrap {
+	max-width: 520px;
+}
+
+/* Two-col name row */
+.cem-group-join-section .cem-form-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+@media (max-width: 540px) {
+	.cem-group-join-section .cem-form-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+.cem-group-join-section .cem-form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	margin-bottom: 1rem;
+}
+
+.cem-group-join-section .cem-form-group label {
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: #64748b;
+}
+
+.cem-group-join-section .cem-required {
+	color: var(--cem-accent);
+}
+
+.cem-group-join-section .cem-input {
+	padding: 0.6rem 0.85rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	width: 100%;
+	box-sizing: border-box;
+	background: #fff;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cem-group-join-section .cem-input:focus {
+	outline: none;
+	border-color: var(--cem-accent);
+	box-shadow: 0 0 0 3px rgba(59,89,152,.12);
+}
+
+.cem-group-join-section .cem-submit-btn {
+	display: inline-block;
+	padding: 0.7rem 2rem;
+	background: var(--cem-accent);
+	color: #fff;
+	border: none;
+	border-radius: 999px;
+	font-size: 0.95rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s;
+	margin-top: 0.25rem;
+}
+
+.cem-group-join-section .cem-submit-btn:hover {
+	background: var(--cem-accent-dark);
+}
+
+.cem-group-join-section .cem-submit-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* Status notices (full / closed / inactive) */
+.cem-group-status-notice {
+	margin-top: 2rem;
+	padding: 1rem 1.25rem;
+	border-radius: 10px;
+	font-style: italic;
+	color: #64748b;
+	border: 1px solid #e2e8f0;
+}
+
+/* ── Sign-up wrapper states (sidebar / legacy) ──────────────────────────────── */
 
 .cem-group-full,
 .cem-group-closed,
