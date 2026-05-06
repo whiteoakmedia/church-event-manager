@@ -380,10 +380,6 @@ class CEM_Shortcodes {
 		<?php if ( $atts['show_filter'] === 'yes' ) : ?>
 		<form class="cem-filter-form cem-groups-filter" method="get" action="">
 			<div class="cem-filter-row">
-				<input type="text" name="cem_group_search" value="<?php echo esc_attr( $search ); ?>"
-					placeholder="<?php esc_attr_e( 'Search groups…', 'church-event-manager' ); ?>"
-					class="cem-group-search-input">
-
 				<select name="cem_group_type" onchange="this.form.submit()">
 					<option value=""><?php esc_html_e( 'All Types', 'church-event-manager' ); ?></option>
 					<?php foreach ( $group_types as $val => $label ) :
@@ -416,8 +412,8 @@ class CEM_Shortcodes {
 				</select>
 				<?php endif; ?>
 
-				<?php if ( $type_filter || $cat_filter || $day_filter || $search ) : ?>
-				<a href="<?php echo esc_url( remove_query_arg( [ 'cem_group_type', 'cem_group_cat', 'cem_group_day', 'cem_group_search' ] ) ); ?>" class="cem-clear-filter">
+				<?php if ( $type_filter || $cat_filter || $day_filter ) : ?>
+				<a href="<?php echo esc_url( remove_query_arg( [ 'cem_group_type', 'cem_group_cat', 'cem_group_day' ] ) ); ?>" class="cem-clear-filter">
 					<?php esc_html_e( '✕ Clear', 'church-event-manager' ); ?>
 				</a>
 				<?php endif; ?>
@@ -476,9 +472,9 @@ class CEM_Shortcodes {
 						<span class="cem-badge cem-badge--online"><?php esc_html_e( 'Online', 'church-event-manager' ); ?></span>
 						<?php endif; ?>
 					</div>
-					<h3 class="cem-card-title">
+					<div class="cem-card-title">
 						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-					</h3>
+					</div>
 					<?php if ( has_excerpt() ) : ?>
 					<p class="cem-card-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 15 ) ); ?></p>
 					<?php endif; ?>
