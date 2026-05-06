@@ -80,6 +80,30 @@ while ( have_posts() ) :
 	$spots_remaining = ( $capacity > 0 && class_exists( 'CEM_Helpers' ) ) ? CEM_Helpers::get_spots_remaining( $event_id ) : null;
 	$reg_count       = class_exists( 'CEM_Helpers' ) ? CEM_Helpers::get_registration_count( $event_id ) : 0;
 	$deadline_passed = $deadline && strtotime( $deadline ) < time();
+
+	// ── Category Cap State ────────────────────────────────────────────────────
+	// Check if any event category has a global registration cap that's reached.
+	$cat_cap_error = false;
+	if ( class_exists( 'CEM_Helpers' ) ) {
+		$terms = get_the_terms( $event_id, 'cem_event_category' );
+		if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $_term ) {
+				$_cat_cap   = (int) get_term_meta( $_term->term_id, '_cem_cat_cap', true );
+				if ( $_cat_cap > 0 ) {
+					$_cat_taken = CEM_Helpers::get_category_registration_count( $_term->term_id );
+					if ( $_cat_taken >= $_cat_cap ) {
+						$cat_cap_error = sprintf(
+							__( 'Registration is currently full for the "%s" category.', 'church-event-manager' ),
+							esc_html( $_term->name )
+						);
+						$at_capacity = true; // treat as full for registration gating
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	$can_register    = ( $reg_status === 'open' && $status === 'open' && ! $at_capacity && ! $deadline_passed );
 
 	// ── Pre-calculate Capacity & My-Registrations Vars ────────────────────────

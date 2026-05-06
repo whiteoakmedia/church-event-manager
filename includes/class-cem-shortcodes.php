@@ -115,9 +115,11 @@ class CEM_Shortcodes {
 			<form class="cem-filter-form" method="get" action="">
 				<div class="cem-filter-row">
 					<select name="cem_category" onchange="this.form.submit()">
-						<option value=""><?php esc_html_e( 'All Categories', 'church-event-manager' ); ?></option>
+						<option value=""><?php esc_html_e( 'All Events', 'church-event-manager' ); ?></option>
 						<?php
-						$cats = get_terms( [ 'taxonomy' => 'cem_event_category', 'hide_empty' => true ] );
+						// hide_empty=false: always show all categories so "All Events" is never
+						// the only option and categories with future events aren't silently hidden.
+						$cats = get_terms( [ 'taxonomy' => 'cem_event_category', 'hide_empty' => false ] );
 						foreach ( $cats as $cat ) :
 						?>
 						<option value="<?php echo esc_attr( $cat->slug ); ?>"

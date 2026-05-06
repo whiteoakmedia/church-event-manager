@@ -19,6 +19,12 @@ class CEM_Admin {
 		add_filter( 'admin_footer_text',       [ $this, 'admin_footer_text' ] );
 		// Custom role capability
 		add_action( 'init', [ $this, 'add_custom_capabilities' ] );
+
+		// Category registration cap — UI and save hooks
+		add_action( 'cem_event_category_add_form_fields',  [ $this, 'category_cap_add_field' ] );
+		add_action( 'cem_event_category_edit_form_fields', [ $this, 'category_cap_edit_field' ] );
+		add_action( 'created_cem_event_category',          [ $this, 'save_category_cap' ] );
+		add_action( 'edited_cem_event_category',           [ $this, 'save_category_cap' ] );
 	}
 
 	// ── Capabilities ──────────────────────────────────────────────────────────
@@ -1141,6 +1147,12 @@ class CEM_Admin {
 						</td>
 					</tr>
 					<tr>
+						<th><label><?php esc_html_e( 'Groups Listing Page', 'church-event-manager' ); ?></label></th>
+						<td>
+							<?php wp_dropdown_pages( [ 'name' => 'cem_groups_page_id', 'selected' => get_option('cem_groups_page_id'), 'show_option_none' => __('— Select —','church-event-manager'), 'option_none_value' => '' ] ); ?>
+						</td>
+					</tr>
+					<tr>
 						<th><label><?php esc_html_e( 'My Registrations Page', 'church-event-manager' ); ?></label></th>
 						<td>
 							<?php wp_dropdown_pages( [ 'name' => 'cem_my_registrations_page_id', 'selected' => get_option('cem_my_registrations_page_id'), 'show_option_none' => __('— Select —','church-event-manager'), 'option_none_value' => '' ] ); ?>
@@ -1157,6 +1169,44 @@ class CEM_Admin {
 			</form>
 		</div>
 		<?php
+	}
+
+	// ── Category Registration Cap ────────────────────────────────────────────
+
+	/** Field on the "Add Category" screen. */
+	public function category_cap_add_field() {
+		?>
+		<div class="form-field">
+			<label for="cem_cat_cap"><?php esc_html_e( 'Registration Cap', 'church-event-manager' ); ?></label>
+			<input type="number" id="cem_cat_cap" name="cem_cat_cap" value="" min="0" style="width:80px">
+			<p><?php esc_html_e( 'Max total registrations across all events in this category. Leave blank or 0 for unlimited.', 'church-event-manager' ); ?></p>
+		</div>
+		<?php
+	}
+
+	/** Field on the "Edit Category" screen. */
+	public function category_cap_edit_field( $term ) {
+		$cap = (int) get_term_meta( $term->term_id, '_cem_cat_cap', true );
+		?>
+		<tr class="form-field">
+			<th scope="row"><label for="cem_cat_cap"><?php esc_html_e( 'Registration Cap', 'church-event-manager' ); ?></label></th>
+			<td>
+				<input type="number" id="cem_cat_cap" name="cem_cat_cap" value="<?php echo esc_attr( $cap ?: '' ); ?>" min="0" style="width:80px">
+				<p class="description"><?php esc_html_e( 'Max total registrations across all events in this category. Leave blank or 0 for unlimited.', 'church-event-manager' ); ?></p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	/** Save category cap term meta. */
+	public function save_category_cap( $term_id ) {
+		if ( ! isset( $_POST['cem_cat_cap'] ) ) return;
+		$cap = absint( $_POST['cem_cat_cap'] );
+		if ( $cap > 0 ) {
+			update_term_meta( $term_id, '_cem_cat_cap', $cap );
+		} else {
+			delete_term_meta( $term_id, '_cem_cat_cap' );
+		}
 	}
 
 	// ── Settings helpers ─────────────────────────────────────────────────────

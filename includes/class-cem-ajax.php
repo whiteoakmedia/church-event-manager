@@ -139,6 +139,16 @@ class CEM_Ajax {
 			$data['payment_status'] = 'free';
 		}
 
+		// ── Category cap check ────────────────────────────────────────────────
+		// For events (not groups), check if any assigned category has a registration cap
+		// that would be exceeded by this registration.
+		if ( ! $is_group ) {
+			$cat_error = CEM_Helpers::check_category_cap( $event_id, $num_attendees );
+			if ( $cat_error ) {
+				wp_send_json_error( [ 'message' => $cat_error ] );
+			}
+		}
+
 		$result = CEM_Registration::create( $data );
 
 		if ( is_wp_error( $result ) ) {
@@ -168,13 +178,20 @@ class CEM_Ajax {
 			? __( 'You have been added to the waitlist! We will contact you if a spot becomes available.', 'church-event-manager' )
 			: __( 'You\'re registered! Check your email for a confirmation.', 'church-event-manager' );
 
-		// Redirect URL: per-event override → global setting → events archive
+		// Redirect URL: per-event/group override → type-specific default → fallback
 		$redirect_url = get_post_meta( $event_id, '_cem_registration_redirect', true );
 		if ( ! $redirect_url ) {
-			$redirect_url = get_option( 'cem_registration_redirect_url', '' );
-		}
-		if ( ! $redirect_url ) {
-			$redirect_url = home_url( '/church-events/' );
+			if ( $is_group ) {
+				// Groups redirect back to the groups listing page
+				$groups_page_id = get_option( 'cem_groups_page_id' );
+				$redirect_url   = $groups_page_id ? get_permalink( $groups_page_id ) : home_url( '/groups/' );
+			} else {
+				$redirect_url = get_option( 'cem_registration_redirect_url', '' );
+				if ( ! $redirect_url ) {
+					$events_page_id = get_option( 'cem_events_page_id' );
+					$redirect_url   = $events_page_id ? get_permalink( $events_page_id ) : home_url( '/church-events/' );
+				}
+			}
 		}
 
 		wp_send_json_success( [
@@ -403,7 +420,7 @@ class CEM_Ajax {
 		}
 
 		// Page ID settings — saved as absint to ensure they're valid integers.
-		$page_id_settings = [ 'cem_events_page_id', 'cem_registrations_page_id', 'cem_my_registrations_page_id' ];
+		$page_id_settings = [ 'cem_events_page_id', 'cem_groups_page_id', 'cem_registrations_page_id', 'cem_my_registrations_page_id' ];
 		foreach ( $page_id_settings as $key ) {
 			if ( isset( $_POST[ $key ] ) ) {
 				update_option( $key, absint( $_POST[ $key ] ) );

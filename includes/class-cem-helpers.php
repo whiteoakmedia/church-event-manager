@@ -86,6 +86,65 @@ class CEM_Helpers {
 		return max( 0, $capacity - $taken );
 	}
 
+	/**
+	 * Get total confirmed registrations across all events in a given category.
+	 *
+	 * @param int $term_id  Term ID of the cem_event_category.
+	 * @return int
+	 */
+	public static function get_category_registration_count( $term_id ) {
+		global $wpdb;
+		$event_ids = get_objects_in_term( (int) $term_id, 'cem_event_category' );
+		if ( empty( $event_ids ) || is_wp_error( $event_ids ) ) return 0;
+
+		$event_ids  = array_map( 'intval', $event_ids );
+		$placeholders = implode( ',', array_fill( 0, count( $event_ids ), '%d' ) );
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(num_attendees),0)
+				 FROM {$wpdb->prefix}cem_registrations
+				 WHERE event_id IN ($placeholders)
+				 AND status IN ('confirmed','checked_in')",
+				$event_ids
+			)
+		);
+	}
+
+	/**
+	 * Check if adding $num_attendees to any category this event belongs to would
+	 * exceed that category's cap.
+	 *
+	 * @param int $event_id
+	 * @param int $num_attendees  Number being added in this registration.
+	 * @return string|false  Error message string if capped, false if OK.
+	 */
+	public static function check_category_cap( $event_id, $num_attendees = 1 ) {
+		$terms = get_the_terms( $event_id, 'cem_event_category' );
+		if ( empty( $terms ) || is_wp_error( $terms ) ) return false;
+
+		foreach ( $terms as $term ) {
+			$cap = (int) get_term_meta( $term->term_id, '_cem_cat_cap', true );
+			if ( $cap <= 0 ) continue; // no cap set for this category
+
+			$taken = self::get_category_registration_count( $term->term_id );
+			if ( ( $taken + $num_attendees ) > $cap ) {
+				return sprintf(
+					/* translators: %1$s = category name, %2$d = spots remaining */
+					_n(
+						'Registration limit reached for the "%1$s" category (%2$d spot remaining).',
+						'Registration limit reached for the "%1$s" category (%2$d spots remaining).',
+						max( 0, $cap - $taken ),
+						'church-event-manager'
+					),
+					esc_html( $term->name ),
+					max( 0, $cap - $taken )
+				);
+			}
+		}
+		return false;
+	}
+
 	/** Build a download-ready CSV string from array of arrays. */
 	public static function array_to_csv( array $data ) {
 		if ( empty( $data ) ) return '';

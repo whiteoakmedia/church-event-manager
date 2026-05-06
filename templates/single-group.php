@@ -38,6 +38,10 @@ while ( have_posts() ) :
 	$online       = get_post_meta( $group_id, '_cem_group_online',       true ) === '1';
 	$meeting_url  = get_post_meta( $group_id, '_cem_group_meeting_url',  true );
 
+	// ── Back-to-Groups URL ────────────────────────────────────────────────────
+	$groups_page_id = get_option( 'cem_groups_page_id' );
+	$groups_url     = $groups_page_id ? get_permalink( $groups_page_id ) : '';
+
 	// ── Computed Values ───────────────────────────────────────────────────────
 	$members    = $capacity > 0 ? CEM_Group::get_signup_count( $group_id ) : 0;
 	$is_full    = $capacity > 0 && $members >= $capacity;
@@ -59,6 +63,15 @@ while ( have_posts() ) :
 	];
 	$status_label = $status_labels[ $status ] ?? ucfirst( $status );
 	?>
+
+<?php if ( $groups_url ) : ?>
+<div class="cem-back-to-events">
+	<a href="<?php echo esc_url( $groups_url ); ?>" class="cem-back-link">
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+		<?php esc_html_e( 'Back to Groups', 'church-event-manager' ); ?>
+	</a>
+</div>
+<?php endif; ?>
 
 <article id="post-<?php the_ID(); ?>" <?php post_class( 'cem-single-group' ); ?>>
 
