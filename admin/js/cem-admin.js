@@ -334,54 +334,56 @@
   }
 
   // ── Email Log Preview ─────────────────────────────────────────────────────
+  // Look up elements inside handlers so they're never stale empty-jQuery objects
+  // (the modal markup only exists in the DOM when on the log tab).
 
-  const $previewModal   = $('#cem-email-preview-modal');
-  const $previewIframe  = $('#cem-email-preview-iframe');
-  const $previewSubject = $('#cem-email-preview-subject');
+  function closeEmailPreview() {
+    $('#cem-email-preview-modal').hide();
+  }
+
+  function writeIframe(html) {
+    var iframe = document.getElementById('cem-email-preview-iframe');
+    if (!iframe) return;
+    var doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }
 
   $(document).on('click', '.cem-preview-email-btn', function () {
-    const logId   = $(this).data('id');
-    const subject = $(this).data('subject');
+    var logId   = $(this).data('id');
+    var subject = $(this).data('subject');
+    var $modal  = $('#cem-email-preview-modal');
 
-    $previewSubject.text(subject);
-    $previewIframe.attr('src', '').contents().find('body').html('');
-    $previewModal.css('display', 'flex');
+    if (!$modal.length) return;
 
-    $.post(ajax, { action: 'cem_preview_email_log', nonce: nonce, log_id: logId }, function (res) {
-      if (res.success) {
-        // Write the stored HTML directly into the sandboxed iframe
-        const doc = $previewIframe[0].contentDocument || $previewIframe[0].contentWindow.document;
-        doc.open();
-        doc.write(res.data.html);
-        doc.close();
-      } else {
-        const doc = $previewIframe[0].contentDocument || $previewIframe[0].contentWindow.document;
-        doc.open();
-        doc.write('<p style="padding:20px;color:#c62828;">Could not load email preview.</p>');
-        doc.close();
-      }
-    });
+    $('#cem-email-preview-subject').text(subject);
+    writeIframe('<p style="padding:20px;color:#888;">Loading…</p>');
+    $modal.css('display', 'flex');
+
+    $.post(ajax, { action: 'cem_preview_email_log', nonce: nonce, log_id: logId })
+      .done(function (res) {
+        if (res.success) {
+          writeIframe(res.data.html);
+        } else {
+          writeIframe('<p style="padding:20px;color:#c62828;">Could not load email preview.</p>');
+        }
+      })
+      .fail(function () {
+        writeIframe('<p style="padding:20px;color:#c62828;">Request failed.</p>');
+      });
   });
 
-  $('#cem-email-preview-close').on('click', function () {
-    $previewModal.hide();
-    $previewIframe.attr('src', '');
+  $(document).on('click', '#cem-email-preview-close', function () {
+    closeEmailPreview();
   });
 
-  // Close on backdrop click
-  $previewModal.on('click', function (e) {
-    if (e.target === this) {
-      $previewModal.hide();
-      $previewIframe.attr('src', '');
-    }
+  $(document).on('click', '#cem-email-preview-modal', function (e) {
+    if (e.target === this) closeEmailPreview();
   });
 
-  // Close on Escape key
   $(document).on('keydown', function (e) {
-    if (e.key === 'Escape' && $previewModal.is(':visible')) {
-      $previewModal.hide();
-      $previewIframe.attr('src', '');
-    }
+    if (e.key === 'Escape') closeEmailPreview();
   });
 
 })(jQuery);
