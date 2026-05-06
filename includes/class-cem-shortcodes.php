@@ -248,22 +248,7 @@ class CEM_Shortcodes {
 							<?php endif; ?>
 
 							<div class="cem-event-actions">
-								<?php
-								$card_reg_enabled = get_post_meta( $event_id, '_cem_registration_enabled', true );
-								if ( $card_reg_enabled === '0' ) :
-								// Registration disabled — show only Learn More
-								elseif ( $full && get_option( 'cem_waitlist_enabled' ) ) : ?>
-								<a href="<?php the_permalink(); ?>?register=1" class="cem-btn cem-btn-secondary">
-									<?php esc_html_e( 'Join Waitlist', 'church-event-manager' ); ?>
-								</a>
-								<?php elseif ( $reg_status !== 'closed' ) : ?>
-								<a href="<?php the_permalink(); ?>?register=1" class="cem-btn cem-btn-primary">
-									<?php esc_html_e( 'Register Now', 'church-event-manager' ); ?>
-								</a>
-								<?php else : ?>
-								<span class="cem-btn cem-btn-disabled"><?php esc_html_e( 'Registration Closed', 'church-event-manager' ); ?></span>
-								<?php endif; ?>
-								<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-ghost">
+								<a href="<?php the_permalink(); ?>" class="cem-btn cem-btn-primary">
 									<?php esc_html_e( 'Learn More', 'church-event-manager' ); ?>
 								</a>
 							</div>
