@@ -13,10 +13,12 @@
 /* ── Hero / Header ──────────────────────────────────────────────────────────── */
 
 /*
- * Full-viewport-width hero that bleeds behind the navbar.
- * --cem-nav-height: set this to match the theme's navbar height (default 90px).
- * The hero uses a negative margin-top to slide under the navbar, then
- * compensates with padding-top so the content below isn't clipped.
+ * Full-viewport-width hero rendered BEFORE the theme's main content wrapper,
+ * so it can naturally sit at the top of the page and slide behind the
+ * fixed/sticky navbar with no negative-margin tricks needed.
+ *
+ * --cem-nav-height: height of your theme's navbar (default 90px).
+ * Adjust this variable to match your theme.
  */
 :root {
 	--cem-nav-height: 90px;
@@ -25,17 +27,15 @@
 .cem-group-hero {
 	position: relative;
 	overflow: hidden;
-	/* break out of the content container to full viewport width */
-	width: 100vw;
-	margin-left: calc(50% - 50vw);
-	/* slide up behind the navbar */
+	width: 100%;
+	/* Pull the hero up behind the navbar */
 	margin-top: calc(-1 * var(--cem-nav-height));
 	margin-bottom: 2rem;
 }
 
 .cem-group-hero-img {
 	width: 100%;
-	height: calc(480px + var(--cem-nav-height));
+	height: calc(520px + var(--cem-nav-height));
 	object-fit: cover;
 	object-position: center top;
 	display: block;
@@ -44,7 +44,7 @@
 .cem-group-hero-overlay {
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(to bottom, rgba(0,0,0,.15) 0%, transparent 35%, rgba(0,0,0,.65) 100%);
+	background: linear-gradient(to bottom, rgba(0,0,0,.25) 0%, transparent 40%, rgba(0,0,0,.70) 100%);
 }
 
 .cem-group-hero-content {
@@ -52,7 +52,29 @@
 	bottom: 0;
 	left: 0;
 	right: 0;
-	padding: 2rem clamp(1rem, 5vw, 4rem);
+	padding: 2rem clamp(1.5rem, 5vw, 4rem);
+}
+
+.cem-back-link--hero {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	color: rgba(255,255,255,.85);
+	font-size: 0.875rem;
+	font-weight: 500;
+	text-decoration: none;
+	margin-bottom: 0.75rem;
+}
+
+.cem-back-link--hero:hover {
+	color: #fff;
+}
+
+.cem-group-hero-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-bottom: 0.5rem;
 }
 
 .cem-group-title {

@@ -386,4 +386,77 @@
     if (e.key === 'Escape') closeEmailPreview();
   });
 
+
+  // ── Link Event to Group ───────────────────────────────────────────────────
+
+  $(document).on('click', '#cem-link-event-btn', function () {
+    var btn      = $(this);
+    var groupId  = btn.data('group');
+    var nonce    = btn.data('nonce');
+    var select   = $('#cem-link-event-select');
+    var eventId  = select.val();
+    var msg      = $('#cem-link-event-msg');
+
+    if (!eventId) { alert('Please select an event to link.'); return; }
+
+    btn.prop('disabled', true).text('Linking…');
+
+    $.post(ajax, {
+      action:   'cem_link_event_to_group',
+      nonce:    nonce,
+      event_id: eventId,
+      group_id: groupId,
+    }, function (res) {
+      btn.prop('disabled', false).text('Link Event');
+      if (!res.success) { alert(res.data.message); return; }
+
+      var d = res.data;
+      var tbody = $('#cem-linked-events-tbody');
+      if (!tbody.length) {
+        // table not yet visible — reload so PHP re-renders cleanly
+        location.reload(); return;
+      }
+      tbody.append(
+        '<tr id="cem-event-row-' + d.event_id + '">' +
+          '<td>' + d.title + '</td>' +
+          '<td>' + d.date + '</td>' +
+          '<td>' + d.status + '</td>' +
+          '<td>' +
+            '<a href="' + d.edit_url + '">Edit</a>' +
+            ' | <a href="' + d.view_url + '" target="_blank">View</a>' +
+            ' | <a href="#" class="cem-unlink-event" style="color:#dc2626"' +
+              ' data-event="' + d.event_id + '"' +
+              ' data-group="' + groupId + '"' +
+              ' data-nonce="' + nonce + '">Unlink</a>' +
+          '</td>' +
+        '</tr>'
+      );
+      // Remove from dropdown
+      select.find('option[value="' + d.event_id + '"]').remove();
+      msg.text('Event linked!').css({ color: '#166534', display: 'inline' });
+      setTimeout(function () { msg.fadeOut(); }, 2500);
+    });
+  });
+
+  $(document).on('click', '.cem-unlink-event', function (e) {
+    e.preventDefault();
+    if (!confirm('Unlink this event from the group?')) return;
+    var link    = $(this);
+    var eventId = link.data('event');
+    var groupId = link.data('group');
+    var nonce   = link.data('nonce');
+
+    $.post(ajax, {
+      action:   'cem_unlink_event_from_group',
+      nonce:    nonce,
+      event_id: eventId,
+      group_id: groupId,
+    }, function (res) {
+      if (!res.success) { alert(res.data.message); return; }
+      $('#cem-event-row-' + eventId).fadeOut(300, function () { $(this).remove(); });
+      // Re-add to dropdown
+      $('#cem-link-event-select').append('<option value="' + eventId + '">' + link.closest('tr').find('td:first').text() + '</option>');
+    });
+  });
+
 })(jQuery);

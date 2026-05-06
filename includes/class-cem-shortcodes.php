@@ -434,14 +434,15 @@ class CEM_Shortcodes {
 		while ( $query->have_posts() ) {
 			$query->the_post();
 			$id         = get_the_ID();
-			$type       = get_post_meta( $id, '_cem_group_type',      true );
-			$day        = get_post_meta( $id, '_cem_group_day',       true );
-			$time       = get_post_meta( $id, '_cem_group_time',      true );
-			$freq       = get_post_meta( $id, '_cem_group_frequency', true );
-			$location   = get_post_meta( $id, '_cem_group_location',  true );
-			$leader     = get_post_meta( $id, '_cem_group_leader',    true );
-			$status     = get_post_meta( $id, '_cem_group_status',    true ) ?: 'open';
-			$capacity   = (int) get_post_meta( $id, '_cem_group_capacity', true );
+			$type        = get_post_meta( $id, '_cem_group_type',        true );
+			$day         = get_post_meta( $id, '_cem_group_day',         true );
+			$time        = get_post_meta( $id, '_cem_group_time',        true );
+			$freq        = get_post_meta( $id, '_cem_group_frequency',   true );
+			$location    = get_post_meta( $id, '_cem_group_location',    true );
+			$leader      = get_post_meta( $id, '_cem_group_leader',      true );
+			$status      = get_post_meta( $id, '_cem_group_status',      true ) ?: 'open';
+			$capacity    = (int) get_post_meta( $id, '_cem_group_capacity', true );
+			$description = get_post_meta( $id, '_cem_group_description', true );
 			$members    = $capacity > 0 ? CEM_Group::get_signup_count( $id ) : 0;
 			$childcare  = get_post_meta( $id, '_cem_group_childcare', true ) === '1';
 			$online     = get_post_meta( $id, '_cem_group_online',    true ) === '1';
@@ -475,8 +476,11 @@ class CEM_Shortcodes {
 					<div class="cem-card-title">
 						<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 					</div>
-					<?php if ( has_excerpt() ) : ?>
-					<p class="cem-card-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 15 ) ); ?></p>
+					<?php
+					// Show the dedicated description field, falling back to excerpt
+					$card_desc = $description ?: ( has_excerpt() ? get_the_excerpt() : '' );
+					if ( $card_desc ) : ?>
+					<p class="cem-card-excerpt"><?php echo esc_html( wp_trim_words( $card_desc, 20 ) ); ?></p>
 					<?php endif; ?>
 					<?php if ( $schedule ) : ?>
 					<p class="cem-card-date">🗓 <?php echo esc_html( $schedule ); ?></p>

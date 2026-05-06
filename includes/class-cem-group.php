@@ -55,6 +55,10 @@ class CEM_Group {
 		add_action( 'add_meta_boxes',      [ $this, 'add_meta_boxes' ] );
 		add_action( 'save_post_cem_group', [ $this, 'save_meta' ], 10, 2 );
 
+		// AJAX: link an existing event to a group
+		add_action( 'wp_ajax_cem_link_event_to_group',   [ $this, 'ajax_link_event_to_group' ] );
+		add_action( 'wp_ajax_cem_unlink_event_from_group', [ $this, 'ajax_unlink_event_from_group' ] );
+
 		// Template override for single cem_group
 		add_filter( 'template_include', [ $this, 'single_group_template' ], 99 );
 	}
@@ -226,6 +230,7 @@ class CEM_Group {
 	public function mb_group_details( $post ) {
 		wp_nonce_field( 'cem_group_meta', 'cem_group_nonce' );
 
+		$description  = get_post_meta( $post->ID, '_cem_group_description',  true );
 		$type         = get_post_meta( $post->ID, '_cem_group_type',         true );
 		$day          = get_post_meta( $post->ID, '_cem_group_day',          true );
 		$time         = get_post_meta( $post->ID, '_cem_group_time',         true );
@@ -250,6 +255,18 @@ class CEM_Group {
 		.cem-group-meta-table td, .cem-group-meta-table th { padding: 8px 10px; vertical-align: middle; }
 		.cem-group-meta-table input[type="time"] { max-width: 140px; }
 		</style>
+
+		<div style="margin-bottom:16px">
+			<label for="_cem_group_description" style="display:block;font-weight:600;margin-bottom:6px">
+				<?php esc_html_e( 'Description', 'church-event-manager' ); ?>
+			</label>
+			<textarea id="_cem_group_description" name="_cem_group_description" rows="4"
+				class="large-text" style="width:100%;resize:vertical"
+				placeholder="<?php esc_attr_e( 'Describe this group — who it\'s for, what to expect, etc.', 'church-event-manager' ); ?>"
+			><?php echo esc_textarea( $description ); ?></textarea>
+			<p class="description"><?php esc_html_e( 'Shown on group cards and the group detail page.', 'church-event-manager' ); ?></p>
+		</div>
+
 		<table class="form-table cem-group-meta-table">
 			<tr>
 				<th><label for="_cem_group_type"><?php esc_html_e( 'Group Type', 'church-event-manager' ); ?></label></th>
@@ -422,6 +439,11 @@ class CEM_Group {
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
+		// Description (allow basic HTML)
+		if ( isset( $_POST['_cem_group_description'] ) ) {
+			update_post_meta( $post_id, '_cem_group_description', wp_kses_post( wp_unslash( $_POST['_cem_group_description'] ) ) );
+		}
+
 		$text_fields = [
 			'_cem_group_leader', '_cem_group_location', '_cem_group_address',
 			'_cem_group_day', '_cem_group_time', '_cem_group_contact_phone',
@@ -473,6 +495,59 @@ class CEM_Group {
 		if ( isset( $_POST['_cem_group_frequency'] ) && in_array( $_POST['_cem_group_frequency'], $allowed_freqs, true ) ) {
 			update_post_meta( $post_id, '_cem_group_frequency', $_POST['_cem_group_frequency'] );
 		}
+	}
+
+	// ── AJAX: Link / Unlink Event ────────────────────────────────────────────
+
+	public function ajax_link_event_to_group() {
+		check_ajax_referer( 'cem_link_event', 'nonce' );
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'church-event-manager' ) ] );
+		}
+
+		$event_id = absint( $_POST['event_id'] ?? 0 );
+		$group_id = absint( $_POST['group_id'] ?? 0 );
+
+		if ( ! $event_id || ! $group_id ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid event or group.', 'church-event-manager' ) ] );
+		}
+		if ( get_post_type( $event_id ) !== 'cem_event' || get_post_type( $group_id ) !== 'cem_group' ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid post type.', 'church-event-manager' ) ] );
+		}
+
+		update_post_meta( $event_id, '_cem_event_group_id', $group_id );
+
+		$start = get_post_meta( $event_id, '_cem_start_datetime', true );
+		wp_send_json_success( [
+			'event_id'    => $event_id,
+			'title'       => get_the_title( $event_id ),
+			'date'        => $start ? CEM_Helpers::format_date( $start ) : '—',
+			'status'      => ucfirst( get_post_status( $event_id ) ),
+			'edit_url'    => get_edit_post_link( $event_id, 'raw' ),
+			'view_url'    => get_permalink( $event_id ),
+		] );
+	}
+
+	public function ajax_unlink_event_from_group() {
+		check_ajax_referer( 'cem_link_event', 'nonce' );
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'church-event-manager' ) ] );
+		}
+
+		$event_id = absint( $_POST['event_id'] ?? 0 );
+		$group_id = absint( $_POST['group_id'] ?? 0 );
+
+		if ( ! $event_id || ! $group_id ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid event or group.', 'church-event-manager' ) ] );
+		}
+
+		// Only unlink if it's actually linked to this group
+		$current = (int) get_post_meta( $event_id, '_cem_event_group_id', true );
+		if ( $current === $group_id ) {
+			delete_post_meta( $event_id, '_cem_event_group_id' );
+		}
+
+		wp_send_json_success( [ 'event_id' => $event_id ] );
 	}
 
 	// ── Email Group Members ──────────────────────────────────────────────────
@@ -574,17 +649,41 @@ class CEM_Group {
 	}
 
 	public function mb_linked_events( $post ) {
-		$events   = self::get_linked_events( $post->ID );
-		$add_url  = add_query_arg( [
-			'post_type'    => 'cem_event',
-			'cem_group_id' => $post->ID,
-		], admin_url( 'post-new.php' ) );
+		$events = self::get_linked_events( $post->ID );
+
+		// All published events not already in this group
+		$linked_ids = wp_list_pluck( $events, 'ID' );
+		$all_events = get_posts( [
+			'post_type'      => 'cem_event',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'post__not_in'   => $linked_ids,
+		] );
 		?>
-		<div style="margin-bottom:10px">
-			<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary">
-				<?php esc_html_e( '+ Add Event to Group', 'church-event-manager' ); ?>
+		<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+			<?php if ( ! empty( $all_events ) ) : ?>
+			<select id="cem-link-event-select" style="max-width:340px">
+				<option value=""><?php esc_html_e( '— Select an event —', 'church-event-manager' ); ?></option>
+				<?php foreach ( $all_events as $ev ) : ?>
+				<option value="<?php echo esc_attr( $ev->ID ); ?>"><?php echo esc_html( $ev->post_title ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<button type="button" class="button button-primary" id="cem-link-event-btn"
+				data-group="<?php echo esc_attr( $post->ID ); ?>"
+				data-nonce="<?php echo esc_attr( wp_create_nonce( 'cem_link_event' ) ); ?>">
+				<?php esc_html_e( 'Link Event', 'church-event-manager' ); ?>
+			</button>
+			<?php else : ?>
+			<span style="color:#6b7280;font-style:italic"><?php esc_html_e( 'All published events are already linked to this group.', 'church-event-manager' ); ?></span>
+			<?php endif; ?>
+			<a href="<?php echo esc_url( add_query_arg( [ 'post_type' => 'cem_event', 'cem_group_id' => $post->ID ], admin_url( 'post-new.php' ) ) ); ?>"
+				class="button" style="margin-left:auto">
+				<?php esc_html_e( '+ Create New Event', 'church-event-manager' ); ?>
 			</a>
 		</div>
+		<span id="cem-link-event-msg" style="display:none;font-size:13px"></span>
 		<?php if ( empty( $events ) ) : ?>
 			<p style="color:#6b7280;font-style:italic"><?php esc_html_e( 'No events linked to this group yet.', 'church-event-manager' ); ?></p>
 		<?php else : ?>
@@ -597,12 +696,12 @@ class CEM_Group {
 						<th></th>
 					</tr>
 				</thead>
-				<tbody>
+				<tbody id="cem-linked-events-tbody">
 				<?php foreach ( $events as $event ) :
 					$start  = get_post_meta( $event->ID, '_cem_start_datetime', true );
 					$status = $event->post_status;
 					?>
-					<tr>
+					<tr id="cem-event-row-<?php echo esc_attr( $event->ID ); ?>">
 						<td><?php echo esc_html( $event->post_title ); ?></td>
 						<td><?php echo $start ? esc_html( CEM_Helpers::format_date( $start ) ) : '—'; ?></td>
 						<td><?php echo esc_html( ucfirst( $status ) ); ?></td>
@@ -610,6 +709,13 @@ class CEM_Group {
 							<a href="<?php echo esc_url( get_edit_post_link( $event->ID ) ); ?>"><?php esc_html_e( 'Edit', 'church-event-manager' ); ?></a>
 							&nbsp;|&nbsp;
 							<a href="<?php echo esc_url( get_permalink( $event->ID ) ); ?>" target="_blank"><?php esc_html_e( 'View', 'church-event-manager' ); ?></a>
+							&nbsp;|&nbsp;
+							<a href="#" class="cem-unlink-event" style="color:#dc2626"
+								data-event="<?php echo esc_attr( $event->ID ); ?>"
+								data-group="<?php echo esc_attr( $post->ID ); ?>"
+								data-nonce="<?php echo esc_attr( wp_create_nonce( 'cem_link_event' ) ); ?>">
+								<?php esc_html_e( 'Unlink', 'church-event-manager' ); ?>
+							</a>
 						</td>
 					</tr>
 				<?php endforeach; ?>
