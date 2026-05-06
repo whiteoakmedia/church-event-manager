@@ -532,16 +532,37 @@
 
 /* ── Group cards — mirror event card styling ──────────────── */
 
-/* Search input: inline with the selects, not a full-width block */
+/* Wrap gets side padding so content doesn't bleed to edge */
+.cem-groups-wrap {
+  padding: 0 4px;
+}
+
+/* Filter row: force flex so inputs sit inline, not stacked */
+.cem-groups-wrap .cem-filter-form .cem-filter-row {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Search input: inline with the selects — override any theme width:100% */
+.cem-groups-wrap .cem-group-search-input,
 .cem-group-search-input {
-  padding: 8px 14px;
-  border: 1px solid var(--cem-border);
-  border-radius: 6px;
-  font-size: 14px;
-  background: #fff;
-  color: var(--cem-text);
-  width: auto;
-  min-width: 180px;
+  display: inline-block !important;
+  width: auto !important;
+  max-width: 220px !important;
+  padding: 8px 14px !important;
+  border: 1px solid var(--cem-border) !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  background: #fff !important;
+  color: var(--cem-text) !important;
+  box-sizing: border-box;
+}
+
+/* Selects: override any theme full-width */
+.cem-groups-wrap .cem-filter-row select {
+  width: auto !important;
 }
 
 /* Card image */
@@ -554,7 +575,7 @@
   display: block;
   transition: transform .3s;
 }
-.cem-event-card:hover .cem-card-img { transform: scale(1.03); }
+.cem-group-card:hover .cem-card-img { transform: scale(1.03); }
 
 /* Card body */
 .cem-card-body {
@@ -572,18 +593,23 @@
   margin-bottom: 10px;
 }
 
-/* Title — match event card, override theme h3 */
-.cem-card-title {
-  margin: 0 0 8px;
+/* Title — high-specificity to beat theme h3 styles */
+.cem-group-card .cem-card-title,
+.cem-groups-wrap .cem-card-title {
+  margin: 0 0 8px !important;
   font-size: 17px !important;
   font-weight: 700 !important;
   line-height: 1.3 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
 }
-.cem-card-title a {
-  color: var(--cem-text);
-  text-decoration: none;
+.cem-group-card .cem-card-title a,
+.cem-groups-wrap .cem-card-title a {
+  color: var(--cem-text) !important;
+  text-decoration: none !important;
 }
-.cem-card-title a:hover { color: var(--cem-primary); }
+.cem-group-card .cem-card-title a:hover,
+.cem-groups-wrap .cem-card-title a:hover { color: var(--cem-primary) !important; }
 
 /* Excerpt */
 .cem-card-excerpt {
@@ -597,14 +623,15 @@
   overflow: hidden;
 }
 
-/* Meta lines (date, location, leader) */
+/* Meta lines (schedule, location, leader, capacity) */
 .cem-card-date,
 .cem-card-location,
 .cem-card-leader,
 .cem-card-capacity {
-  font-size: 13px;
-  color: var(--cem-muted);
-  margin: 0 0 4px;
+  font-size: 13px !important;
+  color: var(--cem-muted) !important;
+  margin: 0 0 4px !important;
+  font-weight: normal !important;
 }
 
 /* Pin action button to card bottom */
