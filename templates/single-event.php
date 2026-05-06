@@ -99,6 +99,10 @@ while ( have_posts() ) :
 	$my_regs_page_id = get_option( 'cem_registrations_page_id' );
 	$my_regs_url     = $my_regs_page_id ? get_permalink( $my_regs_page_id ) : '';
 
+	// ── Back-to-Events URL ────────────────────────────────────────────────────
+	$events_page_id  = get_option( 'cem_events_page_id' );
+	$events_url      = $events_page_id ? get_permalink( $events_page_id ) : '';
+
 	// ── Price Display ─────────────────────────────────────────────────────────
 	$price_display = ( $price === '' || (float) $price === 0.0 )
 		? __( 'Free', 'church-event-manager' )
@@ -136,6 +140,15 @@ while ( have_posts() ) :
 	];
 	$status_label = $status_labels[ $status ] ?? ucfirst( $status );
 	?>
+
+	<?php if ( $events_url ) : ?>
+	<div class="cem-back-to-events cmsmasters-section-container">
+		<a href="<?php echo esc_url( $events_url ); ?>" class="cem-back-link">
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+			<?php esc_html_e( 'Back to Events', 'church-event-manager' ); ?>
+		</a>
+	</div>
+	<?php endif; ?>
 
 	<article id="post-<?php the_ID(); ?>" <?php post_class( 'cmsmasters-single-post cem-single-event' ); ?>>
 

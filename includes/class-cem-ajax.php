@@ -402,6 +402,14 @@ class CEM_Ajax {
 			}
 		}
 
+		// Page ID settings — saved as absint to ensure they're valid integers.
+		$page_id_settings = [ 'cem_events_page_id', 'cem_registrations_page_id', 'cem_my_registrations_page_id' ];
+		foreach ( $page_id_settings as $key ) {
+			if ( isset( $_POST[ $key ] ) ) {
+				update_option( $key, absint( $_POST[ $key ] ) );
+			}
+		}
+
 		// Plain text / number / color settings.
 		$text_settings = [
 			'cem_from_name',

@@ -1048,3 +1048,26 @@
   white-space: nowrap;
   letter-spacing: .02em;
 }
+
+/* ── Back to Events breadcrumb ────────────────────────────── */
+
+.cem-back-to-events {
+  padding-top: 20px;
+  padding-bottom: 4px;
+}
+
+.cem-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cem-muted);
+  text-decoration: none;
+  transition: color .15s;
+}
+
+.cem-back-link:hover {
+  color: var(--cem-primary);
+  text-decoration: none;
+}
