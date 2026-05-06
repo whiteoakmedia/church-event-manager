@@ -1182,7 +1182,12 @@ class CEM_Admin {
 		?>
 		<tr>
 			<th><label><?php echo esc_html($label); ?></label></th>
-			<td><label><input type="checkbox" name="<?php echo esc_attr($option); ?>" value="1" <?php checked($value,'1'); ?>> <?php esc_html_e('Enabled','church-event-manager'); ?></label></td>
+			<td>
+				<?php /* Hidden marker tells save_settings() this checkbox is on the current tab,
+				         so it can correctly write '0' when unchecked rather than skipping it. */ ?>
+				<input type="hidden" name="cem_checkbox_fields[]" value="<?php echo esc_attr( $option ); ?>">
+				<label><input type="checkbox" name="<?php echo esc_attr($option); ?>" value="1" <?php checked($value,'1'); ?>> <?php esc_html_e('Enabled','church-event-manager'); ?></label>
+			</td>
 		</tr>
 		<?php
 	}

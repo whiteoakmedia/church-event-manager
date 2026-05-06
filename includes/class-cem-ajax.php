@@ -428,22 +428,27 @@ class CEM_Ajax {
 			}
 		}
 
-		// Checkbox settings: always save '1' when checked, '0' when unchecked.
-		// Standard HTML checkboxes are absent from POST when unchecked, so we
-		// must explicitly write '0' to avoid stale truthy values in the database.
-		$checkbox_settings = [
+		// Checkbox settings: only update checkboxes that were present on the submitted tab.
+		// Each tab renders a hidden <input name="cem_checkbox_fields[]"> marker for every
+		// checkbox it contains, so we know which ones to write '0' for when unchecked.
+		// This prevents saving tab A from silently zeroing out checkboxes from tabs B/C.
+		$allowed_checkboxes = [
 			'cem_admin_notify_on_register',
 			'cem_registration_auto_confirm',
 			'cem_waitlist_enabled',
 			'cem_allow_cancellations',
 			'cem_send_reminders',
-			// Stripe payment toggles
 			'cem_stripe_enabled',
 			'cem_stripe_test_mode',
 		];
+		$present_checkboxes = isset( $_POST['cem_checkbox_fields'] ) && is_array( $_POST['cem_checkbox_fields'] )
+			? array_map( 'sanitize_key', $_POST['cem_checkbox_fields'] )
+			: [];
 
-		foreach ( $checkbox_settings as $key ) {
-			update_option( $key, ( isset( $_POST[ $key ] ) && $_POST[ $key ] === '1' ) ? '1' : '0' );
+		foreach ( $present_checkboxes as $key ) {
+			if ( in_array( $key, $allowed_checkboxes, true ) ) {
+				update_option( $key, ( isset( $_POST[ $key ] ) && $_POST[ $key ] === '1' ) ? '1' : '0' );
+			}
 		}
 
 		wp_send_json_success( [ 'message' => __( 'Settings saved.', 'church-event-manager' ) ] );
