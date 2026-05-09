@@ -63,11 +63,31 @@ $status_labels = [
 ];
 $status_label = $status_labels[ $status ] ?? ucfirst( $status );
 
-// ── Hero (output BEFORE main wrapper so it can go full-width behind navbar) ──
-if ( has_post_thumbnail() ) : ?>
-<div class="cem-group-hero">
+// ── Hero (always rendered before wrapper — image or gradient fallback) ──
+// Map group type to a gradient colour class so no-image pages still look polished.
+$type_to_ph = [
+	'bible-study'  => 'amber',
+	'prayer'       => 'indigo',
+	'mens'         => 'navy',
+	'womens'       => 'rose',
+	'couples'      => 'rose',
+	'young-adults' => 'teal',
+	'youth'        => 'teal',
+	'seniors'      => 'slate',
+	'outreach'     => 'forest',
+	'recovery'     => 'amber',
+	'other'        => 'slate',
+	''             => 'slate',
+];
+$ph_color      = $type_to_ph[ $type ] ?? 'slate';
+$has_thumbnail = has_post_thumbnail();
+$hero_classes  = 'cem-group-hero' . ( $has_thumbnail ? '' : ' cem-group-hero--gradient cem-ph--' . esc_attr( $ph_color ) );
+?>
+<div class="<?php echo esc_attr( $hero_classes ); ?>">
+	<?php if ( $has_thumbnail ) : ?>
 	<?php the_post_thumbnail( 'full', [ 'class' => 'cem-group-hero-img' ] ); ?>
 	<div class="cem-group-hero-overlay"></div>
+	<?php endif; ?>
 	<div class="cem-group-hero-content">
 		<?php if ( $groups_url ) : ?>
 		<a href="<?php echo esc_url( $groups_url ); ?>" class="cem-back-link cem-back-link--hero">
@@ -86,7 +106,6 @@ if ( has_post_thumbnail() ) : ?>
 		<h1 class="cem-group-title"><?php the_title(); ?></h1>
 	</div>
 </div>
-<?php endif; ?>
 
 <?php
 // ── Open the theme's main content wrapper ────────────────────────────────
@@ -106,20 +125,6 @@ if ( $has_main_elements ) {
 	</div>
 	<?php endif; ?>
 
-	<?php if ( ! has_post_thumbnail() ) : ?>
-	<!-- Fallback header when there's no featured image -->
-	<header class="cem-group-header">
-		<div class="cem-group-header-badges">
-			<?php if ( $type_label ) : ?>
-			<span class="cem-group-type-badge"><?php echo esc_html( $type_label ); ?></span>
-			<?php endif; ?>
-			<span class="cem-badge cem-group-status cem-group-status--<?php echo esc_attr( $status ); ?>">
-				<?php echo esc_html( $status_label ); ?>
-			</span>
-		</div>
-		<h1 class="cem-group-title"><?php the_title(); ?></h1>
-	</header>
-	<?php endif; ?>
 
 	<div class="cem-group-layout">
 

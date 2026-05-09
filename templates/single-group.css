@@ -87,22 +87,47 @@
 	color: #fff;
 }
 
-.cem-group-header {
-	margin-bottom: 2rem;
-}
+/* ── Gradient hero (no featured image) ─────────────────────────────────────── */
 
-.cem-group-header .cem-group-title {
-	color: inherit;
-	margin-top: 0.5rem;
-}
-
-.cem-group-header-badges {
+.cem-group-hero--gradient {
+	min-height: calc(280px + var(--cem-nav-height));
 	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-	align-items: center;
-	margin-bottom: 0.5rem;
+	align-items: flex-end;
 }
+
+/* Subtle decorative circles add depth without looking AI-generated */
+.cem-group-hero--gradient::before {
+	content: '';
+	position: absolute;
+	width: 340px;
+	height: 340px;
+	border-radius: 50%;
+	background: rgba(255,255,255,.06);
+	top: -100px;
+	right: -80px;
+	pointer-events: none;
+}
+
+.cem-group-hero--gradient::after {
+	content: '';
+	position: absolute;
+	width: 200px;
+	height: 200px;
+	border-radius: 50%;
+	background: rgba(255,255,255,.04);
+	bottom: -60px;
+	left: -40px;
+	pointer-events: none;
+}
+
+/* Gradient colour variants — keyed to group type */
+.cem-ph--navy   { background: linear-gradient(145deg, #1a2f45 0%, #2c5282 100%); }
+.cem-ph--rose   { background: linear-gradient(145deg, #3d1a2e 0%, #7b2d55 100%); }
+.cem-ph--teal   { background: linear-gradient(145deg, #1a3d40 0%, #2a7a70 100%); }
+.cem-ph--amber  { background: linear-gradient(145deg, #3d2a0a 0%, #7a5010 100%); }
+.cem-ph--indigo { background: linear-gradient(145deg, #1e1a3d 0%, #3d3080 100%); }
+.cem-ph--forest { background: linear-gradient(145deg, #1a3020 0%, #2a5a35 100%); }
+.cem-ph--slate  { background: linear-gradient(145deg, #1e2a35 0%, #3d5570 100%); }
 
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
 

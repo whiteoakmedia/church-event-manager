@@ -461,10 +461,24 @@ class CEM_Shortcodes {
 			$schedule_parts = array_filter( [ $freq ? ucfirst( $freq ) : '', $day, $fmt_time ] );
 			$schedule      = implode( ' · ', $schedule_parts );
 			$thumb         = has_post_thumbnail() ? get_the_post_thumbnail( $id, 'medium', [ 'class' => 'cem-card-img' ] ) : '';
+			$type_to_ph    = [
+				'bible-study'  => 'amber',  'prayer'       => 'indigo',
+				'mens'         => 'navy',   'womens'       => 'rose',
+				'couples'      => 'rose',   'young-adults' => 'teal',
+				'youth'        => 'teal',   'seniors'      => 'slate',
+				'outreach'     => 'forest', 'recovery'     => 'amber',
+				'other'        => 'slate',  ''             => 'slate',
+			];
+			$ph_color      = $type_to_ph[ $type ] ?? 'slate';
+			$initial       = mb_strtoupper( mb_substr( get_the_title(), 0, 1 ) );
 			?>
 			<article class="cem-event-card cem-group-card">
 				<?php if ( $thumb ) : ?>
 				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap"><?php echo $thumb; ?></a>
+				<?php else : ?>
+				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap cem-card-placeholder cem-ph--<?php echo esc_attr( $ph_color ); ?>">
+					<span class="cem-card-placeholder__initial"><?php echo esc_html( $initial ); ?></span>
+				</a>
 				<?php endif; ?>
 				<div class="cem-card-body">
 					<div class="cem-card-meta">

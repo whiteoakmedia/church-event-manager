@@ -577,6 +577,59 @@
 }
 .cem-group-card:hover .cem-card-img { transform: scale(1.03); }
 
+/* Card placeholder — shown when no featured image is set */
+.cem-card-placeholder {
+  height: 180px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none !important;
+  transition: opacity .2s;
+}
+.cem-group-card:hover .cem-card-placeholder { opacity: .88; }
+
+/* Subtle decorative circles for depth */
+.cem-card-placeholder::before {
+  content: '';
+  position: absolute;
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.07);
+  top: -50px; right: -40px;
+  pointer-events: none;
+}
+.cem-card-placeholder::after {
+  content: '';
+  position: absolute;
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.05);
+  bottom: -30px; left: -20px;
+  pointer-events: none;
+}
+
+.cem-card-placeholder__initial {
+  font-size: 80px;
+  font-weight: 800;
+  color: rgba(255,255,255,.18);
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+  letter-spacing: -3px;
+  user-select: none;
+}
+
+/* Gradient colour variants — shared with single-group.css */
+.cem-ph--navy   { background: linear-gradient(145deg, #1a2f45 0%, #2c5282 100%); }
+.cem-ph--rose   { background: linear-gradient(145deg, #3d1a2e 0%, #7b2d55 100%); }
+.cem-ph--teal   { background: linear-gradient(145deg, #1a3d40 0%, #2a7a70 100%); }
+.cem-ph--amber  { background: linear-gradient(145deg, #3d2a0a 0%, #7a5010 100%); }
+.cem-ph--indigo { background: linear-gradient(145deg, #1e1a3d 0%, #3d3080 100%); }
+.cem-ph--forest { background: linear-gradient(145deg, #1a3020 0%, #2a5a35 100%); }
+.cem-ph--slate  { background: linear-gradient(145deg, #1e2a35 0%, #3d5570 100%); }
+
 /* Card body */
 .cem-card-body {
   padding: 16px 20px 20px;
