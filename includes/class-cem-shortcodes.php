@@ -50,11 +50,34 @@ class CEM_Shortcodes {
 		];
 
 		if ( $atts['show_past'] !== 'yes' ) {
+			// Keep events visible until they have fully ended, not just started.
+			// Logic: show if (end_datetime is set AND >= now) OR (no end_datetime AND start_datetime >= now).
+			// This prevents events from disappearing from the public list the moment they begin.
+			$now = current_time( 'mysql' );
 			$query_args['meta_query'][] = [
-				'key'     => '_cem_start_datetime',
-				'value'   => current_time( 'mysql' ),
-				'compare' => '>=',
-				'type'    => 'DATETIME',
+				'relation' => 'OR',
+				// Has an end time and the event hasn't finished yet
+				[
+					'key'     => '_cem_end_datetime',
+					'value'   => $now,
+					'compare' => '>=',
+					'type'    => 'DATETIME',
+				],
+				// No end time set — fall back to start time
+				[
+					'relation' => 'AND',
+					[
+						'key'     => '_cem_end_datetime',
+						'value'   => '',
+						'compare' => '=',
+					],
+					[
+						'key'     => '_cem_start_datetime',
+						'value'   => $now,
+						'compare' => '>=',
+						'type'    => 'DATETIME',
+					],
+				],
 			];
 		}
 
