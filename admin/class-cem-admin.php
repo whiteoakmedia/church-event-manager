@@ -1077,7 +1077,15 @@ class CEM_Admin {
 					<?php $this->settings_row( 'cem_from_name',            __( 'From Name',              'church-event-manager' ), 'text' ); ?>
 					<?php $this->settings_row( 'cem_from_email',           __( 'From Email',             'church-event-manager' ), 'email' ); ?>
 					<?php $this->settings_row( 'cem_reply_to_email',       __( 'Reply-To Email',         'church-event-manager' ), 'email' ); ?>
-					<?php $this->settings_row( 'cem_admin_notify_email',   __( 'Admin Notify Email',     'church-event-manager' ), 'email' ); ?>
+					<tr>
+						<th><label for="cem_admin_notify_email"><?php esc_html_e( 'Admin Notify Email', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="text" id="cem_admin_notify_email" name="cem_admin_notify_email"
+								value="<?php echo esc_attr( get_option( 'cem_admin_notify_email', '' ) ); ?>"
+								class="large-text" placeholder="pastor@church.org, secretary@church.org">
+							<p class="description"><?php esc_html_e( 'Where new-registration notifications are sent. Separate multiple addresses with a comma to notify several people.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
 					<?php $this->settings_checkbox( 'cem_admin_notify_on_register', __( 'Notify admin on new registration', 'church-event-manager' ) ); ?>
 					<?php $this->settings_row( 'cem_confirmation_subject', __( 'Confirmation Subject',   'church-event-manager' ), 'text' ); ?>
 					<?php $this->settings_row( 'cem_reminder_subject',     __( 'Reminder Subject',       'church-event-manager' ), 'text' ); ?>

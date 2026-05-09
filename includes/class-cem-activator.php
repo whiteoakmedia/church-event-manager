@@ -214,6 +214,32 @@ class CEM_Activator {
 			"DELETE FROM {$wpdb->postmeta} WHERE meta_key = %s",
 			'_cem_registration_redirect'
 		) );
+
+		// 1.4.1: the admin notify email field used to run sanitize_email() on
+		// the whole string, which strips commas + whitespace and mashes a
+		// multi-recipient list into a single mangled address (e.g.
+		// "a@x.coma@y.com"). Try to recover the original addresses by
+		// inserting a comma whenever a TLD is followed by another local part.
+		$notify = (string) get_option( 'cem_admin_notify_email', '' );
+		if ( $notify && strpos( $notify, ',' ) === false && strpos( $notify, ';' ) === false ) {
+			// Look for "<tld><alphanumeric>" — a TLD immediately glued to
+			// another username. Cover 2-24 char TLDs to catch .com, .org,
+			// .church, .ministry, etc.
+			$repaired = preg_replace(
+				'/(\.[a-z]{2,24})(?=[A-Za-z0-9._%+-]+@)/i',
+				'$1, ',
+				$notify
+			);
+			// Validate: only write back if it actually parses to multiple
+			// real email addresses now.
+			if ( $repaired && $repaired !== $notify ) {
+				$parts  = preg_split( '/[\s,;]+/', $repaired, -1, PREG_SPLIT_NO_EMPTY );
+				$valid  = array_values( array_filter( (array) $parts, 'is_email' ) );
+				if ( count( $valid ) > 1 ) {
+					update_option( 'cem_admin_notify_email', implode( ', ', $valid ) );
+				}
+			}
+		}
 	}
 
 	// ── Auto-create Pages ─────────────────────────────────────────────────────

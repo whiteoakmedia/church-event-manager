@@ -43,7 +43,25 @@ class CEM_Email {
 			'Content-Type: text/html; charset=UTF-8',
 		];
 
-		$to      = $args['to_name'] ? "{$args['to_name']} <{$args['to_email']}>" : $args['to_email'];
+		// Support comma/semicolon-separated recipient lists in to_email so admin
+		// notifications can fan out to multiple addresses. Single addresses pass
+		// through unchanged.
+		$recipients = preg_split( '/[\s,;]+/', (string) $args['to_email'], -1, PREG_SPLIT_NO_EMPTY );
+		$recipients = array_values( array_filter( array_map( 'sanitize_email', (array) $recipients ), 'is_email' ) );
+
+		if ( empty( $recipients ) ) {
+			return false;
+		}
+
+		// If a friendly name was supplied AND we only have one recipient, render
+		// "Name <email>". For multiple recipients we just send to the array of
+		// raw addresses — wp_mail accepts an array natively.
+		if ( count( $recipients ) === 1 && ! empty( $args['to_name'] ) ) {
+			$to = "{$args['to_name']} <{$recipients[0]}>";
+		} else {
+			$to = $recipients;
+		}
+
 		$message = self::wrap_in_layout( $args['message'], $args['subject'] );
 
 		$sent = wp_mail( $to, $args['subject'], $message, $headers );
@@ -52,7 +70,7 @@ class CEM_Email {
 		self::log( [
 			'event_id'        => $args['event_id'],
 			'registration_id' => $args['registration_id'],
-			'to_email'        => $args['to_email'],
+			'to_email'        => implode( ', ', $recipients ),
 			'to_name'         => $args['to_name'],
 			'subject'         => $args['subject'],
 			'message'         => $message,

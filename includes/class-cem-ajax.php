@@ -430,12 +430,30 @@ class CEM_Ajax {
 		$this->require_admin();
 		check_ajax_referer( 'cem_settings_nonce', 'nonce' );
 
-		// Email address settings — sanitized as email, not plain text.
-		$email_settings = [ 'cem_from_email', 'cem_reply_to_email', 'cem_admin_notify_email' ];
+		// Single-address email settings.
+		$email_settings = [ 'cem_from_email', 'cem_reply_to_email' ];
 		foreach ( $email_settings as $key ) {
 			if ( isset( $_POST[ $key ] ) ) {
 				update_option( $key, sanitize_email( wp_unslash( $_POST[ $key ] ) ) );
 			}
+		}
+
+		// Admin notify email — accepts a comma-separated list of recipients.
+		// We can't use sanitize_email() on the whole string because it strips
+		// commas + spaces and mashes "a@x.com, b@y.com" into "a@x.comb@y.com".
+		// Split on comma / semicolon / whitespace, sanitize each address
+		// individually, then re-join with ", ".
+		if ( isset( $_POST['cem_admin_notify_email'] ) ) {
+			$raw   = wp_unslash( $_POST['cem_admin_notify_email'] );
+			$parts = preg_split( '/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY );
+			$clean = [];
+			foreach ( (array) $parts as $part ) {
+				$email = sanitize_email( trim( $part ) );
+				if ( $email && is_email( $email ) ) {
+					$clean[] = $email;
+				}
+			}
+			update_option( 'cem_admin_notify_email', implode( ', ', array_unique( $clean ) ) );
 		}
 
 		// Page ID settings — saved as absint to ensure they're valid integers.
