@@ -172,7 +172,23 @@ class CEM_Custom_Fields {
 			if ( ! $label ) continue;
 
 			$type    = sanitize_key( $field['type'] ?? 'text' );
-			$options = sanitize_text_field( $field['options'] ?? '' );
+
+			// `field_options` is a single column reused for several purposes:
+			//   - select / radio / checkbox: a comma-separated list of choices
+			//   - waiver:                    the waiver body (multi-line HTML)
+			//   - everything else:           an optional helper string
+			//
+			// `sanitize_text_field` strips line breaks, so waiver text was
+			// rendering as one mashed paragraph. Use `wp_kses_post` for
+			// waivers (permits safe HTML + preserves newlines) and the
+			// stricter `sanitize_textarea_field` for other types so we keep
+			// line breaks but block tags.
+			$raw_options = (string) wp_unslash( $field['options'] ?? '' );
+			if ( $type === 'waiver' ) {
+				$options = wp_kses_post( $raw_options );
+			} else {
+				$options = sanitize_textarea_field( $raw_options );
+			}
 			$required= ! empty( $field['required'] ) ? 1 : 0;
 			$name    = sanitize_key( strtolower( str_replace( ' ', '_', $label ) ) );
 			$id      = (int) ( $field['id'] ?? 0 );

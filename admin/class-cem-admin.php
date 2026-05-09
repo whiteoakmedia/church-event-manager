@@ -1739,7 +1739,15 @@ class CEM_Admin {
 
 		foreach ( $datetime_fields as $key ) {
 			if ( isset( $_POST[$key] ) && $_POST[$key] !== '' ) {
-				update_post_meta( $post_id, $key, date( 'Y-m-d H:i:s', strtotime( sanitize_text_field( $_POST[$key] ) ) ) );
+				$raw_dt = sanitize_text_field( wp_unslash( $_POST[$key] ) );
+				$ts     = strtotime( $raw_dt );
+				// strtotime() returns false on garbage input. Without this
+				// guard, date('Y-m-d H:i:s', false) silently set the event
+				// to 1970-01-01 with no warning to the admin. If the input
+				// can't be parsed, leave the existing value untouched.
+				if ( $ts ) {
+					update_post_meta( $post_id, $key, date( 'Y-m-d H:i:s', $ts ) );
+				}
 			} else {
 				delete_post_meta( $post_id, $key );
 			}

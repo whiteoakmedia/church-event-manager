@@ -814,45 +814,133 @@ class CEM_Shortcodes {
 
 	// ── [cem_my_registrations] ────────────────────────────────────────────────
 
+	/**
+	 * Build the "your registrations" email body and dispatch it via CEM_Email.
+	 * Shared between the public lookup form and the AJAX "email me a copy" button.
+	 */
+	public static function send_registration_list_email( $email, $regs ) {
+		$rows = '';
+		foreach ( $regs as $reg ) {
+			$event      = get_post( $reg->event_id );
+			$start      = get_post_meta( $reg->event_id, '_cem_start_datetime', true );
+			$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
+			$title      = $event ? esc_html( $event->post_title ) : esc_html__( '(removed)', 'church-event-manager' );
+			$date       = $start ? esc_html( CEM_Helpers::format_date( $start ) ) : '—';
+			$status     = esc_html( ucfirst( $reg->status ) );
+			$code       = esc_html( $reg->registration_code );
+			$link       = '<a href="' . esc_url( $manage_url ) . '">' . esc_html__( 'View / Manage', 'church-event-manager' ) . '</a>';
+
+			$rows .= "<tr style='border-bottom:1px solid #eee'>"
+				. "<td style='padding:10px 8px'>$title</td>"
+				. "<td style='padding:10px 8px'>$date</td>"
+				. "<td style='padding:10px 8px'>$status</td>"
+				. "<td style='padding:10px 8px'><code>$code</code></td>"
+				. "<td style='padding:10px 8px'>$link</td>"
+				. '</tr>';
+		}
+
+		$header_style = 'padding:8px;text-align:left;background:#f5f5f5;border-bottom:2px solid #ddd';
+		$message = '<h2 style="margin-top:0">' . esc_html__( 'Your Registrations', 'church-event-manager' ) . '</h2>'
+			. '<table style="width:100%;border-collapse:collapse;font-size:14px">'
+			. '<thead><tr>'
+			. "<th style='$header_style'>" . esc_html__( 'Event',  'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Date',   'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Status', 'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Code',   'church-event-manager' ) . '</th>'
+			. "<th style='$header_style'>" . esc_html__( 'Link',   'church-event-manager' ) . '</th>'
+			. '</tr></thead>'
+			. "<tbody>$rows</tbody></table>"
+			. '<p style="margin-top:16px;color:#555">'
+			. esc_html__( 'Click "View / Manage" to update your details or cancel a registration.', 'church-event-manager' )
+			. '</p>';
+
+		return CEM_Email::send( [
+			'to_email' => $email,
+			'subject'  => sprintf(
+				/* translators: %s: site name */
+				__( 'Your Registrations at %s', 'church-event-manager' ),
+				get_bloginfo( 'name' )
+			),
+			'message'  => $message,
+			'type'     => 'registration_lookup',
+		] );
+	}
+
 	public function my_registrations( $atts ) {
 		ob_start();
 
 		// Handle manage by code (from email link)
-		$code = sanitize_text_field( $_GET['cem_code'] ?? '' );
+		$code = sanitize_text_field( wp_unslash( $_GET['cem_code'] ?? '' ) );
 		if ( $code ) {
 			$this->render_manage_registration( $code );
 			return ob_get_clean();
 		}
 
-		// Logged-in user: show their registrations
-		$summary_email = '';
-		if ( is_user_logged_in() ) {
-			$regs          = CEM_Registration::get_for_user( '', get_current_user_id() );
-			$summary_email = wp_get_current_user()->user_email;
-		} else {
-			// Show search form
+		// Privacy model:
+		// Anyone could previously type any email into the lookup form and see
+		// what registrations existed for that email — exposing whether someone
+		// signed up for a specific event. Now, when a public visitor submits
+		// the form, we ALWAYS show the same generic confirmation message
+		// regardless of whether the email matches anything, and dispatch the
+		// list as an email instead of rendering it in the page. Logged-in
+		// users still see their own list inline.
+		if ( ! is_user_logged_in() ) {
+			$submitted_email = isset( $_GET['cem_email'] )
+				? sanitize_email( wp_unslash( $_GET['cem_email'] ) )
+				: '';
+
+			$send_status = '';
+			if ( $submitted_email && is_email( $submitted_email ) ) {
+				// CSRF: require a nonce on this lookup form.
+				$nonce = isset( $_GET['cem_lookup_nonce'] )
+					? sanitize_text_field( wp_unslash( $_GET['cem_lookup_nonce'] ) )
+					: '';
+				$nonce_ok = $nonce && wp_verify_nonce( $nonce, 'cem_lookup' );
+
+				if ( $nonce_ok ) {
+					$regs = CEM_Registration::get_for_user( $submitted_email );
+					if ( ! empty( $regs ) ) {
+						// Reuse the same email body the AJAX endpoint produces.
+						self::send_registration_list_email( $submitted_email, $regs );
+					}
+					// IMPORTANT: identical message whether or not registrations
+					// existed — never reveal which addresses are on file.
+					$send_status = 'sent';
+				} else {
+					$send_status = 'invalid';
+				}
+			}
 			?>
 			<div class="cem-lookup-wrap">
 				<h3><?php esc_html_e( 'Look Up Your Registration', 'church-event-manager' ); ?></h3>
-				<p><?php esc_html_e( 'Enter your email address to view your registrations.', 'church-event-manager' ); ?></p>
-				<form method="get" class="cem-form cem-lookup-form">
-					<div class="cem-field">
-						<label for="cem_lookup_email"><?php esc_html_e( 'Email Address', 'church-event-manager' ); ?></label>
-						<input type="email" id="cem_lookup_email" name="cem_email"
-							value="<?php echo esc_attr( $_GET['cem_email'] ?? '' ); ?>" required>
+				<?php if ( $send_status === 'sent' ) : ?>
+					<div class="cem-notice cem-notice-success">
+						<?php esc_html_e( "If we have any registrations for that email address, we've just sent them to you. Please check your inbox.", 'church-event-manager' ); ?>
 					</div>
-					<button type="submit" class="cem-btn cem-btn-primary"><?php esc_html_e( 'Find My Registrations', 'church-event-manager' ); ?></button>
-				</form>
+				<?php else : ?>
+					<?php if ( $send_status === 'invalid' ) : ?>
+						<div class="cem-notice cem-notice-error">
+							<?php esc_html_e( 'Your form session expired. Please try again.', 'church-event-manager' ); ?>
+						</div>
+					<?php endif; ?>
+					<p><?php esc_html_e( "Enter your email address and we'll email you a list of your registrations and links to manage them.", 'church-event-manager' ); ?></p>
+					<form method="get" class="cem-form cem-lookup-form">
+						<?php wp_nonce_field( 'cem_lookup', 'cem_lookup_nonce', false ); ?>
+						<div class="cem-field">
+							<label for="cem_lookup_email"><?php esc_html_e( 'Email Address', 'church-event-manager' ); ?></label>
+							<input type="email" id="cem_lookup_email" name="cem_email" required>
+						</div>
+						<button type="submit" class="cem-btn cem-btn-primary"><?php esc_html_e( 'Email My Registrations', 'church-event-manager' ); ?></button>
+					</form>
+				<?php endif; ?>
 			</div>
 			<?php
-
-			if ( ! empty( $_GET['cem_email'] ) ) {
-				$summary_email = sanitize_email( $_GET['cem_email'] );
-				$regs          = CEM_Registration::get_for_user( $summary_email );
-			} else {
-				return ob_get_clean();
-			}
+			return ob_get_clean();
 		}
+
+		// Logged-in user: show their registrations inline.
+		$regs          = CEM_Registration::get_for_user( '', get_current_user_id() );
+		$summary_email = wp_get_current_user()->user_email;
 
 		if ( empty( $regs ) ) {
 			echo '<div class="cem-notice cem-notice-info">' . esc_html__( 'No registrations found.', 'church-event-manager' ) . '</div>';
@@ -1119,6 +1207,14 @@ class CEM_Shortcodes {
 		$events_by_day = [];
 		$event_data    = []; // Keyed by post ID for tooltip data
 
+		// IMPORTANT: events are stored as `Y-m-d H:i:s`. A BETWEEN on `Y-m-d`
+		// strings excludes anything later than midnight on the upper-bound
+		// day — i.e. an event on the 31st at 7pm gets dropped from the
+		// calendar entirely. Use a half-open range with `<` against the
+		// first day of the *next* month instead.
+		$range_start = date( 'Y-m-d 00:00:00', $first_day );
+		$range_end   = date( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $month + 1, 1, $year ) );
+
 		$query_args = [
 			'post_type'      => 'cem_event',
 			'post_status'    => 'publish',
@@ -1126,12 +1222,20 @@ class CEM_Shortcodes {
 			'meta_key'       => '_cem_start_datetime',
 			'orderby'        => 'meta_value',
 			'order'          => 'ASC',
-			'meta_query'     => [ [
-				'key'     => '_cem_start_datetime',
-				'value'   => [ date( 'Y-m-d', $first_day ), date( 'Y-m-d', mktime( 0, 0, 0, $month, $days_in, $year ) ) ],
-				'compare' => 'BETWEEN',
-				'type'    => 'DATE',
-			] ],
+			'meta_query'     => [
+				[
+					'key'     => '_cem_start_datetime',
+					'value'   => $range_start,
+					'compare' => '>=',
+					'type'    => 'DATETIME',
+				],
+				[
+					'key'     => '_cem_start_datetime',
+					'value'   => $range_end,
+					'compare' => '<',
+					'type'    => 'DATETIME',
+				],
+			],
 		];
 
 		// Category / ministry filters
@@ -1157,9 +1261,15 @@ class CEM_Shortcodes {
 
 		foreach ( $events as $e ) {
 			$start    = get_post_meta( $e->ID, '_cem_start_datetime', true );
+			// Skip events with no start time — without this guard,
+			// strtotime() returns false and date('j', false) returns '1',
+			// dumping malformed events onto the 1st of every month.
+			if ( ! $start ) continue;
+			$start_ts = strtotime( $start );
+			if ( ! $start_ts ) continue;
 			$end      = get_post_meta( $e->ID, '_cem_end_datetime', true );
 			$location = get_post_meta( $e->ID, '_cem_location', true );
-			$day      = (int) date( 'j', strtotime( $start ) );
+			$day      = (int) date( 'j', $start_ts );
 
 			$events_by_day[ $day ][] = $e;
 			$event_data[ $e->ID ] = [
@@ -1186,33 +1296,56 @@ class CEM_Shortcodes {
 			] );
 			$day_map = [ 'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6 ];
 			foreach ( $groups as $g ) {
-				$g_day  = get_post_meta( $g->ID, '_cem_group_day', true );
-				$g_time = get_post_meta( $g->ID, '_cem_group_time', true );
-				$g_freq = get_post_meta( $g->ID, '_cem_group_frequency', true );
-				$g_loc  = get_post_meta( $g->ID, '_cem_group_location', true );
+				$g_day   = get_post_meta( $g->ID, '_cem_group_day', true );
+				$g_time  = get_post_meta( $g->ID, '_cem_group_time', true );
+				$g_freq  = get_post_meta( $g->ID, '_cem_group_frequency', true );
+				$g_loc   = get_post_meta( $g->ID, '_cem_group_location', true );
+				$g_start = get_post_meta( $g->ID, '_cem_group_start_date', true );
 				if ( ! isset( $day_map[ $g_day ] ) ) continue;
 
 				$target_dow = $day_map[ $g_day ];
+
+				// Anchor used for bi-weekly / monthly cadence. Prefer the
+				// group's configured start date so the schedule is stable;
+				// fall back to the post date so an unconfigured group still
+				// has a consistent (if arbitrary) phase.
+				$anchor_ts = $g_start ? strtotime( $g_start ) : strtotime( $g->post_date );
+				if ( ! $anchor_ts ) $anchor_ts = mktime( 0, 0, 0, $month, 1, $year );
+
+				// For monthly groups, find which week-of-month the anchor
+				// falls in (1st, 2nd, 3rd, 4th, last) so we only place the
+				// group on the matching occurrence each month.
+				$anchor_wom = (int) ceil( (int) date( 'j', $anchor_ts ) / 7 );
+
 				// Place group on each matching weekday in this month
 				for ( $d = 1; $d <= $days_in; $d++ ) {
 					$date_ts = mktime( 0, 0, 0, $month, $d, $year );
-					if ( (int) date( 'w', $date_ts ) === $target_dow ) {
-						// Skip bi-weekly odd/even weeks if needed
-						if ( $g_freq === 'biweekly' ) {
-							$week_num = (int) date( 'W', $date_ts );
-							if ( $week_num % 2 !== 0 ) continue;
-						}
+					if ( (int) date( 'w', $date_ts ) !== $target_dow ) continue;
 
-						$events_by_day[ $d ][] = $g;
-						$event_data[ $g->ID ] = [
-							'title'    => $g->post_title,
-							'start'    => date( 'Y-m-d', $date_ts ) . ( $g_time ? ' ' . $g_time . ':00' : '' ),
-							'end'      => '',
-							'location' => $g_loc,
-							'url'      => get_permalink( $g->ID ),
-							'type'     => 'group',
-						];
+					if ( $g_freq === 'biweekly' ) {
+						// Days since anchor — bi-weekly = every 14 days.
+						// This is stable across year boundaries (the old
+						// `ISO_week % 2` approach broke between weeks 52/1).
+						$days_since = ( $date_ts - $anchor_ts ) / DAY_IN_SECONDS;
+						if ( $days_since < 0 ) continue;
+						if ( ( (int) round( $days_since ) ) % 14 !== 0 ) continue;
+					} elseif ( $g_freq === 'monthly' ) {
+						// Match the same week-of-month as the anchor.
+						// Without this, monthly groups were silently shown
+						// every week, 4× per month.
+						$this_wom = (int) ceil( $d / 7 );
+						if ( $this_wom !== $anchor_wom ) continue;
 					}
+
+					$events_by_day[ $d ][] = $g;
+					$event_data[ $g->ID ] = [
+						'title'    => $g->post_title,
+						'start'    => date( 'Y-m-d', $date_ts ) . ( $g_time ? ' ' . $g_time . ':00' : '' ),
+						'end'      => '',
+						'location' => $g_loc,
+						'url'      => get_permalink( $g->ID ),
+						'type'     => 'group',
+					];
 				}
 			}
 		}

@@ -444,7 +444,7 @@ class CEM_Ajax {
 		// Split on comma / semicolon / whitespace, sanitize each address
 		// individually, then re-join with ", ".
 		if ( isset( $_POST['cem_admin_notify_email'] ) ) {
-			$raw   = wp_unslash( $_POST['cem_admin_notify_email'] );
+			$raw   = trim( (string) wp_unslash( $_POST['cem_admin_notify_email'] ) );
 			$parts = preg_split( '/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY );
 			$clean = [];
 			foreach ( (array) $parts as $part ) {
@@ -453,7 +453,14 @@ class CEM_Ajax {
 					$clean[] = $email;
 				}
 			}
-			update_option( 'cem_admin_notify_email', implode( ', ', array_unique( $clean ) ) );
+
+			// If the user is intentionally clearing the field (raw is empty),
+			// honor that. Otherwise: only persist when at least one address
+			// validated — never silently wipe the previous good list because
+			// of a typo or a single-character mistake in the form.
+			if ( $raw === '' || ! empty( $clean ) ) {
+				update_option( 'cem_admin_notify_email', implode( ', ', array_unique( $clean ) ) );
+			}
 		}
 
 		// Page ID settings — saved as absint to ensure they're valid integers.
@@ -956,62 +963,15 @@ class CEM_Ajax {
 		}
 
 		$regs = CEM_Registration::get_for_user( $email );
-		if ( empty( $regs ) ) {
-			wp_send_json_error( [ 'message' => __( 'No registrations found for that email address.', 'church-event-manager' ) ] );
+
+		// Privacy: same response whether or not the email matches anything.
+		// Don't reveal which addresses have registrations on file.
+		if ( ! empty( $regs ) ) {
+			CEM_Shortcodes::send_registration_list_email( $email, $regs );
 		}
-
-		$rows = '';
-		foreach ( $regs as $reg ) {
-			$event      = get_post( $reg->event_id );
-			$start      = get_post_meta( $reg->event_id, '_cem_start_datetime', true );
-			$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
-			$title      = $event ? esc_html( $event->post_title ) : esc_html__( '(removed)', 'church-event-manager' );
-			$date       = $start ? esc_html( CEM_Helpers::format_date( $start ) ) : '—';
-			$status     = esc_html( ucfirst( $reg->status ) );
-			$code       = esc_html( $reg->registration_code );
-			$link       = '<a href="' . esc_url( $manage_url ) . '">' . esc_html__( 'View / Manage', 'church-event-manager' ) . '</a>';
-
-			$rows .= "<tr style='border-bottom:1px solid #eee'>"
-				. "<td style='padding:10px 8px'>$title</td>"
-				. "<td style='padding:10px 8px'>$date</td>"
-				. "<td style='padding:10px 8px'>$status</td>"
-				. "<td style='padding:10px 8px'><code>$code</code></td>"
-				. "<td style='padding:10px 8px'>$link</td>"
-				. '</tr>';
-		}
-
-		$header_style = "padding:8px;text-align:left;background:#f5f5f5;border-bottom:2px solid #ddd";
-		$message = '<h2 style="margin-top:0">' . esc_html__( 'Your Registrations', 'church-event-manager' ) . '</h2>'
-			. '<table style="width:100%;border-collapse:collapse;font-size:14px">'
-			. '<thead><tr>'
-			. "<th style='$header_style'>" . esc_html__( 'Event',  'church-event-manager' ) . '</th>'
-			. "<th style='$header_style'>" . esc_html__( 'Date',   'church-event-manager' ) . '</th>'
-			. "<th style='$header_style'>" . esc_html__( 'Status', 'church-event-manager' ) . '</th>'
-			. "<th style='$header_style'>" . esc_html__( 'Code',   'church-event-manager' ) . '</th>'
-			. "<th style='$header_style'>" . esc_html__( 'Link',   'church-event-manager' ) . '</th>'
-			. '</tr></thead>'
-			. "<tbody>$rows</tbody></table>"
-			. '<p style="margin-top:16px;color:#555">'
-			. esc_html__( 'Click "View / Manage" to update your details or cancel a registration.', 'church-event-manager' )
-			. '</p>';
-
-		CEM_Email::send( [
-			'to_email' => $email,
-			'subject'  => sprintf(
-				/* translators: %s: site name */
-				__( 'Your Registrations at %s', 'church-event-manager' ),
-				get_bloginfo( 'name' )
-			),
-			'message'  => $message,
-			'type'     => 'registration_lookup',
-		] );
 
 		wp_send_json_success( [
-			'message' => sprintf(
-				/* translators: %s: email address */
-				__( 'Your registrations have been sent to %s.', 'church-event-manager' ),
-				$email
-			),
+			'message' => __( "If we have any registrations for that email address, we've just sent them to you.", 'church-event-manager' ),
 		] );
 	}
 

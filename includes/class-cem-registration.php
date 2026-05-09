@@ -434,7 +434,57 @@ class CEM_Registration {
 		$formats = [];
 
 		if ( array_key_exists( 'num_attendees', $data ) && $data['num_attendees'] !== null ) {
-			$update['num_attendees'] = max( 1, (int) $data['num_attendees'] );
+			$new_attendees = max( 1, (int) $data['num_attendees'] );
+
+			// If the registrant is increasing their party size, re-check both
+			// the event capacity and any per-category cap. Without this, a
+			// person could register with 1 attendee and then edit to 50,
+			// blowing past the cap with no validation.
+			$current = (int) $reg->num_attendees;
+			if ( $new_attendees > $current && $reg->status !== 'waitlisted' ) {
+				$delta    = $new_attendees - $current;
+				$capacity = (int) get_post_meta( $reg->event_id, '_cem_capacity', true );
+				if ( $capacity > 0 ) {
+					$taken     = CEM_Helpers::get_registration_count( $reg->event_id );
+					$remaining = $capacity - $taken;
+					if ( $delta > $remaining ) {
+						return new WP_Error(
+							'capacity_full',
+							sprintf(
+								/* translators: %d: number of available spots */
+								_n(
+									'Sorry, only %d additional spot is available for this event.',
+									'Sorry, only %d additional spots are available for this event.',
+									max( 0, $remaining ),
+									'church-event-manager'
+								),
+								max( 0, $remaining )
+							)
+						);
+					}
+				}
+
+				// Per-category cap re-check.
+				$cat_error = CEM_Helpers::check_category_cap( $reg->event_id, $delta );
+				if ( $cat_error ) {
+					return new WP_Error( 'category_cap', $cat_error );
+				}
+
+				// Per-event "max attendees per registration" re-check.
+				$max_per = (int) get_post_meta( $reg->event_id, '_cem_max_attendees_per_reg', true );
+				if ( $max_per > 0 && $new_attendees > $max_per ) {
+					return new WP_Error(
+						'over_max_per_reg',
+						sprintf(
+							/* translators: %d: maximum attendees per registration */
+							__( "You can register at most %d attendees per sign-up.", 'church-event-manager' ),
+							$max_per
+						)
+					);
+				}
+			}
+
+			$update['num_attendees'] = $new_attendees;
 			$formats[] = '%d';
 		}
 		if ( array_key_exists( 'phone', $data ) && $data['phone'] !== null ) {
@@ -508,30 +558,87 @@ class CEM_Registration {
 		) );
 	}
 
-	/** Move first waitlisted registration to confirmed when a spot opens. */
+	/**
+	 * Move first waitlisted registration to confirmed when a spot opens.
+	 *
+	 * Race-safety: two near-simultaneous cancellations can each see "1 spot
+	 * open" and both try to promote — historically that pushed the event 1
+	 * over capacity. We now wrap the read+update in a transaction with
+	 * `SELECT … FOR UPDATE` so only one promotion can resolve at a time;
+	 * the second waiter re-reads under lock and sees the now-promoted row,
+	 * reaching the capacity check with an accurate count.
+	 */
 	public static function promote_from_waitlist( $event_id ) {
-		if ( CEM_Helpers::is_at_capacity( $event_id ) ) return;
-
 		global $wpdb;
 
-		// Get the first waitlisted registration
-		$reg = $wpdb->get_row( $wpdb->prepare(
-			"SELECT * FROM {$wpdb->prefix}cem_registrations
-			 WHERE event_id = %d AND status = 'waitlisted'
-			 ORDER BY created_at ASC LIMIT 1",
-			$event_id
-		) );
+		// Suppress wpdb errors during the transaction so a deadlock doesn't
+		// echo HTML into the AJAX response.
+		$prev_show = $wpdb->show_errors;
+		$wpdb->hide_errors();
 
-		if ( ! $reg ) return;
+		$wpdb->query( 'START TRANSACTION' );
 
-		self::update_status( $reg->id, 'confirmed' );
+		try {
+			// Lock the waitlisted candidate row for the duration of the txn.
+			$reg = $wpdb->get_row( $wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}cem_registrations
+				 WHERE event_id = %d AND status = 'waitlisted'
+				 ORDER BY created_at ASC LIMIT 1 FOR UPDATE",
+				$event_id
+			) );
 
-		// Remove from waitlist table
-		$wpdb->delete( "{$wpdb->prefix}cem_waitlist", [
-			'event_id' => $event_id,
-			'email'    => $reg->email,
-		], [ '%d', '%s' ] );
+			if ( ! $reg ) {
+				$wpdb->query( 'COMMIT' );
+				return;
+			}
 
+			// Re-check capacity *inside* the lock — between the cancel that
+			// triggered us and now, another concurrent promotion may have
+			// already filled the seat.
+			if ( CEM_Helpers::is_at_capacity( $event_id ) ) {
+				$wpdb->query( 'COMMIT' );
+				return;
+			}
+
+			// Atomic-ish status flip — only succeed if the row is still
+			// "waitlisted" (defends against a concurrent admin status change).
+			$updated = $wpdb->query( $wpdb->prepare(
+				"UPDATE {$wpdb->prefix}cem_registrations
+				 SET status = 'confirmed', updated_at = %s
+				 WHERE id = %d AND status = 'waitlisted'",
+				current_time( 'mysql' ),
+				$reg->id
+			) );
+
+			if ( $updated !== 1 ) {
+				$wpdb->query( 'ROLLBACK' );
+				return;
+			}
+
+			// Remove from waitlist table.
+			$wpdb->delete(
+				"{$wpdb->prefix}cem_waitlist",
+				[ 'event_id' => $event_id, 'email' => $reg->email ],
+				[ '%d', '%s' ]
+			);
+
+			$wpdb->query( 'COMMIT' );
+		} catch ( \Throwable $e ) {
+			$wpdb->query( 'ROLLBACK' );
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, 'promote_from_waitlist' );
+			}
+			if ( $prev_show ) $wpdb->show_errors();
+			return;
+		}
+
+		if ( $prev_show ) $wpdb->show_errors();
+
+		// Fire the side-effect hook AFTER the transaction commits so the
+		// promotion email reflects the final, durable state.
+		// We deliberately do NOT fire cem_registration_confirmed here:
+		// send_waitlist_promotion already tells the registrant they're
+		// confirmed, so firing both would deliver two near-identical emails.
 		do_action( 'cem_waitlist_promoted', $reg->id, $event_id );
 	}
 
@@ -542,7 +649,30 @@ class CEM_Registration {
 		$reg = self::get( $registration_id );
 		if ( ! $reg ) return false;
 
+		// Cascade: drop every related row so we don't leave orphans pointing
+		// at a registration_id that no longer exists. Email log entries are
+		// kept for audit, but their registration_id is nulled so they don't
+		// foreign-key back to a missing parent.
 		$wpdb->delete( "{$wpdb->prefix}cem_registration_meta", [ 'registration_id' => $registration_id ], [ '%d' ] );
+		$wpdb->delete( "{$wpdb->prefix}cem_checkins",          [ 'registration_id' => $registration_id ], [ '%d' ] );
+
+		// Waitlist rows are keyed by event_id + email, not registration_id,
+		// so match on those columns.
+		$wpdb->delete(
+			"{$wpdb->prefix}cem_waitlist",
+			[ 'event_id' => $reg->event_id, 'email' => $reg->email ],
+			[ '%d', '%s' ]
+		);
+
+		// Email log: null the FK so the row stays for audit purposes.
+		$wpdb->update(
+			"{$wpdb->prefix}cem_email_log",
+			[ 'registration_id' => null ],
+			[ 'registration_id' => $registration_id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
+
 		return $wpdb->delete( "{$wpdb->prefix}cem_registrations", [ 'id' => $registration_id ], [ '%d' ] );
 	}
 

@@ -20,6 +20,13 @@ class CEM_Notifications {
 		if ( get_option( 'cem_admin_notify_on_register', '1' ) ) {
 			CEM_Email::send_admin_notification( $registration_id );
 		}
+
+		// Capacity-threshold alert. Only events (not groups) carry a
+		// _cem_capacity meta value the alert checks against; the function
+		// is a no-op when capacity is 0/unset, so calling it for groups is
+		// harmless. Without this hook, the alert function existed but was
+		// never invoked.
+		self::maybe_send_capacity_alert( $event_id );
 	}
 
 	public function on_confirmation( $registration_id, $event_id ) {
@@ -115,36 +122,58 @@ class CEM_Notifications {
 	// ── Capacity Alert ────────────────────────────────────────────────────────
 
 	public static function maybe_send_capacity_alert( $event_id ) {
-		$capacity  = (int) CEM_Helpers::get_event_meta( $event_id, 'capacity', 0 );
+		$capacity = (int) CEM_Helpers::get_event_meta( $event_id, 'capacity', 0 );
 		if ( $capacity <= 0 ) return;
 
 		$taken = CEM_Helpers::get_registration_count( $event_id );
 		$pct   = ( $taken / $capacity ) * 100;
 
-		// Alert at 80% and 100%
-		$threshold = get_option( 'cem_capacity_alert_pct', 80 );
-		if ( $pct < $threshold ) return;
+		// Determine the highest threshold we've crossed. Alerts fire at the
+		// configured warning percentage (default 80%) and again at 100%
+		// (FULL). To avoid spamming the organizer once per registration past
+		// the threshold, we record which alerts have already been sent on
+		// the event itself and only send each one once.
+		$threshold = (int) get_option( 'cem_capacity_alert_pct', 80 );
+		$alerts_sent = get_post_meta( $event_id, '_cem_capacity_alerts_sent', true );
+		if ( ! is_array( $alerts_sent ) ) $alerts_sent = [];
+
+		$tier = null;
+		if ( $pct >= 100 && empty( $alerts_sent['full'] ) ) {
+			$tier = 'full';
+		} elseif ( $pct >= $threshold && empty( $alerts_sent['warn'] ) && $pct < 100 ) {
+			$tier = 'warn';
+		}
+
+		if ( ! $tier ) return;
 
 		$event = get_post( $event_id );
-		$label = $pct >= 100 ? __( 'FULL', 'church-event-manager' ) : round( $pct ) . '%';
+		$label = $tier === 'full' ? __( 'FULL', 'church-event-manager' ) : round( $pct ) . '%';
 
-		CEM_Email::send( [
+		$sent = CEM_Email::send( [
 			'to_email' => get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) ),
 			'subject'  => sprintf(
-				__( 'Capacity Alert: %s is now %s full', 'church-event-manager' ),
+				/* translators: 1: event title, 2: percentage label */
+				__( 'Capacity Alert: %1$s is now %2$s full', 'church-event-manager' ),
 				$event ? $event->post_title : "Event #$event_id",
 				$label
 			),
 			'message'  => sprintf(
 				'<p>%s</p><p><a href="%s">View Registrations</a></p>',
-				sprintf( __( '%s is %s full (%d/%d spots taken).', 'church-event-manager' ),
+				sprintf(
+					/* translators: 1: event title, 2: percentage label, 3: taken, 4: capacity */
+					__( '%1$s is %2$s full (%3$d/%4$d spots taken).', 'church-event-manager' ),
 					esc_html( $event ? $event->post_title : '' ),
 					$label, $taken, $capacity
 				),
-				admin_url( 'admin.php?page=cem-registrations&event_id=' . $event_id )
+				esc_url( admin_url( 'admin.php?page=cem-registrations&event_id=' . $event_id ) )
 			),
 			'event_id' => $event_id,
 			'type'     => 'capacity_alert',
 		] );
+
+		if ( $sent ) {
+			$alerts_sent[ $tier ] = current_time( 'mysql' );
+			update_post_meta( $event_id, '_cem_capacity_alerts_sent', $alerts_sent );
+		}
 	}
 }
