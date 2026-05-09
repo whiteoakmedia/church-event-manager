@@ -203,20 +203,13 @@ class CEM_Ajax {
 			? __( 'You have been added to the waitlist! We will contact you if a spot becomes available.', 'church-event-manager' )
 			: __( 'You\'re registered! Check your email for a confirmation.', 'church-event-manager' );
 
-		// Redirect URL: per-event/group override → type-specific default → fallback
-		$redirect_url = get_post_meta( $event_id, '_cem_registration_redirect', true );
-		if ( ! $redirect_url ) {
-			if ( $is_group ) {
-				// Groups redirect back to the groups listing page
-				$groups_page_id = get_option( 'cem_groups_page_id' );
-				$redirect_url   = $groups_page_id ? get_permalink( $groups_page_id ) : home_url( '/groups/' );
-			} else {
-				$redirect_url = get_option( 'cem_registration_redirect_url', '' );
-				if ( ! $redirect_url ) {
-					$events_page_id = get_option( 'cem_events_page_id' );
-					$redirect_url   = $events_page_id ? get_permalink( $events_page_id ) : home_url( '/church-events/' );
-				}
-			}
+		// Redirect URL — events always go to the church-events page,
+		// groups go back to the groups listing page.
+		if ( $is_group ) {
+			$groups_page_id = get_option( 'cem_groups_page_id' );
+			$redirect_url   = $groups_page_id ? get_permalink( $groups_page_id ) : home_url( '/groups/' );
+		} else {
+			$redirect_url = 'https://www.hillsidebristol.org/church-events';
 		}
 
 		ob_end_clean();

@@ -152,10 +152,17 @@ class CEM_Registration {
 			);
 		}
 
-		// Fire actions so notifications can hook in
-		do_action( 'cem_after_registration', $registration_id, $event_id );
-		if ( $status === 'confirmed' ) {
-			do_action( 'cem_registration_confirmed', $registration_id, $event_id );
+		// Fire actions so notifications can hook in.
+		// Wrap in try/catch so a fatal in email/notification handlers doesn't
+		// break the AJAX response — the registration row is already saved, so
+		// at this point we always want to return success to the user.
+		try {
+			do_action( 'cem_after_registration', $registration_id, $event_id );
+			if ( $status === 'confirmed' ) {
+				do_action( 'cem_registration_confirmed', $registration_id, $event_id );
+			}
+		} catch ( \Throwable $e ) {
+			error_log( 'CEM: notification hook failed for registration ' . $registration_id . ' — ' . $e->getMessage() );
 		}
 
 		return $registration_id;
