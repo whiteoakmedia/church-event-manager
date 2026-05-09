@@ -1934,8 +1934,10 @@ class CEM_Admin {
 			jQuery('#cem-recurrence-options').toggle(this.checked);
 		});
 		// Status pill: keep visual selection in sync with the underlying radio.
+		// Scoped to its own .cem-status-pills container so multiple pill groups
+		// on the same page (events + groups) don't fight each other.
 		jQuery('.cem-status-pills input[type="radio"]').on('change', function(){
-			jQuery('.cem-status-pill').removeClass('is-selected');
+			jQuery(this).closest('.cem-status-pills').find('.cem-status-pill').removeClass('is-selected');
 			jQuery(this).closest('.cem-status-pill').addClass('is-selected');
 		});
 		jQuery('#cem-recurrence-frequency').on('change', function(){

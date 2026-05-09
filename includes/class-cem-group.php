@@ -249,118 +249,204 @@ class CEM_Group {
 		$contact_phone = get_post_meta( $post->ID, '_cem_group_contact_phone', true );
 
 		$days = [ '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Various' ];
-		$freqs = [ '' => '', 'weekly' => 'Weekly', 'biweekly' => 'Bi-weekly', 'monthly' => 'Monthly', 'custom' => 'Custom' ];
-		?>
-		<style>
-		.cem-group-meta-table td, .cem-group-meta-table th { padding: 8px 10px; vertical-align: middle; }
-		.cem-group-meta-table input[type="time"] { max-width: 140px; }
-		</style>
+		$freqs = [ '' => '— Select —', 'weekly' => 'Weekly', 'biweekly' => 'Bi-weekly', 'monthly' => 'Monthly', 'custom' => 'Custom' ];
 
-		<div style="margin-bottom:16px">
-			<label for="_cem_group_description" style="display:block;font-weight:600;margin-bottom:6px">
-				<?php esc_html_e( 'Description', 'church-event-manager' ); ?>
-			</label>
-			<textarea id="_cem_group_description" name="_cem_group_description" rows="4"
-				class="large-text" style="width:100%;resize:vertical"
-				placeholder="<?php esc_attr_e( 'Describe this group — who it\'s for, what to expect, etc.', 'church-event-manager' ); ?>"
-			><?php echo esc_textarea( $description ); ?></textarea>
-			<p class="description"><?php esc_html_e( 'Shown on group cards and the group detail page.', 'church-event-manager' ); ?></p>
+		$status_tones = [
+			'open'     => 'green',
+			'closed'   => 'red',
+			'full'     => 'amber',
+			'inactive' => 'slate',
+		];
+		$status_labels = [
+			'open'     => __( 'Open',     'church-event-manager' ),
+			'closed'   => __( 'Closed',   'church-event-manager' ),
+			'full'     => __( 'Full',     'church-event-manager' ),
+			'inactive' => __( 'Inactive', 'church-event-manager' ),
+		];
+		?>
+
+		<div class="cem-meta-grid cem-meta-grid--v2">
+
+			<!-- ── Section: Description ──────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-format-aside"></span>
+					<h3><?php esc_html_e( 'Description', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row cem-meta-full">
+						<textarea id="_cem_group_description" name="_cem_group_description" rows="4"
+							class="large-text" style="width:100%;resize:vertical"
+							placeholder="<?php esc_attr_e( "Describe this group — who it's for, what to expect, etc.", 'church-event-manager' ); ?>"
+						><?php echo esc_textarea( $description ); ?></textarea>
+						<span class="description"><?php esc_html_e( 'Shown on group cards and the group detail page.', 'church-event-manager' ); ?></span>
+					</div>
+				</div>
+			</div>
+
+			<!-- ── Section: Type & Status ────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-flag"></span>
+					<h3><?php esc_html_e( 'Type & Status', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row">
+						<label for="_cem_group_type"><?php esc_html_e( 'Group type', 'church-event-manager' ); ?></label>
+						<select id="_cem_group_type" name="_cem_group_type">
+							<?php foreach ( self::group_types() as $val => $label ) : ?>
+							<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $type, $val ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="cem-meta-row cem-meta-full" style="margin-top:14px">
+						<label><?php esc_html_e( 'Sign-up status', 'church-event-manager' ); ?></label>
+						<div class="cem-status-pills" role="radiogroup" aria-label="<?php esc_attr_e( 'Group status', 'church-event-manager' ); ?>">
+							<?php foreach ( $status_labels as $value => $label ) :
+								$is_selected = $status === $value;
+								$tone        = $status_tones[ $value ] ?? 'slate';
+							?>
+							<label class="cem-status-pill cem-status-pill--<?php echo esc_attr( $tone ); ?> <?php echo $is_selected ? 'is-selected' : ''; ?>">
+								<input type="radio" name="_cem_group_status" value="<?php echo esc_attr( $value ); ?>" <?php checked( $is_selected, true ); ?>>
+								<span><?php echo esc_html( $label ); ?></span>
+							</label>
+							<?php endforeach; ?>
+						</div>
+						<span class="description"><?php esc_html_e( '"Open" lets new members join. "Full" still shows the group but disables sign-ups. "Inactive" hides it from public listings.', 'church-event-manager' ); ?></span>
+					</div>
+				</div>
+			</div>
+
+			<!-- ── Section: Schedule ─────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-calendar-alt"></span>
+					<h3><?php esc_html_e( 'Schedule', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-section-body--cols2">
+						<div class="cem-meta-row">
+							<label for="_cem_group_frequency"><?php esc_html_e( 'How often', 'church-event-manager' ); ?></label>
+							<select id="_cem_group_frequency" name="_cem_group_frequency">
+								<?php foreach ( $freqs as $val => $label ) : ?>
+								<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $frequency, $val ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+						<div class="cem-meta-row">
+							<label for="_cem_group_day"><?php esc_html_e( 'Day of week', 'church-event-manager' ); ?></label>
+							<select id="_cem_group_day" name="_cem_group_day">
+								<?php foreach ( $days as $d ) : ?>
+								<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $day, $d ); ?>><?php echo $d ? esc_html( $d ) : esc_html__( '— Select —', 'church-event-manager' ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					</div>
+					<div class="cem-section-body--cols2" style="margin-top:12px">
+						<div class="cem-meta-row">
+							<label for="_cem_group_time"><?php esc_html_e( 'Meeting time', 'church-event-manager' ); ?></label>
+							<input type="time" id="_cem_group_time" name="_cem_group_time" value="<?php echo esc_attr( $time ); ?>" style="max-width:160px">
+						</div>
+						<div class="cem-meta-row">
+							<label for="_cem_group_capacity"><?php esc_html_e( 'Capacity', 'church-event-manager' ); ?></label>
+							<input type="number" id="_cem_group_capacity" name="_cem_group_capacity" value="<?php echo esc_attr( $capacity ); ?>" min="0" placeholder="<?php esc_attr_e( '0 = unlimited', 'church-event-manager' ); ?>">
+						</div>
+					</div>
+					<div class="cem-section-body--cols2" style="margin-top:12px">
+						<div class="cem-meta-row">
+							<label for="_cem_group_start_date"><?php esc_html_e( 'Start date (optional)', 'church-event-manager' ); ?></label>
+							<input type="date" id="_cem_group_start_date" name="_cem_group_start_date" value="<?php echo esc_attr( $start_date ); ?>">
+						</div>
+						<div class="cem-meta-row">
+							<label for="_cem_group_end_date"><?php esc_html_e( 'End date (optional)', 'church-event-manager' ); ?></label>
+							<input type="date" id="_cem_group_end_date" name="_cem_group_end_date" value="<?php echo esc_attr( $end_date ); ?>">
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ── Section: Where ────────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-location"></span>
+					<h3><?php esc_html_e( 'Where it meets', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-section-body--cols2">
+						<div class="cem-meta-row">
+							<label for="_cem_group_location"><?php esc_html_e( 'Location', 'church-event-manager' ); ?></label>
+							<input type="text" id="_cem_group_location" name="_cem_group_location" value="<?php echo esc_attr( $location ); ?>" placeholder="<?php esc_attr_e( "e.g. Room 201, Pastor's Home, Coffee Shop", 'church-event-manager' ); ?>">
+						</div>
+						<div class="cem-meta-row">
+							<label for="_cem_group_address"><?php esc_html_e( 'Street address', 'church-event-manager' ); ?></label>
+							<input type="text" id="_cem_group_address" name="_cem_group_address" value="<?php echo esc_attr( $address ); ?>">
+						</div>
+					</div>
+
+					<div class="cem-meta-row cem-meta-full cem-checkbox-row">
+						<label class="cem-toggle-label">
+							<input type="checkbox" name="_cem_group_online" value="1" id="cem-group-online" <?php checked( $online, '1' ); ?>>
+							<span><?php esc_html_e( 'This group also meets online (or is online-only)', 'church-event-manager' ); ?></span>
+						</label>
+					</div>
+					<div class="cem-meta-row cem-meta-full" id="cem-group-meeting-url-row" <?php echo $online !== '1' ? 'style="display:none"' : ''; ?>>
+						<label for="_cem_group_meeting_url"><?php esc_html_e( 'Meeting URL', 'church-event-manager' ); ?></label>
+						<input type="url" id="_cem_group_meeting_url" name="_cem_group_meeting_url" value="<?php echo esc_attr( $meeting_url ); ?>" placeholder="https://zoom.us/j/...">
+					</div>
+				</div>
+			</div>
+
+			<!-- ── Section: Leadership & Contact ─────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-businessperson"></span>
+					<h3><?php esc_html_e( 'Leadership & Contact', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-section-body--cols2">
+						<div class="cem-meta-row">
+							<label for="_cem_group_leader"><?php esc_html_e( 'Leader name', 'church-event-manager' ); ?></label>
+							<input type="text" id="_cem_group_leader" name="_cem_group_leader" value="<?php echo esc_attr( $leader ); ?>">
+						</div>
+						<div class="cem-meta-row">
+							<label for="_cem_group_leader_email"><?php esc_html_e( 'Leader email', 'church-event-manager' ); ?></label>
+							<input type="email" id="_cem_group_leader_email" name="_cem_group_leader_email" value="<?php echo esc_attr( $leader_email ); ?>" placeholder="leader@church.org">
+							<span class="description"><?php esc_html_e( 'Admin-only. Not shown publicly.', 'church-event-manager' ); ?></span>
+						</div>
+					</div>
+					<div class="cem-meta-row" style="margin-top:12px;max-width:50%">
+						<label for="_cem_group_contact_phone"><?php esc_html_e( 'Contact phone', 'church-event-manager' ); ?></label>
+						<input type="tel" id="_cem_group_contact_phone" name="_cem_group_contact_phone" value="<?php echo esc_attr( $contact_phone ); ?>" placeholder="(555) 555-1234">
+					</div>
+				</div>
+			</div>
+
+			<!-- ── Section: Options ──────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-admin-generic"></span>
+					<h3><?php esc_html_e( 'Options', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row cem-meta-full cem-checkbox-row">
+						<label class="cem-toggle-label">
+							<input type="checkbox" name="_cem_group_childcare" value="1" <?php checked( $childcare, '1' ); ?>>
+							<span><?php esc_html_e( 'Childcare available during meetings', 'church-event-manager' ); ?></span>
+						</label>
+					</div>
+				</div>
+			</div>
+
 		</div>
 
-		<table class="form-table cem-group-meta-table">
-			<tr>
-				<th><label for="_cem_group_type"><?php esc_html_e( 'Group Type', 'church-event-manager' ); ?></label></th>
-				<td>
-					<select id="_cem_group_type" name="_cem_group_type">
-						<?php foreach ( self::group_types() as $val => $label ) : ?>
-						<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $type, $val ); ?>><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-				</td>
-				<th><label for="_cem_group_status"><?php esc_html_e( 'Status', 'church-event-manager' ); ?></label></th>
-				<td>
-					<select id="_cem_group_status" name="_cem_group_status">
-						<option value="open"     <?php selected( $status, 'open' ); ?>><?php esc_html_e( 'Open — accepting new members',  'church-event-manager' ); ?></option>
-						<option value="closed"   <?php selected( $status, 'closed' ); ?>><?php esc_html_e( 'Closed — not taking new members', 'church-event-manager' ); ?></option>
-						<option value="full"     <?php selected( $status, 'full' ); ?>><?php esc_html_e( 'Full',     'church-event-manager' ); ?></option>
-						<option value="inactive" <?php selected( $status, 'inactive' ); ?>><?php esc_html_e( 'Inactive', 'church-event-manager' ); ?></option>
-					</select>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_frequency"><?php esc_html_e( 'Frequency', 'church-event-manager' ); ?></label></th>
-				<td>
-					<select id="_cem_group_frequency" name="_cem_group_frequency">
-						<?php foreach ( $freqs as $val => $label ) : ?>
-						<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $frequency, $val ); ?>><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-				</td>
-				<th><label for="_cem_group_day"><?php esc_html_e( 'Meeting Day', 'church-event-manager' ); ?></label></th>
-				<td>
-					<select id="_cem_group_day" name="_cem_group_day">
-						<?php foreach ( $days as $d ) : ?>
-						<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $day, $d ); ?>><?php echo $d ? esc_html( $d ) : esc_html__( '— Day —', 'church-event-manager' ); ?></option>
-						<?php endforeach; ?>
-					</select>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_time"><?php esc_html_e( 'Meeting Time', 'church-event-manager' ); ?></label></th>
-				<td><input type="time" id="_cem_group_time" name="_cem_group_time" value="<?php echo esc_attr( $time ); ?>"></td>
-				<th><label for="_cem_group_capacity"><?php esc_html_e( 'Capacity', 'church-event-manager' ); ?></label></th>
-				<td>
-					<input type="number" id="_cem_group_capacity" name="_cem_group_capacity" value="<?php echo esc_attr( $capacity ); ?>" min="0" class="small-text">
-					<p class="description"><?php esc_html_e( '0 = unlimited', 'church-event-manager' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_leader"><?php esc_html_e( 'Leader Name', 'church-event-manager' ); ?></label></th>
-				<td><input type="text" id="_cem_group_leader" name="_cem_group_leader" value="<?php echo esc_attr( $leader ); ?>" class="regular-text"></td>
-				<th><label for="_cem_group_leader_email"><?php esc_html_e( 'Leader Email', 'church-event-manager' ); ?></label></th>
-				<td><input type="email" id="_cem_group_leader_email" name="_cem_group_leader_email" value="<?php echo esc_attr( $leader_email ); ?>" class="regular-text">
-					<p class="description"><?php esc_html_e( 'Admin-only. Not shown publicly.', 'church-event-manager' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_location"><?php esc_html_e( 'Location', 'church-event-manager' ); ?></label></th>
-				<td><input type="text" id="_cem_group_location" name="_cem_group_location" value="<?php echo esc_attr( $location ); ?>" class="large-text" placeholder="<?php esc_attr_e( 'e.g. Room 201, Pastor\'s Home, Coffee Shop', 'church-event-manager' ); ?>"></td>
-				<th><label for="_cem_group_address"><?php esc_html_e( 'Address', 'church-event-manager' ); ?></label></th>
-				<td><input type="text" id="_cem_group_address" name="_cem_group_address" value="<?php echo esc_attr( $address ); ?>" class="large-text"></td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_start_date"><?php esc_html_e( 'Start Date', 'church-event-manager' ); ?></label></th>
-				<td><input type="date" id="_cem_group_start_date" name="_cem_group_start_date" value="<?php echo esc_attr( $start_date ); ?>">
-					<p class="description"><?php esc_html_e( 'When the group begins meeting (optional).', 'church-event-manager' ); ?></p>
-				</td>
-				<th><label for="_cem_group_end_date"><?php esc_html_e( 'End Date', 'church-event-manager' ); ?></label></th>
-				<td><input type="date" id="_cem_group_end_date" name="_cem_group_end_date" value="<?php echo esc_attr( $end_date ); ?>">
-					<p class="description"><?php esc_html_e( 'When the group season ends (optional).', 'church-event-manager' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th><label for="_cem_group_contact_phone"><?php esc_html_e( 'Contact Phone', 'church-event-manager' ); ?></label></th>
-				<td><input type="tel" id="_cem_group_contact_phone" name="_cem_group_contact_phone" value="<?php echo esc_attr( $contact_phone ); ?>" class="regular-text"></td>
-				<th><?php esc_html_e( 'Options', 'church-event-manager' ); ?></th>
-				<td>
-					<label style="display:block;margin-bottom:6px">
-						<input type="checkbox" name="_cem_group_childcare" value="1" <?php checked( $childcare, '1' ); ?>>
-						<?php esc_html_e( 'Childcare Available', 'church-event-manager' ); ?>
-					</label>
-					<label style="display:block">
-						<input type="checkbox" name="_cem_group_online" value="1" id="cem-group-online" <?php checked( $online, '1' ); ?>>
-						<?php esc_html_e( 'Online / Virtual Option', 'church-event-manager' ); ?>
-					</label>
-				</td>
-			</tr>
-			<tr id="cem-group-meeting-url-row" <?php echo $online !== '1' ? 'style="display:none"' : ''; ?>>
-				<th><label for="_cem_group_meeting_url"><?php esc_html_e( 'Meeting URL', 'church-event-manager' ); ?></label></th>
-				<td colspan="3"><input type="url" id="_cem_group_meeting_url" name="_cem_group_meeting_url" value="<?php echo esc_attr( $meeting_url ); ?>" class="large-text" placeholder="https://zoom.us/j/..."></td>
-			</tr>
-		</table>
 		<script>
 		jQuery('#cem-group-online').on('change', function(){
 			jQuery('#cem-group-meeting-url-row').toggle(this.checked);
+		});
+		// Status pill: keep visual selection in sync with the underlying radio.
+		jQuery('.cem-status-pills input[name="_cem_group_status"]').on('change', function(){
+			jQuery(this).closest('.cem-status-pills').find('.cem-status-pill').removeClass('is-selected');
+			jQuery(this).closest('.cem-status-pill').addClass('is-selected');
 		});
 		</script>
 		<?php

@@ -539,6 +539,9 @@
 .cem-status-pill.is-selected.cem-status-pill--red {
   background: #fef2f2; border-color: #dc2626; color: #991b1b !important;
 }
+.cem-status-pill.is-selected.cem-status-pill--slate {
+  background: #f1f5f9; border-color: #64748b; color: #334155 !important;
+}
 
 /* Recurrence panel inside its new section frame */
 .cem-meta-grid--v2 .cem-recurrence-options {
