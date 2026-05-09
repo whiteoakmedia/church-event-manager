@@ -45,14 +45,19 @@ class CEM_Ajax {
 	// ── Public handlers ───────────────────────────────────────────────────────
 
 	public function handle_registration() {
+		// Buffer any stray PHP notices/warnings so they don't corrupt the JSON response.
+		ob_start();
+
 		// Verify nonce
 		if ( ! isset( $_POST['cem_nonce'] ) || ! wp_verify_nonce( $_POST['cem_nonce'], 'cem_register_nonce' ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => __( 'Security check failed.', 'church-event-manager' ) ] );
 		}
 
 		$event_id   = (int) ( $_POST['event_id'] ?? 0 );
 		$post_type  = $event_id ? get_post_type( $event_id ) : false;
 		if ( ! $event_id || ! in_array( $post_type, [ 'cem_event', 'cem_group' ], true ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
 		}
 		$is_group = ( $post_type === 'cem_group' );
@@ -72,6 +77,7 @@ class CEM_Ajax {
 		// Validate required custom fields
 		$field_errors = CEM_Custom_Fields::validate_posted_fields( $event_id, $_POST );
 		if ( ! empty( $field_errors ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => implode( '<br>', $field_errors ) ] );
 		}
 
@@ -96,9 +102,11 @@ class CEM_Ajax {
 		];
 
 		if ( empty( $data['first_name'] ) || empty( $data['last_name'] ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => __( 'First and last name are required.', 'church-event-manager' ) ] );
 		}
 		if ( ! is_email( $data['email'] ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'church-event-manager' ) ] );
 		}
 
@@ -118,12 +126,14 @@ class CEM_Ajax {
 			$pi_id = sanitize_text_field( $_POST['payment_intent_id'] ?? '' );
 
 			if ( empty( $pi_id ) ) {
+				ob_end_clean();
 				wp_send_json_error( [ 'message' => __( 'Payment is required for this event.', 'church-event-manager' ) ] );
 			}
 
 			// Verify the PaymentIntent server-side — prevents amount tampering.
 			$verification = $this->verify_stripe_payment( $pi_id, $event_id, $price_num );
 			if ( is_wp_error( $verification ) ) {
+				ob_end_clean();
 				wp_send_json_error( [ 'message' => $verification->get_error_message() ] );
 			}
 
@@ -146,6 +156,7 @@ class CEM_Ajax {
 		if ( ! $is_group ) {
 			$cat_error = CEM_Helpers::check_category_cap( $event_id, $num_attendees );
 			if ( $cat_error ) {
+				ob_end_clean();
 				wp_send_json_error( [ 'message' => $cat_error ] );
 			}
 		}
@@ -153,6 +164,7 @@ class CEM_Ajax {
 		$result = CEM_Registration::create( $data );
 
 		if ( is_wp_error( $result ) ) {
+			ob_end_clean();
 			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
 		}
 
@@ -175,6 +187,18 @@ class CEM_Ajax {
 		}
 
 		$reg = CEM_Registration::get( $result );
+		// Guard: $reg should never be null here, but protect against it to prevent
+		// a fatal "property on null" error in PHP 8 that would return a 500 and
+		// trigger the JS .fail() handler.
+		if ( ! $reg ) {
+			ob_end_clean();
+			wp_send_json_success( [
+				'message'      => __( 'You\'re registered! Check your email for a confirmation.', 'church-event-manager' ),
+				'code'         => '',
+				'status'       => 'confirmed',
+				'redirect_url' => '',
+			] );
+		}
 		$message = $reg->status === 'waitlisted'
 			? __( 'You have been added to the waitlist! We will contact you if a spot becomes available.', 'church-event-manager' )
 			: __( 'You\'re registered! Check your email for a confirmation.', 'church-event-manager' );
@@ -195,6 +219,7 @@ class CEM_Ajax {
 			}
 		}
 
+		ob_end_clean();
 		wp_send_json_success( [
 			'message'      => $message,
 			'code'         => $reg->registration_code,

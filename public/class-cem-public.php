@@ -46,6 +46,7 @@ class CEM_Public {
 		 */
 		add_filter( 'template_include',    [ $this, 'single_event_template' ],  99  );
 		add_action( 'template_redirect',   [ $this, 'handle_ical_download' ] );
+		add_action( 'template_redirect',   [ $this, 'redirect_events_slug' ] );
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────
@@ -309,6 +310,18 @@ class CEM_Public {
 	// Generates a standards-compliant .ics file so attendees can import the event
 	// directly into Apple Calendar, Outlook, Google Calendar, etc.
 	// ────────────────────────────────────────────────────────────────────────────
+	/**
+	 * Redirect /events and /events/ to the main church-events page.
+	 * Lets you link to hillsidebristol.org/events as a friendly short URL.
+	 */
+	public function redirect_events_slug() {
+		$request_path = trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
+		if ( $request_path === 'events' ) {
+			wp_redirect( 'https://www.hillsidebristol.org/church-events/', 301 );
+			exit;
+		}
+	}
+
 	public function handle_ical_download() {
 		// phpcs:ignore WordPress.Security.NonceVerification
 		if ( empty( $_GET['cem_ical'] ) || empty( $_GET['event_id'] ) ) {

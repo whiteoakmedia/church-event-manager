@@ -188,13 +188,23 @@ class CEM_Post_Types {
 
 			case 'cem_status':
 				$start  = get_post_meta( $post_id, '_cem_start_datetime', true );
-				$status = get_post_meta( $post_id, '_cem_event_status', true );
+				$end    = get_post_meta( $post_id, '_cem_end_datetime',   true );
+				$status = get_post_meta( $post_id, '_cem_event_status',   true );
 				if ( $status === 'cancelled' ) {
 					echo '<span class="cem-badge cem-badge--red">' . esc_html__( 'Cancelled', 'church-event-manager' ) . '</span>';
-				} elseif ( $start && strtotime( $start ) < time() ) {
-					echo '<span class="cem-badge cem-badge--grey">' . esc_html__( 'Past', 'church-event-manager' ) . '</span>';
+				} elseif ( $status === 'postponed' ) {
+					echo '<span class="cem-badge cem-badge--yellow">' . esc_html__( 'Postponed', 'church-event-manager' ) . '</span>';
 				} else {
-					echo '<span class="cem-badge cem-badge--green">' . esc_html__( 'Upcoming', 'church-event-manager' ) . '</span>';
+					// Use end_datetime when available — an event spanning multiple days/weeks
+					// is still "Upcoming" until it has fully ended, not just started.
+					// Compare as strings in WordPress local time to avoid UTC offset bugs.
+					$now        = current_time( 'mysql' );
+					$compare_dt = $end ?: $start;
+					if ( $compare_dt && $compare_dt < $now ) {
+						echo '<span class="cem-badge cem-badge--grey">' . esc_html__( 'Past', 'church-event-manager' ) . '</span>';
+					} else {
+						echo '<span class="cem-badge cem-badge--green">' . esc_html__( 'Upcoming', 'church-event-manager' ) . '</span>';
+					}
 				}
 				break;
 		}
