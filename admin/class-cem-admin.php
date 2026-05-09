@@ -1659,67 +1659,134 @@ class CEM_Admin {
 			'_cem_is_recurrence_instance'   => get_post_meta( $post->ID, '_cem_is_recurrence_instance',  true ),
 			'_cem_parent_event_id'          => get_post_meta( $post->ID, '_cem_parent_event_id',         true ),
 		];
+		$status_now = $fields['_cem_event_status'] ?: 'active';
 		?>
-		<div class="cem-meta-grid">
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('When does it start?','church-event-manager'); ?></label>
-				<input type="datetime-local" name="_cem_start_datetime"
-					value="<?php echo esc_attr( $fields['_cem_start_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_start_datetime'])) : '' ); ?>">
+		<div class="cem-meta-grid cem-meta-grid--v2">
+
+			<!-- ── Section: Date & Time ──────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-calendar-alt"></span>
+					<h3><?php esc_html_e( 'Date & Time', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body cem-section-body--cols2">
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Starts', 'church-event-manager' ); ?></label>
+						<input type="datetime-local" name="_cem_start_datetime"
+							value="<?php echo esc_attr( $fields['_cem_start_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_start_datetime'])) : '' ); ?>">
+					</div>
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Ends', 'church-event-manager' ); ?></label>
+						<input type="datetime-local" name="_cem_end_datetime"
+							value="<?php echo esc_attr( $fields['_cem_end_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_end_datetime'])) : '' ); ?>">
+					</div>
+				</div>
 			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('When does it end?','church-event-manager'); ?></label>
-				<input type="datetime-local" name="_cem_end_datetime"
-					value="<?php echo esc_attr( $fields['_cem_end_datetime'] ? date('Y-m-d\TH:i', strtotime($fields['_cem_end_datetime'])) : '' ); ?>">
+
+			<!-- ── Section: Location ─────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-location"></span>
+					<h3><?php esc_html_e( 'Location', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row cem-meta-full">
+						<label><?php esc_html_e( 'Venue / room', 'church-event-manager' ); ?></label>
+						<input type="text" name="_cem_location" value="<?php echo esc_attr( $fields['_cem_location'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Fellowship Hall', 'church-event-manager' ); ?>">
+					</div>
+					<div class="cem-section-body--cols2">
+						<div class="cem-meta-row">
+							<label><?php esc_html_e( 'Street address', 'church-event-manager' ); ?></label>
+							<input type="text" name="_cem_location_address" value="<?php echo esc_attr( $fields['_cem_location_address'] ); ?>" placeholder="<?php esc_attr_e( '123 Church Street, City, ST 12345', 'church-event-manager' ); ?>">
+						</div>
+						<div class="cem-meta-row">
+							<label><?php esc_html_e( 'Google Maps link', 'church-event-manager' ); ?></label>
+							<input type="url" name="_cem_location_url" value="<?php echo esc_attr( $fields['_cem_location_url'] ); ?>" placeholder="https://maps.google.com/…">
+						</div>
+					</div>
+
+					<!-- Online toggle inline with the location section -->
+					<div class="cem-meta-row cem-meta-full cem-checkbox-row">
+						<label class="cem-toggle-label">
+							<input type="checkbox" name="_cem_online_event" value="1" <?php checked( $fields['_cem_online_event'], '1' ); ?>>
+							<span><?php esc_html_e( 'This is an online or hybrid event', 'church-event-manager' ); ?></span>
+						</label>
+					</div>
+					<div class="cem-meta-row cem-meta-full" id="cem-stream-url-row" <?php echo $fields['_cem_online_event'] ? '' : 'style="display:none"'; ?>>
+						<label><?php esc_html_e( 'Stream link (Zoom / YouTube / etc.)', 'church-event-manager' ); ?></label>
+						<input type="url" name="_cem_stream_url" value="<?php echo esc_attr( $fields['_cem_stream_url'] ); ?>" placeholder="https://zoom.us/j/…">
+					</div>
+				</div>
 			</div>
-			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Where is it?','church-event-manager'); ?></label>
-				<input type="text" name="_cem_location" value="<?php echo esc_attr($fields['_cem_location']); ?>" placeholder="e.g. Fellowship Hall">
+
+			<!-- ── Section: Organizer ────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-businessperson"></span>
+					<h3><?php esc_html_e( 'Organizer', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body cem-section-body--cols2">
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Name', 'church-event-manager' ); ?></label>
+						<input type="text" name="_cem_organizer" value="<?php echo esc_attr( $fields['_cem_organizer'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Pastor John', 'church-event-manager' ); ?>">
+					</div>
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Contact email', 'church-event-manager' ); ?></label>
+						<input type="email" name="_cem_organizer_email" value="<?php echo esc_attr( $fields['_cem_organizer_email'] ); ?>" placeholder="pastor@church.org">
+					</div>
+				</div>
 			</div>
-			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Full Address','church-event-manager'); ?></label>
-				<input type="text" name="_cem_location_address" value="<?php echo esc_attr($fields['_cem_location_address']); ?>" placeholder="123 Church Street, City, ST 12345">
+
+			<!-- ── Section: Pricing ──────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-tag"></span>
+					<h3><?php esc_html_e( 'Pricing', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Cost per registration', 'church-event-manager' ); ?></label>
+						<div class="cem-price-row">
+							<span class="cem-price-prefix"><?php echo esc_html( get_option( 'cem_currency_symbol', '$' ) ); ?></span>
+							<input type="number" name="_cem_price" value="<?php echo esc_attr( $fields['_cem_price'] ); ?>"
+								min="0" step="0.01" placeholder="0.00" class="cem-price-input">
+						</div>
+						<span class="description"><?php esc_html_e( 'Leave blank to hide the price. Enter 0.00 to display "Free". For tiered pricing (Adult, Student, etc.), use Sign-Up Settings below.', 'church-event-manager' ); ?></span>
+					</div>
+					<div class="cem-meta-row cem-meta-full cem-checkbox-row">
+						<label class="cem-toggle-label">
+							<input type="checkbox" name="_cem_allow_inperson" value="1" <?php checked( $fields['_cem_allow_inperson'], '1' ); ?>>
+							<span><?php esc_html_e( 'Allow attendees to pay at the door (skip Stripe)', 'church-event-manager' ); ?></span>
+						</label>
+					</div>
+				</div>
 			</div>
-			<div class="cem-meta-row cem-meta-full">
-				<label><?php esc_html_e('Google Maps Link','church-event-manager'); ?></label>
-				<input type="url" name="_cem_location_url" value="<?php echo esc_attr($fields['_cem_location_url']); ?>" placeholder="https://maps.google.com/…">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Who is organizing this?','church-event-manager'); ?></label>
-				<input type="text" name="_cem_organizer" value="<?php echo esc_attr($fields['_cem_organizer']); ?>" placeholder="e.g. Pastor John">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Their Email','church-event-manager'); ?></label>
-				<input type="email" name="_cem_organizer_email" value="<?php echo esc_attr($fields['_cem_organizer_email']); ?>">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Cost (leave blank if free)','church-event-manager'); ?></label>
-				<input type="number" name="_cem_price" value="<?php echo esc_attr($fields['_cem_price']); ?>"
-					min="0" step="0.01" placeholder="0.00"
-					style="max-width:140px">
-				<span class="description"><?php esc_html_e('Enter a number (e.g. 25.00). Leave blank to hide price, or enter 0 to show "Free".', 'church-event-manager'); ?></span>
-			</div>
-			<div class="cem-meta-row" id="cem-allow-inperson-row">
-				<label>
-					<input type="checkbox" name="_cem_allow_inperson" value="1" <?php checked( $fields['_cem_allow_inperson'], '1' ); ?>>
-					<?php esc_html_e( 'Allow in-person registration (attendees can register without paying online)', 'church-event-manager' ); ?>
-				</label>
-				<span class="description"><?php esc_html_e( 'When checked, the Stripe payment form is hidden. Attendees register normally and pay at the door.', 'church-event-manager' ); ?></span>
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Is this event still happening?','church-event-manager'); ?></label>
-				<select name="_cem_event_status">
-					<option value=""         <?php selected($fields['_cem_event_status'],''); ?>><?php esc_html_e('Active','church-event-manager'); ?></option>
-					<option value="cancelled"<?php selected($fields['_cem_event_status'],'cancelled'); ?>><?php esc_html_e('Cancelled','church-event-manager'); ?></option>
-					<option value="postponed"<?php selected($fields['_cem_event_status'],'postponed'); ?>><?php esc_html_e('Postponed','church-event-manager'); ?></option>
-				</select>
-			</div>
-			<div class="cem-meta-row">
-				<label><input type="checkbox" name="_cem_online_event" value="1" <?php checked($fields['_cem_online_event'],'1'); ?>>
-					<?php esc_html_e('This is an online/virtual event','church-event-manager'); ?></label>
-			</div>
-			<div class="cem-meta-row cem-meta-full" id="cem-stream-url-row" <?php echo $fields['_cem_online_event'] ? '' : 'style="display:none"'; ?>>
-				<label><?php esc_html_e('Zoom/YouTube/Stream Link','church-event-manager'); ?></label>
-				<input type="url" name="_cem_stream_url" value="<?php echo esc_attr($fields['_cem_stream_url']); ?>" placeholder="https://zoom.us/j/…">
+
+			<!-- ── Section: Status ───────────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-flag"></span>
+					<h3><?php esc_html_e( 'Status', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-status-pills" role="radiogroup" aria-label="<?php esc_attr_e( 'Event status', 'church-event-manager' ); ?>">
+						<?php
+						$status_options = [
+							''          => [ 'label' => __( 'Active',    'church-event-manager' ), 'tone' => 'green' ],
+							'postponed' => [ 'label' => __( 'Postponed', 'church-event-manager' ), 'tone' => 'amber' ],
+							'cancelled' => [ 'label' => __( 'Cancelled', 'church-event-manager' ), 'tone' => 'red'   ],
+						];
+						foreach ( $status_options as $value => $opt ) :
+							$is_selected = ( $fields['_cem_event_status'] ?? '' ) === $value;
+						?>
+						<label class="cem-status-pill cem-status-pill--<?php echo esc_attr( $opt['tone'] ); ?> <?php echo $is_selected ? 'is-selected' : ''; ?>">
+							<input type="radio" name="_cem_event_status" value="<?php echo esc_attr( $value ); ?>" <?php checked( $is_selected, true ); ?>>
+							<span><?php echo esc_html( $opt['label'] ); ?></span>
+						</label>
+						<?php endforeach; ?>
+					</div>
+					<span class="description"><?php esc_html_e( 'Cancelling or postponing shows a notice on the event page and stops new registrations.', 'church-event-manager' ); ?></span>
+				</div>
 			</div>
 
 			<?php
@@ -1739,18 +1806,24 @@ class CEM_Admin {
 				</div>
 			</div>
 			<?php else : ?>
-			<!-- Recurring event options (only on parent events) -->
-			<div class="cem-meta-row cem-meta-full cem-recurrence-toggle-row">
-				<label>
-					<input type="checkbox" name="_cem_is_recurring" value="1" id="cem-is-recurring"
-						<?php checked( $fields['_cem_is_recurring'], '1' ); ?>>
-					<strong><?php esc_html_e( 'This is a recurring event', 'church-event-manager' ); ?></strong>
-				</label>
-				<span class="description"><?php esc_html_e( 'Enable to automatically generate future occurrences.', 'church-event-manager' ); ?></span>
-			</div>
 
-			<div id="cem-recurrence-options" class="cem-recurrence-options" <?php echo $fields['_cem_is_recurring'] === '1' ? '' : 'style="display:none"'; ?>>
-				<div class="cem-recurrence-panel">
+			<!-- ── Section: Recurrence ───────────────────────────── -->
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-update"></span>
+					<h3><?php esc_html_e( 'Recurrence', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<div class="cem-meta-row cem-meta-full cem-checkbox-row">
+						<label class="cem-toggle-label">
+							<input type="checkbox" name="_cem_is_recurring" value="1" id="cem-is-recurring"
+								<?php checked( $fields['_cem_is_recurring'], '1' ); ?>>
+							<span><strong><?php esc_html_e( 'This event repeats', 'church-event-manager' ); ?></strong> — <?php esc_html_e( 'automatically generate future occurrences', 'church-event-manager' ); ?></span>
+						</label>
+					</div>
+
+					<div id="cem-recurrence-options" class="cem-recurrence-options" <?php echo $fields['_cem_is_recurring'] === '1' ? '' : 'style="display:none"'; ?>>
+						<div class="cem-recurrence-panel">
 
 					<!-- Frequency -->
 					<div class="cem-meta-row">
@@ -1847,8 +1920,10 @@ class CEM_Admin {
 						<span class="description"><?php esc_html_e( 'When enabled, visitors only see the nearest upcoming date — not the same event listed weeks or months ahead.', 'church-event-manager' ); ?></span>
 					</div>
 
-				</div><!-- /.cem-recurrence-panel -->
-			</div><!-- /#cem-recurrence-options -->
+					</div><!-- /.cem-recurrence-panel -->
+				</div><!-- /#cem-recurrence-options -->
+				</div><!-- /.cem-section-body -->
+			</div><!-- /.cem-section recurrence -->
 			<?php endif; // not an instance ?>
 		</div>
 		<script>
@@ -1857,6 +1932,11 @@ class CEM_Admin {
 		});
 		jQuery('#cem-is-recurring').on('change', function(){
 			jQuery('#cem-recurrence-options').toggle(this.checked);
+		});
+		// Status pill: keep visual selection in sync with the underlying radio.
+		jQuery('.cem-status-pills input[type="radio"]').on('change', function(){
+			jQuery('.cem-status-pill').removeClass('is-selected');
+			jQuery(this).closest('.cem-status-pill').addClass('is-selected');
 		});
 		jQuery('#cem-recurrence-frequency').on('change', function(){
 			var val = this.value;
@@ -1883,21 +1963,27 @@ class CEM_Admin {
 		// Default to enabled for new/existing events without the meta set
 		if ( $reg_enabled === '' ) $reg_enabled = '1';
 		?>
-		<div class="cem-meta-grid">
-			<div class="cem-meta-row cem-meta-full">
-				<label style="font-size:14px;font-weight:600;">
-					<input type="checkbox" name="_cem_registration_enabled" value="1" id="cem-reg-enabled"
-						<?php checked( $reg_enabled, '1' ); ?>>
-					<?php esc_html_e( 'Enable Registration Form', 'church-event-manager' ); ?>
-				</label>
-				<span class="description"><?php esc_html_e( 'When unchecked, no registration form will be shown — the event page will display event information only.', 'church-event-manager' ); ?></span>
+		<div class="cem-meta-grid cem-meta-grid--v2">
+
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-body cem-checkbox-row" style="margin:0;background:#fff;border:none">
+					<label class="cem-toggle-label">
+						<input type="checkbox" name="_cem_registration_enabled" value="1" id="cem-reg-enabled"
+							<?php checked( $reg_enabled, '1' ); ?>>
+						<span><strong><?php esc_html_e( 'Enable registration form', 'church-event-manager' ); ?></strong> — <?php esc_html_e( 'When unchecked, the event page shows event info only with no sign-up form.', 'church-event-manager' ); ?></span>
+					</label>
+				</div>
 			</div>
 
 			<div id="cem-reg-fields-wrap" <?php echo $reg_enabled !== '1' ? 'style="display:none;opacity:0.5;pointer-events:none"' : ''; ?>>
 
-			<div class="cem-meta-row cem-meta-full" id="cem-reg-types-section">
-				<label><?php esc_html_e( 'Registration Types / Pricing Tiers', 'church-event-manager' ); ?></label>
-				<p class="description" style="margin:4px 0 8px"><?php esc_html_e( 'Add multiple registration types with different prices (e.g., Adult $25, Student $10, Child Free). Leave empty to use the single price field above.', 'church-event-manager' ); ?></p>
+			<div class="cem-section cem-meta-full" id="cem-reg-types-section">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-tickets-alt"></span>
+					<h3><?php esc_html_e( 'Pricing tiers', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+				<p class="description" style="margin:0 0 10px"><?php esc_html_e( 'Add multiple registration types with different prices (e.g., Adult $25, Student $10, Child Free). Leave empty to use the single price field above.', 'church-event-manager' ); ?></p>
 				<?php
 				$reg_types = get_post_meta( $post->ID, '_cem_registration_types', true );
 				$reg_types = $reg_types ? json_decode( $reg_types, true ) : [];
@@ -1924,7 +2010,7 @@ class CEM_Admin {
 						<?php endforeach; endif; ?>
 					</tbody>
 				</table>
-				<button type="button" class="button" id="cem-add-reg-type" style="margin-top:8px">+ <?php esc_html_e( 'Add Registration Type', 'church-event-manager' ); ?></button>
+				<button type="button" class="button" id="cem-add-reg-type" style="margin-top:4px">+ <?php esc_html_e( 'Add Registration Type', 'church-event-manager' ); ?></button>
 				<script>
 				(function($){
 					var idx = <?php echo max( count( $reg_types ), 0 ); ?>;
@@ -1944,27 +2030,37 @@ class CEM_Admin {
 					});
 				})(jQuery);
 				</script>
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Maximum number of people','church-event-manager'); ?></label>
-				<input type="number" name="_cem_capacity" value="<?php echo esc_attr($cap); ?>" min="0" placeholder="0">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('How many guests can one person sign up?','church-event-manager'); ?></label>
-				<input type="number" name="_cem_max_attendees_per_reg" value="<?php echo esc_attr($max_pp ?: 1); ?>" min="1">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Last day to sign up','church-event-manager'); ?></label>
-				<input type="datetime-local" name="_cem_registration_deadline"
-					value="<?php echo esc_attr($deadline ? date('Y-m-d\TH:i', strtotime($deadline)) : ''); ?>">
-			</div>
-			<div class="cem-meta-row">
-				<label><?php esc_html_e('Sign-up status','church-event-manager'); ?></label>
+				</div><!-- /.cem-section-body -->
+			</div><!-- /.cem-section pricing tiers -->
+
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-groups"></span>
+					<h3><?php esc_html_e( 'Capacity & deadlines', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body cem-section-body--cols2">
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Maximum attendees', 'church-event-manager' ); ?></label>
+						<input type="number" name="_cem_capacity" value="<?php echo esc_attr( $cap ); ?>" min="0" placeholder="<?php esc_attr_e( '0 = unlimited', 'church-event-manager' ); ?>">
+					</div>
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Guests per sign-up', 'church-event-manager' ); ?></label>
+						<input type="number" name="_cem_max_attendees_per_reg" value="<?php echo esc_attr( $max_pp ?: 1 ); ?>" min="1">
+					</div>
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Sign-up deadline', 'church-event-manager' ); ?></label>
+						<input type="datetime-local" name="_cem_registration_deadline"
+							value="<?php echo esc_attr( $deadline ? date( 'Y-m-d\TH:i', strtotime( $deadline ) ) : '' ); ?>">
+					</div>
+					<div class="cem-meta-row">
+						<label><?php esc_html_e( 'Sign-up status', 'church-event-manager' ); ?></label>
 				<select name="_cem_registration_status">
 					<option value="open"   <?php selected($reg_st,'open'); ?>><?php esc_html_e('Open','church-event-manager'); ?></option>
 					<option value="closed" <?php selected($reg_st,'closed'); ?>><?php esc_html_e('Closed','church-event-manager'); ?></option>
 				</select>
-			</div>
+					</div>
+				</div><!-- /.cem-section-body -->
+			</div><!-- /.cem-section capacity-deadlines -->
 
 			</div><!-- /#cem-reg-fields-wrap -->
 		</div>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Church Event Manager — Release Notes</title>
+<style>
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Light.otf') format('opentype');
+    font-weight: 300; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Medium.ttf') format('truetype');
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-ExtraBold.otf') format('opentype');
+    font-weight: 800; font-style: normal;
+  }
+
+  :root {
+    --oak: #b45143;
+    --navy: #2e3642;
+    --navy-deep: #1a2029;
+    --cream: #f3f1eb;
+    --cream-dark: #e8e2d6;
+    --stone: #e0d4c1;
+    --dim: #8a8275;
+    --gold: #e8b252;
+  }
+
+  @page {
+    size: Letter;
+    margin: 0.6in 0.75in;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #ffffff;
+    color: var(--navy-deep);
+    font-family: 'Gilroy', 'Inter', system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc { max-width: 700px; margin: 0 auto; padding: 0; }
+
+  /* ── Cover ───────────────────────────────────────────── */
+  .cover {
+    padding: 0 0 22px;
+    border-bottom: 1px solid var(--stone);
+    margin-bottom: 24px;
+  }
+  .kicker {
+    font-weight: 500;
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0 0 10px;
+  }
+  .cover h1 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 30pt;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--navy-deep);
+    margin: 0 0 12px;
+  }
+  .cover h1 .accent { color: var(--oak); }
+  .cover .lede {
+    font-weight: 300;
+    font-size: 11.5pt;
+    line-height: 1.5;
+    color: var(--navy);
+    margin: 0;
+    max-width: 560px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 36px;
+    margin-top: 22px;
+    font-size: 9pt;
+  }
+  .cover-meta .item span:first-child {
+    display: block;
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 3px;
+  }
+  .cover-meta .item span:last-child {
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 10pt;
+  }
+
+  /* ── Section ─────────────────────────────────────────── */
+  section.release {
+    padding: 14px 0 22px;
+    border-bottom: 1px solid var(--cream-dark);
+    page-break-inside: avoid;
+  }
+  section.release:last-of-type { border-bottom: none; }
+
+  .release-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .pill {
+    display: inline-block;
+    padding: 3px 11px;
+    border-radius: 40px;
+    background: var(--navy-deep);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 8.5pt;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .pill.is-major { background: var(--oak); }
+  .release-date {
+    font-size: 8.5pt;
+    font-weight: 500;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .release h2 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 16pt;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--navy-deep);
+    margin: 6px 0 10px;
+  }
+  .release h2 .accent { color: var(--oak); }
+
+  .release p.summary {
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--navy);
+    margin: 0 0 10px;
+    max-width: 620px;
+  }
+
+  .group-label {
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--oak);
+    margin: 14px 0 4px;
+  }
+
+  ul.changes {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 4px;
+  }
+  ul.changes li {
+    position: relative;
+    padding: 3px 0 3px 18px;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: var(--navy);
+    font-weight: 300;
+    page-break-inside: avoid;
+  }
+  ul.changes li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px;
+    width: 8px; height: 2px;
+    background: var(--oak);
+  }
+  ul.changes li strong {
+    font-weight: 800;
+    color: var(--navy-deep);
+  }
+  ul.changes li code {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 9pt;
+    background: var(--cream);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--navy-deep);
+  }
+
+  /* ── Footer ──────────────────────────────────────────── */
+  .doc-foot {
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid var(--stone);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8.5pt;
+  }
+  .doc-foot .brand {
+    font-weight: 800;
+    color: var(--navy-deep);
+    letter-spacing: -0.01em;
+  }
+  .doc-foot .meta {
+    color: var(--dim);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Force section starts on new page where useful */
+  .new-page { page-break-before: always; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ── COVER ─────────────────────────────────────────── -->
+  <header class="cover">
+    <p class="kicker">Release Notes · Hillside Community Church</p>
+    <h1>Church Event<br>Manager — <span class="accent">v1.2.8 → v1.6.0</span></h1>
+    <p class="lede">Twelve releases. Two months of hardening, security fixes, and feature polish — covering everything from the registration form to the admin reports dashboard.</p>
+    <div class="cover-meta">
+      <div class="item">
+        <span>Latest version</span>
+        <span>1.6.0</span>
+      </div>
+      <div class="item">
+        <span>Window</span>
+        <span>Mar 2026 — May 2026</span>
+      </div>
+      <div class="item">
+        <span>Releases shipped</span>
+        <span>12</span>
+      </div>
+      <div class="item">
+        <span>Prepared by</span>
+        <span>White Oak Media</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 1.6.0 ─────────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill is-major">v1.6.0</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Admin <span class="accent">UX overhaul</span> — Registrations, Reports, Check-In</h2>
+    <p class="summary">Comprehensive polish pass on the admin pages your volunteers and staff use most. The Registrations table, Reports dashboard, Email Center, and Check-In screen all got meaningful upgrades.</p>
+
+    <p class="group-label">Registrations admin</p>
+    <ul class="changes">
+      <li>Filter form and bulk-actions toolbar are now <strong>one combined toolbar</strong> — visually and mechanically a single unit.</li>
+      <li>New <strong>date-range filter</strong> (registered between X and Y) plus a quick "Checked in / Not checked in" filter.</li>
+      <li>New <strong>"Type"</strong> column shows the registration tier (e.g. Adult / VIP) inline on every row, batch-loaded so big tables stay fast.</li>
+      <li>Live <strong>"N selected"</strong> counter next to the bulk-action dropdown.</li>
+      <li>Replaced hand-rolled pagination with WordPress-native paginate_links() — scales cleanly past 20+ pages.</li>
+      <li>The CSV export button now <strong>preserves your active filters</strong>: what you see is what gets exported.</li>
+    </ul>
+
+    <p class="group-label">CSV export</p>
+    <ul class="changes">
+      <li>Added first-class <strong>Registration Type</strong> and <strong>Type Price</strong> columns so financial reporting works without extra spreadsheet wrangling.</li>
+      <li>Internal meta keys no longer surface as junk <code>Custom:*</code> columns.</li>
+      <li>Filename uses your church's local timezone, not the server's.</li>
+    </ul>
+
+    <p class="group-label">Reports dashboard</p>
+    <ul class="changes">
+      <li>Added a date-range filter with one-click <strong>7-day / 30-day / 90-day</strong> presets.</li>
+      <li>Replaced the homemade bar chart with a proper <strong>Chart.js line chart</strong>. Days with zero registrations now render as a continuous flat line instead of breaking the timeline.</li>
+      <li>New <strong>doughnut chart</strong> breaking down registrations by event category.</li>
+    </ul>
+
+    <p class="group-label">Email Center</p>
+    <ul class="changes">
+      <li>Added two real-world recipient filters: <strong>Checked-in attendees</strong> (post-event thank-yous) and <strong>No-shows</strong> (registered but didn't come).</li>
+    </ul>
+
+    <p class="group-label">Check-In page</p>
+    <ul class="changes">
+      <li>New <strong>"Add Walk-in"</strong> button + modal — type a name, tap submit, the person is registered <em>and</em> checked in in one step. Email is optional. The list refreshes automatically.</li>
+    </ul>
+
+    <p class="group-label">Polish</p>
+    <ul class="changes">
+      <li>Replaced jarring emoji throughout the admin (drag handles, remove buttons, status messages) with proper WordPress dashicons.</li>
+      <li>Registration delete confirmation now <strong>names the person</strong> being deleted and explains exactly what gets removed.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.5.0 ─────────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill is-major">v1.5.0</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Comprehensive <span class="accent">bug-fix pass</span> after audit</h2>
+    <p class="summary">The most important release in this window. Closed a privacy hole, fixed a race condition that could oversell capacity, repaired the calendar's end-of-month and bi-weekly logic, and stopped a class of silent admin errors.</p>
+
+    <p class="group-label">Privacy</p>
+    <ul class="changes">
+      <li><strong>Closed a registration-disclosure bug.</strong> The "look up my registrations" page used to render results inline whenever anyone typed in an email — meaning anyone who knew your address could see what you'd signed up for. The form now always returns the same generic confirmation regardless of whether the email matches anything, and dispatches the list as an email instead.</li>
+      <li>Added CSRF protection to the lookup form.</li>
+    </ul>
+
+    <p class="group-label">Data integrity</p>
+    <ul class="changes">
+      <li><strong>Fixed a waitlist race condition.</strong> Two near-simultaneous cancellations could each promote a different waitlister into the same single open spot. Promotion now runs inside a database transaction so this is impossible.</li>
+      <li>Eliminated a duplicate-email bug where waitlist promotions sent both a confirmation email and a "you're off the waitlist" email — now only the latter goes out.</li>
+      <li><strong>Closed a capacity-bypass loophole.</strong> A registrant could sign up with 1 attendee then edit their party size to 50 without revalidation. Capacity, category caps, and per-event maximums are all re-checked on edit.</li>
+      <li>Deleting a registration now properly cleans up associated check-in, waitlist, and meta records instead of leaving orphans behind.</li>
+    </ul>
+
+    <p class="group-label">Calendar</p>
+    <ul class="changes">
+      <li><strong>Last-day-of-month evening events no longer disappear.</strong> The query was filtering by date instead of date+time, so anything after midnight on the upper boundary was silently excluded.</li>
+      <li>Events with missing start times no longer get dumped onto the 1st of the month.</li>
+      <li><strong>Bi-weekly groups</strong> now use a stable schedule instead of a calculation that broke between calendar years.</li>
+      <li><strong>Monthly groups</strong> now actually behave monthly (they were silently rendering 4× per month).</li>
+    </ul>
+
+    <p class="group-label">Admin reliability</p>
+    <ul class="changes">
+      <li>The "Notify Email" field can no longer be silently wiped by a typo.</li>
+      <li>Garbage in the event date/time field can no longer silently move an event to <strong>January 1, 1970</strong>.</li>
+      <li>Custom-field <strong>waiver text</strong> now preserves line breaks (was being mashed into one paragraph).</li>
+    </ul>
+
+    <p class="group-label">Notifications</p>
+    <ul class="changes">
+      <li><strong>Activated the dormant capacity-alert system.</strong> The function existed but was never actually called. You now get an email once when an event hits 80% full and once when it hits 100%, throttled so it doesn't spam you on every subsequent registration.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.4.x ─────────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.4.2</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Events with no end time were <span class="accent">silently disappearing</span></h2>
+    <p class="summary">If an event was created without an end time, it was being filtered out of the public listing entirely. Eight upcoming events were showing as six. Fixed.</p>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.4.1</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Multi-recipient admin notifications, <span class="accent">restored</span></h2>
+    <p class="summary">When you put a comma-separated list in the "Notify Email" field, the plugin was mashing all the addresses into one invalid combined email. Notifications were going to a non-existent address.</p>
+    <ul class="changes">
+      <li>Save logic now correctly splits the list and validates each address.</li>
+      <li>Send logic delivers a separate email to every recipient.</li>
+      <li>Existing mangled values are auto-repaired on plugin upgrade.</li>
+    </ul>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.4.0</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Behind-the-scenes <span class="accent">error reporting</span></h2>
+    <p class="summary">Whenever the plugin encounters a problem on your site, it now phones home to White Oak Media's portal automatically. We see it, we fix it — without you needing to file a ticket.</p>
+    <ul class="changes">
+      <li>No registrant data is sent. Only error type, file, line number, and plugin version.</li>
+      <li>Throttled to once per hour per unique error so we never get flooded.</li>
+      <li>Disabled on shared environments by setting one toggle if you ever want to.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.3.x ─────────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.3.4</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Registration <span class="accent">redirect & resilience</span></h2>
+    <p class="summary">Made the post-registration redirect a fixed destination (the Church Events page) and wrapped the email-notification step in a safety net so a notification failure can never break a registration.</p>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.3.3</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>"After Registration Redirect" <span class="accent">field returned</span></h2>
+    <p class="summary">Restored the per-event redirect URL field in the event editor and added CSS to suppress theme-injected publish timestamps on group pages.</p>
+  </section>
+
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.3.0 — 1.3.2</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Group page <span class="accent">visual upgrades</span></h2>
+    <p class="summary">Group cards and single-group pages without a featured image used to look bare. They now render a polished gradient hero based on the group type — Bible Study, Men's, Women's, Youth, Outreach, etc. — each with its own color treatment. Removed the random initial-letter placeholder per your feedback.</p>
+  </section>
+
+  <!-- ── 1.2.x ─────────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.2.8 — 1.2.9</span>
+      <span class="release-date">Mar 2026</span>
+    </div>
+    <h2>Foundational <span class="accent">stability fixes</span></h2>
+    <p class="summary">Resolved the original "internal server error after registration" issue, fixed events incorrectly displaying as "Past" in the admin, and added the <code>/events</code> → <code>/church-events/</code> redirect.</p>
+    <ul class="changes">
+      <li>Registration AJAX endpoint hardened against PHP 8 fatals.</li>
+      <li>Status column now compares against your church's local time, not server UTC, and respects the event's end time.</li>
+      <li>Old <code>/events</code> URL now 301-redirects to the canonical events page.</li>
+    </ul>
+  </section>
+
+  <!-- ── FOOTER ────────────────────────────────────────── -->
+  <footer class="doc-foot">
+    <span class="brand">White Oak Media</span>
+    <span class="meta">whiteoakmedia.io · Release log v1.2.8 → 1.6.0</span>
+  </footer>
+
+</div>
+</body>
+</html>

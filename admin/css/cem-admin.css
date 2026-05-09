@@ -343,7 +343,7 @@
 .cem-actions { white-space: nowrap; }
 .cem-actions .button-small { padding: 2px 6px; margin: 0 2px; }
 
-/* ── Event Meta Box grid ─────────────────────────────────── */
+/* ── Event Meta Box grid (legacy v1) ─────────────────────── */
 
 .cem-meta-grid {
   display: grid;
@@ -379,6 +379,180 @@
   outline: none;
   border-color: var(--cem-primary);
   box-shadow: 0 0 0 3px rgba(59,89,152,.15);
+}
+
+/* ── Event Meta Box v2 — sectioned, sentence-case ────────── */
+
+.cem-meta-grid--v2 {
+  display: block;
+  padding: 4px 0;
+}
+
+.cem-section {
+  background: #fff;
+  border: 1px solid var(--cem-border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.cem-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--cem-border);
+}
+.cem-section-head .dashicons {
+  color: var(--cem-primary);
+  font-size: 18px;
+  width: 18px; height: 18px;
+}
+.cem-section-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cem-text);
+  letter-spacing: -0.01em;
+}
+
+.cem-section-body { padding: 14px 16px; }
+.cem-section-body--cols2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.cem-section-body > * + .cem-section-body--cols2,
+.cem-section-body--cols2 + * {
+  margin-top: 12px;
+}
+
+/* v2 labels: sentence case, normal contrast, no shouting */
+.cem-meta-grid--v2 .cem-meta-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cem-text);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 4px;
+}
+
+/* Toggle / checkbox rows look intentional, not crammed in */
+.cem-checkbox-row {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid var(--cem-border);
+}
+.cem-toggle-label {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--cem-text) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  cursor: pointer;
+  margin: 0 !important;
+  line-height: 1.45;
+}
+.cem-toggle-label input[type="checkbox"] {
+  width: auto;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+.cem-toggle-label span { flex: 1; }
+
+/* Currency-prefixed price input */
+.cem-price-row {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--cem-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  max-width: 200px;
+}
+.cem-price-row:focus-within {
+  border-color: var(--cem-primary);
+  box-shadow: 0 0 0 3px rgba(59,89,152,.15);
+}
+.cem-price-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: #f8fafc;
+  border-right: 1px solid var(--cem-border);
+  color: var(--cem-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+.cem-price-input {
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+.cem-price-input:focus { box-shadow: none !important; }
+
+/* Status segmented control */
+.cem-status-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.cem-status-pill {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--cem-border);
+  border-radius: 999px;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--cem-muted) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  background: #fff;
+  cursor: pointer;
+  transition: all .15s;
+  margin: 0 !important;
+  line-height: 1.4;
+}
+.cem-status-pill:hover { border-color: var(--cem-text); color: var(--cem-text) !important; }
+.cem-status-pill input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.cem-status-pill.is-selected.cem-status-pill--green {
+  background: #ecfdf5; border-color: #10b981; color: #047857 !important;
+}
+.cem-status-pill.is-selected.cem-status-pill--amber {
+  background: #fffbeb; border-color: #d97706; color: #92400e !important;
+}
+.cem-status-pill.is-selected.cem-status-pill--red {
+  background: #fef2f2; border-color: #dc2626; color: #991b1b !important;
+}
+
+/* Recurrence panel inside its new section frame */
+.cem-meta-grid--v2 .cem-recurrence-options {
+  margin-top: 8px;
+}
+.cem-meta-grid--v2 .cem-recurrence-panel {
+  background: #f8fafc;
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 782px) {
+  .cem-section-body--cols2 { grid-template-columns: 1fr; }
 }
 
 /* ── Sidebar stats ───────────────────────────────────────── */
