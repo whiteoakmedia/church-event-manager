@@ -1203,3 +1203,19 @@
   color: var(--cem-primary);
   text-decoration: none;
 }
+
+/* ── Hide theme-injected publish date on group & event pages ── */
+
+.cem-single-group .entry-date,
+.cem-single-group .entry-meta,
+.cem-single-group .post-date,
+.cem-single-group .posted-on,
+.cem-single-group time.published,
+.cem-single-group time.updated,
+.cem-single-group .post-meta,
+.cem-single-group .article-meta,
+.cem-single-group .byline,
+.cem-single-group .author-bio,
+.cem-single-group .wp-post-image + .entry-meta {
+  display: none !important;
+}
