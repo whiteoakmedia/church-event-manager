@@ -1219,3 +1219,16 @@
 .cem-single-group .wp-post-image + .entry-meta {
   display: none !important;
 }
+
+/* ── Multi-line meeting schedule (group cards / single-group) ── */
+.cem-card-schedule-list,
+.cem-detail-schedule-list {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  vertical-align: top;
+}
+.cem-card-schedule-list span,
+.cem-detail-schedule-list span {
+  display: block;
+}

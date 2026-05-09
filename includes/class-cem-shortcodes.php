@@ -458,9 +458,6 @@ class CEM_Shortcodes {
 			$query->the_post();
 			$id         = get_the_ID();
 			$type        = get_post_meta( $id, '_cem_group_type',        true );
-			$day         = get_post_meta( $id, '_cem_group_day',         true );
-			$time        = get_post_meta( $id, '_cem_group_time',        true );
-			$freq        = get_post_meta( $id, '_cem_group_frequency',   true );
 			$location    = get_post_meta( $id, '_cem_group_location',    true );
 			$leader      = get_post_meta( $id, '_cem_group_leader',      true );
 			$status      = get_post_meta( $id, '_cem_group_status',      true ) ?: 'open';
@@ -472,9 +469,14 @@ class CEM_Shortcodes {
 
 			$type_label    = $group_types[ $type ] ?? '';
 			$status_label  = $status_labels[ $status ] ?? ucfirst( $status );
-			$fmt_time      = CEM_Group::format_time( $time );
-			$schedule_parts = array_filter( [ $freq ? ucfirst( $freq ) : '', $day, $fmt_time ] );
-			$schedule      = implode( ' · ', $schedule_parts );
+
+			// Multi-meeting support — render every meeting time the group has,
+			// not just the first one. Walking groups and similar can list 3+
+			// times. format_meeting_entry handles the legacy fallback.
+			$meeting_times  = CEM_Group::get_meeting_times( $id );
+			$schedule_lines = array_values( array_filter( array_map( function( $entry ) {
+				return CEM_Group::format_meeting_entry( $entry );
+			}, $meeting_times ) ) );
 			$thumb         = has_post_thumbnail() ? get_the_post_thumbnail( $id, 'medium', [ 'class' => 'cem-card-img' ] ) : '';
 			$type_to_ph    = [
 				'bible-study'  => 'amber',  'prayer'       => 'indigo',
@@ -517,8 +519,21 @@ class CEM_Shortcodes {
 					if ( $card_desc ) : ?>
 					<p class="cem-card-excerpt"><?php echo esc_html( wp_trim_words( $card_desc, 20 ) ); ?></p>
 					<?php endif; ?>
-					<?php if ( $schedule ) : ?>
-					<p class="cem-card-date">🗓 <?php echo esc_html( $schedule ); ?></p>
+					<?php if ( ! empty( $schedule_lines ) ) : ?>
+					<p class="cem-card-date">🗓
+						<?php
+						// One row → inline. Multiple rows → list with separators.
+						if ( count( $schedule_lines ) === 1 ) {
+							echo esc_html( $schedule_lines[0] );
+						} else {
+							echo '<span class="cem-card-schedule-list">';
+							foreach ( $schedule_lines as $line ) {
+								echo '<span>' . esc_html( $line ) . '</span>';
+							}
+							echo '</span>';
+						}
+						?>
+					</p>
 					<?php endif; ?>
 					<?php if ( $location ) : ?>
 					<p class="cem-card-location">📍 <?php echo esc_html( $location ); ?></p>
@@ -1296,14 +1311,8 @@ class CEM_Shortcodes {
 			] );
 			$day_map = [ 'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6 ];
 			foreach ( $groups as $g ) {
-				$g_day   = get_post_meta( $g->ID, '_cem_group_day', true );
-				$g_time  = get_post_meta( $g->ID, '_cem_group_time', true );
-				$g_freq  = get_post_meta( $g->ID, '_cem_group_frequency', true );
 				$g_loc   = get_post_meta( $g->ID, '_cem_group_location', true );
 				$g_start = get_post_meta( $g->ID, '_cem_group_start_date', true );
-				if ( ! isset( $day_map[ $g_day ] ) ) continue;
-
-				$target_dow = $day_map[ $g_day ];
 
 				// Anchor used for bi-weekly / monthly cadence. Prefer the
 				// group's configured start date so the schedule is stable;
@@ -1311,41 +1320,47 @@ class CEM_Shortcodes {
 				// has a consistent (if arbitrary) phase.
 				$anchor_ts = $g_start ? strtotime( $g_start ) : strtotime( $g->post_date );
 				if ( ! $anchor_ts ) $anchor_ts = mktime( 0, 0, 0, $month, 1, $year );
-
-				// For monthly groups, find which week-of-month the anchor
-				// falls in (1st, 2nd, 3rd, 4th, last) so we only place the
-				// group on the matching occurrence each month.
 				$anchor_wom = (int) ceil( (int) date( 'j', $anchor_ts ) / 7 );
 
-				// Place group on each matching weekday in this month
-				for ( $d = 1; $d <= $days_in; $d++ ) {
-					$date_ts = mktime( 0, 0, 0, $month, $d, $year );
-					if ( (int) date( 'w', $date_ts ) !== $target_dow ) continue;
+				// Multi-meeting support: walk every meeting time on the group
+				// and plot each one. A walking group meeting Tue/Wed/Sat now
+				// shows 3 entries per week instead of just one.
+				$g_meetings = CEM_Group::get_meeting_times( $g->ID );
 
-					if ( $g_freq === 'biweekly' ) {
-						// Days since anchor — bi-weekly = every 14 days.
-						// This is stable across year boundaries (the old
-						// `ISO_week % 2` approach broke between weeks 52/1).
-						$days_since = ( $date_ts - $anchor_ts ) / DAY_IN_SECONDS;
-						if ( $days_since < 0 ) continue;
-						if ( ( (int) round( $days_since ) ) % 14 !== 0 ) continue;
-					} elseif ( $g_freq === 'monthly' ) {
-						// Match the same week-of-month as the anchor.
-						// Without this, monthly groups were silently shown
-						// every week, 4× per month.
-						$this_wom = (int) ceil( $d / 7 );
-						if ( $this_wom !== $anchor_wom ) continue;
+				foreach ( $g_meetings as $mt ) {
+					$g_day  = $mt['day']       ?? '';
+					$g_time = $mt['time']      ?? '';
+					$g_freq = $mt['frequency'] ?? '';
+					if ( ! isset( $day_map[ $g_day ] ) ) continue;
+					$target_dow = $day_map[ $g_day ];
+
+					// Stable per-event-data key so multiple meetings of the same
+					// group don't overwrite each other in $event_data.
+					$entry_key = $g->ID . '|' . $g_day . '|' . $g_time;
+
+					for ( $d = 1; $d <= $days_in; $d++ ) {
+						$date_ts = mktime( 0, 0, 0, $month, $d, $year );
+						if ( (int) date( 'w', $date_ts ) !== $target_dow ) continue;
+
+						if ( $g_freq === 'biweekly' ) {
+							$days_since = ( $date_ts - $anchor_ts ) / DAY_IN_SECONDS;
+							if ( $days_since < 0 ) continue;
+							if ( ( (int) round( $days_since ) ) % 14 !== 0 ) continue;
+						} elseif ( $g_freq === 'monthly' ) {
+							$this_wom = (int) ceil( $d / 7 );
+							if ( $this_wom !== $anchor_wom ) continue;
+						}
+
+						$events_by_day[ $d ][] = (object) [ 'ID' => $entry_key, 'post_title' => $g->post_title ];
+						$event_data[ $entry_key ] = [
+							'title'    => $g->post_title,
+							'start'    => date( 'Y-m-d', $date_ts ) . ( $g_time ? ' ' . $g_time . ':00' : '' ),
+							'end'      => '',
+							'location' => $g_loc,
+							'url'      => get_permalink( $g->ID ),
+							'type'     => 'group',
+						];
 					}
-
-					$events_by_day[ $d ][] = $g;
-					$event_data[ $g->ID ] = [
-						'title'    => $g->post_title,
-						'start'    => date( 'Y-m-d', $date_ts ) . ( $g_time ? ' ' . $g_time . ':00' : '' ),
-						'end'      => '',
-						'location' => $g_loc,
-						'url'      => get_permalink( $g->ID ),
-						'type'     => 'group',
-					];
 				}
 			}
 		}
@@ -1431,9 +1446,12 @@ class CEM_Shortcodes {
 										$time_str = date_i18n( get_option( 'time_format', 'g:i a' ), $ts );
 									}
 									$type_class = ( $ed['type'] ?? 'event' ) === 'group' ? 'cem-cal-event--group' : 'cem-cal-event--event';
+									// Prefer the URL stashed in event_data so synthetic
+									// IDs (multi-meeting groups) still resolve correctly.
+									$cal_url = ! empty( $ed['url'] ) ? $ed['url'] : get_permalink( $ce->ID );
 
 									if ( $shown < 3 ) {
-										echo '<a class="cem-cal-event-item ' . esc_attr( $type_class ) . '" href="' . esc_url( get_permalink( $ce->ID ) ) . '"'
+										echo '<a class="cem-cal-event-item ' . esc_attr( $type_class ) . '" href="' . esc_url( $cal_url ) . '"'
 											. ' data-event-id="' . esc_attr( $ce->ID ) . '"'
 											. ' data-event-title="' . esc_attr( $ce->post_title ) . '"'
 											. ' data-event-time="' . esc_attr( $time_str ) . '"'

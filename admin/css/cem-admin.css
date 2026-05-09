@@ -1059,3 +1059,49 @@
 /* ── Drag handle / remove icon visual cleanup ── */
 .cem-drag-handle .dashicons { color: var(--cem-muted); cursor: grab; }
 .cem-drag-handle:active .dashicons { cursor: grabbing; }
+
+/* ── Multi-meeting times repeater (Group editor) ─────────── */
+.cem-meeting-times-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border: 1px solid var(--cem-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cem-meeting-times-table thead th {
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cem-muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--cem-border);
+}
+.cem-meeting-times-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--cem-border);
+  vertical-align: middle;
+}
+.cem-meeting-times-table tr:last-child td { border-bottom: none; }
+.cem-meeting-times-table select,
+.cem-meeting-times-table input[type="time"] {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 1px solid var(--cem-border);
+  border-radius: 4px;
+}
+.cem-remove-meeting-time {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--cem-muted) !important;
+  cursor: pointer;
+  padding: 4px !important;
+  min-height: 0 !important;
+}
+.cem-remove-meeting-time:hover { color: var(--cem-danger) !important; }
+.cem-remove-meeting-time .dashicons {
+  width: 18px; height: 18px; font-size: 18px; line-height: 1;
+}

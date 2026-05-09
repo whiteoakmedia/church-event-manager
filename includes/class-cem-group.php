@@ -263,6 +263,12 @@ class CEM_Group {
 			'full'     => __( 'Full',     'church-event-manager' ),
 			'inactive' => __( 'Inactive', 'church-event-manager' ),
 		];
+
+		// Load multi-meeting times via the helper (handles legacy fallback).
+		$meeting_times = self::get_meeting_times( $post->ID );
+		if ( empty( $meeting_times ) ) {
+			$meeting_times = [ [ 'frequency' => 'weekly', 'day' => '', 'time' => '' ] ];
+		}
 		?>
 
 		<div class="cem-meta-grid cem-meta-grid--v2">
@@ -321,36 +327,65 @@ class CEM_Group {
 			<div class="cem-section cem-meta-full">
 				<div class="cem-section-head">
 					<span class="dashicons dashicons-calendar-alt"></span>
-					<h3><?php esc_html_e( 'Schedule', 'church-event-manager' ); ?></h3>
+					<h3><?php esc_html_e( 'Meeting times', 'church-event-manager' ); ?></h3>
 				</div>
 				<div class="cem-section-body">
-					<div class="cem-section-body--cols2">
-						<div class="cem-meta-row">
-							<label for="_cem_group_frequency"><?php esc_html_e( 'How often', 'church-event-manager' ); ?></label>
-							<select id="_cem_group_frequency" name="_cem_group_frequency">
-								<?php foreach ( $freqs as $val => $label ) : ?>
-								<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $frequency, $val ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-						<div class="cem-meta-row">
-							<label for="_cem_group_day"><?php esc_html_e( 'Day of week', 'church-event-manager' ); ?></label>
-							<select id="_cem_group_day" name="_cem_group_day">
-								<?php foreach ( $days as $d ) : ?>
-								<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $day, $d ); ?>><?php echo $d ? esc_html( $d ) : esc_html__( '— Select —', 'church-event-manager' ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</div>
-					</div>
-					<div class="cem-section-body--cols2" style="margin-top:12px">
-						<div class="cem-meta-row">
-							<label for="_cem_group_time"><?php esc_html_e( 'Meeting time', 'church-event-manager' ); ?></label>
-							<input type="time" id="_cem_group_time" name="_cem_group_time" value="<?php echo esc_attr( $time ); ?>" style="max-width:160px">
-						</div>
+					<p class="description" style="margin:0 0 10px">
+						<?php esc_html_e( "Add one row per meeting time. Most groups meet once a week, but a group like a walking group can list every day it gathers.", 'church-event-manager' ); ?>
+					</p>
+
+					<table class="widefat cem-meeting-times-table" id="cem-meeting-times-table">
+						<thead>
+							<tr>
+								<th style="width:25%"><?php esc_html_e( 'How often', 'church-event-manager' ); ?></th>
+								<th style="width:25%"><?php esc_html_e( 'Day', 'church-event-manager' ); ?></th>
+								<th style="width:25%"><?php esc_html_e( 'Time', 'church-event-manager' ); ?></th>
+								<th style="width:50px"></th>
+							</tr>
+						</thead>
+						<tbody id="cem-meeting-times-body">
+							<?php foreach ( $meeting_times as $i => $mt ) :
+								$row_freq = $mt['frequency'] ?? 'weekly';
+								$row_day  = $mt['day']       ?? '';
+								$row_time = $mt['time']      ?? '';
+							?>
+							<tr class="cem-meeting-time-row">
+								<td>
+									<select name="cem_meeting_times[<?php echo (int) $i; ?>][frequency]">
+										<?php foreach ( $freqs as $val => $label ) : ?>
+										<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $row_freq, $val ); ?>><?php echo esc_html( $label ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</td>
+								<td>
+									<select name="cem_meeting_times[<?php echo (int) $i; ?>][day]">
+										<?php foreach ( $days as $d ) : ?>
+										<option value="<?php echo esc_attr( $d ); ?>" <?php selected( $row_day, $d ); ?>><?php echo $d ? esc_html( $d ) : esc_html__( '— Select —', 'church-event-manager' ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</td>
+								<td>
+									<input type="time" name="cem_meeting_times[<?php echo (int) $i; ?>][time]" value="<?php echo esc_attr( $row_time ); ?>">
+								</td>
+								<td>
+									<button type="button" class="button button-link-delete cem-remove-meeting-time" aria-label="<?php esc_attr_e( 'Remove this meeting time', 'church-event-manager' ); ?>" title="<?php esc_attr_e( 'Remove', 'church-event-manager' ); ?>">
+										<span class="dashicons dashicons-trash"></span>
+									</button>
+								</td>
+							</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					<button type="button" class="button" id="cem-add-meeting-time" style="margin-top:8px">
+						+ <?php esc_html_e( 'Add another meeting time', 'church-event-manager' ); ?>
+					</button>
+
+					<div class="cem-section-body--cols2" style="margin-top:18px">
 						<div class="cem-meta-row">
 							<label for="_cem_group_capacity"><?php esc_html_e( 'Capacity', 'church-event-manager' ); ?></label>
 							<input type="number" id="_cem_group_capacity" name="_cem_group_capacity" value="<?php echo esc_attr( $capacity ); ?>" min="0" placeholder="<?php esc_attr_e( '0 = unlimited', 'church-event-manager' ); ?>">
 						</div>
+						<div class="cem-meta-row"></div>
 					</div>
 					<div class="cem-section-body--cols2" style="margin-top:12px">
 						<div class="cem-meta-row">
@@ -364,6 +399,54 @@ class CEM_Group {
 					</div>
 				</div>
 			</div>
+
+			<script>
+			(function($){
+				var idx = <?php echo (int) max( count( $meeting_times ), 1 ); ?>;
+				var freqOpts = <?php echo wp_json_encode( $freqs ); ?>;
+				var dayOpts  = <?php echo wp_json_encode( $days ); ?>;
+
+				function freqSelect() {
+					var html = '';
+					$.each(freqOpts, function(val, label){
+						html += '<option value="' + val + '">' + label + '</option>';
+					});
+					return html;
+				}
+				function daySelect() {
+					var html = '';
+					$.each(dayOpts, function(_, d){
+						html += '<option value="' + d + '">' + (d || '— Select —') + '</option>';
+					});
+					return html;
+				}
+
+				$('#cem-add-meeting-time').on('click', function(){
+					var row =
+						'<tr class="cem-meeting-time-row">' +
+							'<td><select name="cem_meeting_times[' + idx + '][frequency]">' + freqSelect() + '</select></td>' +
+							'<td><select name="cem_meeting_times[' + idx + '][day]">' + daySelect() + '</select></td>' +
+							'<td><input type="time" name="cem_meeting_times[' + idx + '][time]" value=""></td>' +
+							'<td><button type="button" class="button button-link-delete cem-remove-meeting-time" title="<?php echo esc_js( __( 'Remove', 'church-event-manager' ) ); ?>"><span class="dashicons dashicons-trash"></span></button></td>' +
+						'</tr>';
+					$('#cem-meeting-times-body').append(row);
+					// Default new rows to weekly.
+					$('#cem-meeting-times-body tr:last select[name$="[frequency]"]').val('weekly');
+					idx++;
+				});
+
+				$(document).on('click', '.cem-remove-meeting-time', function(){
+					// Always keep at least one empty row so the schedule
+					// section never collapses into nothing.
+					var rows = $('#cem-meeting-times-body .cem-meeting-time-row');
+					if (rows.length <= 1) {
+						$(this).closest('tr').find('input,select').val('');
+						return;
+					}
+					$(this).closest('tr').remove();
+				});
+			})(jQuery);
+			</script>
 
 			<!-- ── Section: Where ────────────────────────────────── -->
 			<div class="cem-section cem-meta-full">
@@ -530,9 +613,13 @@ class CEM_Group {
 			update_post_meta( $post_id, '_cem_group_description', wp_kses_post( wp_unslash( $_POST['_cem_group_description'] ) ) );
 		}
 
+		// Note: _cem_group_day / _cem_group_time / _cem_group_frequency are
+		// no longer driven by their own form fields. They're derived below
+		// from the multi-meeting repeater (first row) so legacy code paths
+		// (queries, single-group template, calendar fallback) still work.
 		$text_fields = [
 			'_cem_group_leader', '_cem_group_location', '_cem_group_address',
-			'_cem_group_day', '_cem_group_time', '_cem_group_contact_phone',
+			'_cem_group_contact_phone',
 		];
 		foreach ( $text_fields as $field ) {
 			if ( isset( $_POST[ $field ] ) ) {
@@ -578,8 +665,48 @@ class CEM_Group {
 		if ( isset( $_POST['_cem_group_status'] ) && in_array( $_POST['_cem_group_status'], $allowed_statuses, true ) ) {
 			update_post_meta( $post_id, '_cem_group_status', $_POST['_cem_group_status'] );
 		}
-		if ( isset( $_POST['_cem_group_frequency'] ) && in_array( $_POST['_cem_group_frequency'], $allowed_freqs, true ) ) {
-			update_post_meta( $post_id, '_cem_group_frequency', $_POST['_cem_group_frequency'] );
+		// ── Multi-meeting times ─────────────────────────────────────────────
+		// Parse the repeater rows into a clean array, persist as JSON, AND
+		// mirror the first row into the legacy single-meeting fields so any
+		// code path still reading them (filters, single-group template,
+		// calendar fallback, group reminder email) keeps working without a
+		// data migration.
+		$allowed_days = [ '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Various' ];
+		$cleaned      = [];
+		if ( isset( $_POST['cem_meeting_times'] ) && is_array( $_POST['cem_meeting_times'] ) ) {
+			foreach ( $_POST['cem_meeting_times'] as $row ) {
+				$freq = isset( $row['frequency'] ) ? sanitize_key( $row['frequency'] ) : '';
+				$day  = isset( $row['day'] )       ? sanitize_text_field( $row['day'] ) : '';
+				$time = isset( $row['time'] )      ? sanitize_text_field( $row['time'] ) : '';
+
+				if ( ! in_array( $freq, $allowed_freqs, true ) ) $freq = '';
+				if ( ! in_array( $day,  $allowed_days,  true ) ) $day  = '';
+				// Time is HH:MM from <input type="time">. Strip anything else.
+				if ( $time && ! preg_match( '/^\d{2}:\d{2}(:\d{2})?$/', $time ) ) $time = '';
+
+				// Skip rows that are completely empty.
+				if ( $freq === '' && $day === '' && $time === '' ) continue;
+
+				$cleaned[] = [
+					'frequency' => $freq,
+					'day'       => $day,
+					'time'      => $time,
+				];
+			}
+		}
+
+		if ( empty( $cleaned ) ) {
+			delete_post_meta( $post_id, '_cem_group_meeting_times' );
+			delete_post_meta( $post_id, '_cem_group_day' );
+			delete_post_meta( $post_id, '_cem_group_time' );
+			delete_post_meta( $post_id, '_cem_group_frequency' );
+		} else {
+			update_post_meta( $post_id, '_cem_group_meeting_times', wp_json_encode( $cleaned ) );
+			// Mirror the first entry into legacy fields.
+			$first = $cleaned[0];
+			update_post_meta( $post_id, '_cem_group_frequency', $first['frequency'] );
+			update_post_meta( $post_id, '_cem_group_day',       $first['day'] );
+			update_post_meta( $post_id, '_cem_group_time',      $first['time'] );
 		}
 	}
 
@@ -755,6 +882,58 @@ class CEM_Group {
 	/**
 	 * Format a 24h time string (HH:MM) as a human-readable time.
 	 */
+	/**
+	 * Read the group's meeting times. Returns an array of associative entries:
+	 *   [ [ 'frequency' => 'weekly', 'day' => 'Monday', 'time' => '18:30' ], … ]
+	 *
+	 * Most groups will have one entry. Groups that meet on multiple days
+	 * (e.g. a Walking Group on Tuesday/Wednesday/Saturday) will have several.
+	 *
+	 * Falls back to the legacy single-meeting fields (`_cem_group_day`,
+	 * `_cem_group_time`, `_cem_group_frequency`) when the multi-meeting
+	 * array is empty so groups created before this feature keep working.
+	 *
+	 * @param int $group_id
+	 * @return array
+	 */
+	public static function get_meeting_times( $group_id ) {
+		$json = get_post_meta( $group_id, '_cem_group_meeting_times', true );
+		if ( $json ) {
+			$decoded = json_decode( $json, true );
+			if ( is_array( $decoded ) && ! empty( $decoded ) ) {
+				return $decoded;
+			}
+		}
+
+		// Legacy fallback — single-meeting fields.
+		$day  = get_post_meta( $group_id, '_cem_group_day',       true );
+		$time = get_post_meta( $group_id, '_cem_group_time',      true );
+		$freq = get_post_meta( $group_id, '_cem_group_frequency', true );
+		if ( $day || $time || $freq ) {
+			return [ [
+				'frequency' => $freq ?: 'weekly',
+				'day'       => $day,
+				'time'      => $time,
+			] ];
+		}
+		return [];
+	}
+
+	/**
+	 * Format a single meeting-time entry as a human-readable string.
+	 *
+	 * "weekly Tuesday · 6:30 PM" — used on cards / single-group pages.
+	 *
+	 * @param array $entry { frequency, day, time }
+	 */
+	public static function format_meeting_entry( $entry ) {
+		$parts = [];
+		if ( ! empty( $entry['frequency'] ) ) $parts[] = ucfirst( $entry['frequency'] );
+		if ( ! empty( $entry['day'] ) )       $parts[] = $entry['day'];
+		if ( ! empty( $entry['time'] ) )      $parts[] = self::format_time( $entry['time'] );
+		return implode( ' · ', $parts );
+	}
+
 	public static function format_time( $time_24h ) {
 		if ( ! $time_24h ) return '';
 		$ts = strtotime( '2000-01-01 ' . $time_24h );

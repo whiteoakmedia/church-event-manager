@@ -52,6 +52,12 @@ $fmt_time       = CEM_Group::format_time( $time );
 $schedule_parts = array_filter( [ $frequency ? ucwords( $frequency ) : '', $day, $fmt_time ] );
 $schedule       = implode( ' · ', $schedule_parts );
 
+// Multi-meeting support — render every meeting time the group has.
+$meeting_times  = CEM_Group::get_meeting_times( $group_id );
+$schedule_lines = array_values( array_filter( array_map( function( $entry ) {
+	return CEM_Group::format_meeting_entry( $entry );
+}, $meeting_times ) ) );
+
 $group_types = CEM_Group::group_types();
 $type_label  = $group_types[ $type ] ?? '';
 
@@ -208,10 +214,20 @@ if ( $has_main_elements ) {
 			<div class="cem-group-details-card">
 				<h3 class="cem-card-heading"><?php esc_html_e( 'Group Details', 'church-event-manager' ); ?></h3>
 
-				<?php if ( $schedule ) : ?>
+				<?php if ( ! empty( $schedule_lines ) ) : ?>
 				<div class="cem-detail-row">
 					<span class="cem-detail-icon">🗓</span>
-					<span class="cem-detail-text"><?php echo esc_html( $schedule ); ?></span>
+					<span class="cem-detail-text">
+						<?php if ( count( $schedule_lines ) === 1 ) : ?>
+							<?php echo esc_html( $schedule_lines[0] ); ?>
+						<?php else : ?>
+							<span class="cem-detail-schedule-list">
+								<?php foreach ( $schedule_lines as $line ) : ?>
+								<span><?php echo esc_html( $line ); ?></span>
+								<?php endforeach; ?>
+							</span>
+						<?php endif; ?>
+					</span>
 				</div>
 				<?php endif; ?>
 
