@@ -476,9 +476,7 @@ class CEM_Shortcodes {
 				<?php if ( $thumb ) : ?>
 				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap"><?php echo $thumb; ?></a>
 				<?php else : ?>
-				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap cem-card-placeholder cem-ph--<?php echo esc_attr( $ph_color ); ?>">
-					<span class="cem-card-placeholder__initial"><?php echo esc_html( $initial ); ?></span>
-				</a>
+				<a href="<?php the_permalink(); ?>" class="cem-card-img-wrap cem-card-placeholder cem-ph--<?php echo esc_attr( $ph_color ); ?>"></a>
 				<?php endif; ?>
 				<div class="cem-card-body">
 					<div class="cem-card-meta">

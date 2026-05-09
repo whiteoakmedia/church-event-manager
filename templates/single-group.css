@@ -90,7 +90,7 @@
 /* ── Gradient hero (no featured image) ─────────────────────────────────────── */
 
 .cem-group-hero--gradient {
-	min-height: calc(280px + var(--cem-nav-height));
+	min-height: calc(420px + var(--cem-nav-height));
 	display: flex;
 	align-items: flex-end;
 }
