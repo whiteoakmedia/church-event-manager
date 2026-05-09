@@ -50,7 +50,7 @@ class CEM_Custom_Fields {
 					<?php else : ?>
 					<?php foreach ( $fields as $i => $field ) : ?>
 					<tr class="cem-field-row" data-index="<?php echo esc_attr( $i ); ?>">
-						<td class="cem-drag-handle">⠿</td>
+						<td class="cem-drag-handle"><span class="dashicons dashicons-menu"></span></td>
 						<td>
 							<input type="text" name="cem_fields[<?php echo $i; ?>][label]"
 								value="<?php echo esc_attr( $field->field_label ); ?>"
@@ -78,7 +78,7 @@ class CEM_Custom_Fields {
 								<?php checked( $field->required, 1 ); ?>>
 						</td>
 						<td>
-							<button type="button" class="button button-small cem-remove-field">✕</button>
+							<button type="button" class="button button-small cem-remove-field" aria-label="Remove field"><span class="dashicons dashicons-no-alt"></span></button>
 						</td>
 					</tr>
 					<?php endforeach; ?>
@@ -100,7 +100,7 @@ class CEM_Custom_Fields {
 			$('#cem-add-field').on('click', function(){
 				$('.cem-no-fields').remove();
 				var row = '<tr class="cem-field-row" data-index="'+ idx +'">'
-					+ '<td class="cem-drag-handle">⠿</td>'
+					+ '<td class="cem-drag-handle"><span class="dashicons dashicons-menu"></span></td>'
 					+ '<td><input type="text" name="cem_fields['+idx+'][label]" class="widefat" placeholder="Field label"><input type="hidden" name="cem_fields['+idx+'][id]" value="0"></td>'
 					+ '<td><select name="cem_fields['+idx+'][type]" class="cem-field-type">'
 					+ <?php echo json_encode( implode( '', array_map(
@@ -111,7 +111,7 @@ class CEM_Custom_Fields {
 					+ '</select></td>'
 					+ '<td><input type="text" name="cem_fields['+idx+'][options]" class="widefat cem-field-options" placeholder="Option A, Option B" style="display:none"></td>'
 					+ '<td style="text-align:center"><input type="checkbox" name="cem_fields['+idx+'][required]" value="1"></td>'
-					+ '<td><button type="button" class="button button-small cem-remove-field">✕</button></td>'
+					+ '<td><button type="button" class="button button-small cem-remove-field" aria-label="Remove field"><span class="dashicons dashicons-no-alt"></span></button></td>'
 					+ '</tr>';
 				$('#cem-fields-list tbody').append(row);
 				idx++;

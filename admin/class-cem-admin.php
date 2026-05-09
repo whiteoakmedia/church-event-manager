@@ -363,25 +363,54 @@ class CEM_Admin {
 	public function page_registrations() {
 		$event_id  = (int) ( $_GET['event_id'] ?? 0 );
 		$status    = sanitize_key( $_GET['status'] ?? '' );
-		$search    = sanitize_text_field( $_GET['s'] ?? '' );
+		$search    = sanitize_text_field( wp_unslash( $_GET['s'] ?? '' ) );
+		$date_from = sanitize_text_field( wp_unslash( $_GET['date_from'] ?? '' ) );
+		$date_to   = sanitize_text_field( wp_unslash( $_GET['date_to']   ?? '' ) );
+		$checkin   = sanitize_key( $_GET['checkin'] ?? '' ); // 'in' | 'out' | ''
 		$page      = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
 		$per_page  = 25;
 
+		// "checked_in" is a status value; "not checked in" is a synthetic
+		// filter we resolve to "any of (confirmed, pending) AND checked_in_at IS NULL".
+		// The simplest path is to translate checkin=in → status=checked_in,
+		// and checkin=out → status=confirmed (the most common org workflow).
+		// Power-users can still use the explicit Status dropdown for finer control.
+		$status_filter = $status ? [ $status ] : [];
+		if ( $checkin === 'in' && empty( $status_filter ) ) {
+			$status_filter = [ 'checked_in' ];
+		} elseif ( $checkin === 'out' && empty( $status_filter ) ) {
+			$status_filter = [ 'confirmed', 'pending' ];
+		}
+
 		$args = [
-			'per_page' => $per_page,
-			'page'     => $page,
-			'search'   => $search,
-			'status'   => $status ? [ $status ] : [],
-			'event_id' => $event_id,
+			'per_page'  => $per_page,
+			'page'      => $page,
+			'search'    => $search,
+			'status'    => $status_filter,
+			'event_id'  => $event_id,
+			'date_from' => $date_from,
+			'date_to'   => $date_to,
 		];
 
 		$result = CEM_Registration::get_all( $args );
 		$regs   = $result['registrations'];
 		$total  = $result['total'];
-		$pages  = ceil( $total / $per_page );
+		$pages  = max( 1, (int) ceil( $total / $per_page ) );
 
 		// Events dropdown for filter
 		$events = get_posts( [ 'post_type' => 'cem_event', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ] );
+
+		// CSV-export URL preserves the active filters so what you see is
+		// what you export.
+		$export_url = add_query_arg( array_filter( [
+			'action'    => 'cem_export_registrations',
+			'event_id'  => $event_id ?: null,
+			'status'    => $status ?: null,
+			'date_from' => $date_from ?: null,
+			'date_to'   => $date_to ?: null,
+			's'         => $search ?: null,
+			'nonce'     => wp_create_nonce( 'cem_export_nonce' ),
+		] ), admin_url( 'admin-ajax.php' ) );
 
 		?>
 		<div class="wrap cem-wrap">
@@ -393,52 +422,73 @@ class CEM_Admin {
 			<a href="<?php echo esc_url( admin_url('admin.php?page=cem-registrations') ); ?>" class="page-title-action"><?php esc_html_e('Clear', 'church-event-manager'); ?></a>
 			<?php endif; ?>
 
-			<!-- Export -->
-			<a href="<?php echo esc_url( add_query_arg( [
-				'action'   => 'cem_export_registrations',
-				'event_id' => $event_id,
-				'status'   => $status,
-				'nonce'    => wp_create_nonce('cem_export_nonce'),
-			], admin_url('admin-ajax.php') ) ); ?>" class="page-title-action">
+			<!-- Export (mirrors current filters) -->
+			<a href="<?php echo esc_url( $export_url ); ?>" class="page-title-action">
 				<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export CSV', 'church-event-manager' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
-			<!-- Filters -->
-			<div class="cem-filter-bar">
-				<form method="get">
-					<input type="hidden" name="page" value="cem-registrations">
-					<select name="event_id" onchange="this.form.submit()">
-						<option value=""><?php esc_html_e( 'All Events', 'church-event-manager' ); ?></option>
-						<?php foreach ( $events as $ev ) : ?>
-						<option value="<?php echo esc_attr( $ev->ID ); ?>" <?php selected( $event_id, $ev->ID ); ?>>
-							<?php echo esc_html( $ev->post_title ); ?>
-						</option>
-						<?php endforeach; ?>
-					</select>
-					<select name="status" onchange="this.form.submit()">
-						<option value=""><?php esc_html_e( 'All Statuses', 'church-event-manager' ); ?></option>
-						<?php foreach ( [ 'pending','confirmed','cancelled','waitlisted','checked_in' ] as $s ) : ?>
-						<option value="<?php echo esc_attr($s); ?>" <?php selected($status,$s); ?>><?php echo esc_html(ucwords(str_replace('_',' ',$s))); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<input type="search" name="s" placeholder="<?php esc_attr_e('Search name, email…','church-event-manager'); ?>"
-						value="<?php echo esc_attr($search); ?>">
-					<button type="submit" class="button"><?php esc_html_e('Filter','church-event-manager'); ?></button>
-				</form>
+			<!-- Filters + Bulk actions: one form, one toolbar, no surprises. -->
+			<form method="get" class="cem-filter-bar cem-filter-bar--combined">
+				<input type="hidden" name="page" value="cem-registrations">
 
-				<!-- Bulk actions -->
-				<form id="cem-bulk-form">
-					<select id="cem-bulk-action">
-						<option value=""><?php esc_html_e('Bulk Actions','church-event-manager'); ?></option>
-						<option value="confirmed"><?php esc_html_e('Mark Confirmed','church-event-manager'); ?></option>
-						<option value="checked_in"><?php esc_html_e('Mark Checked In','church-event-manager'); ?></option>
-						<option value="cancelled"><?php esc_html_e('Mark Cancelled','church-event-manager'); ?></option>
-						<option value="reminder"><?php esc_html_e('Send Reminder Email','church-event-manager'); ?></option>
-					</select>
-					<button type="button" class="button" id="cem-apply-bulk"><?php esc_html_e('Apply','church-event-manager'); ?></button>
-				</form>
-			</div>
+				<select name="event_id" onchange="this.form.submit()">
+					<option value=""><?php esc_html_e( 'All Events', 'church-event-manager' ); ?></option>
+					<?php foreach ( $events as $ev ) : ?>
+					<option value="<?php echo esc_attr( $ev->ID ); ?>" <?php selected( $event_id, $ev->ID ); ?>>
+						<?php echo esc_html( $ev->post_title ); ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+
+				<select name="status" onchange="this.form.submit()">
+					<option value=""><?php esc_html_e( 'All Statuses', 'church-event-manager' ); ?></option>
+					<?php foreach ( [ 'pending', 'confirmed', 'cancelled', 'waitlisted', 'checked_in' ] as $s ) : ?>
+					<option value="<?php echo esc_attr( $s ); ?>" <?php selected( $status, $s ); ?>>
+						<?php echo esc_html( ucwords( str_replace( '_', ' ', $s ) ) ); ?>
+					</option>
+					<?php endforeach; ?>
+				</select>
+
+				<select name="checkin" onchange="this.form.submit()" title="<?php esc_attr_e( 'Quick check-in filter', 'church-event-manager' ); ?>">
+					<option value=""><?php esc_html_e( 'Any check-in state', 'church-event-manager' ); ?></option>
+					<option value="in"  <?php selected( $checkin, 'in' );  ?>><?php esc_html_e( 'Checked in',     'church-event-manager' ); ?></option>
+					<option value="out" <?php selected( $checkin, 'out' ); ?>><?php esc_html_e( 'Not checked in', 'church-event-manager' ); ?></option>
+				</select>
+
+				<label class="cem-filter-date">
+					<span class="screen-reader-text"><?php esc_html_e( 'Registered from', 'church-event-manager' ); ?></span>
+					<input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>" placeholder="<?php esc_attr_e( 'From', 'church-event-manager' ); ?>" title="<?php esc_attr_e( 'Registered on or after', 'church-event-manager' ); ?>">
+				</label>
+				<label class="cem-filter-date">
+					<span class="screen-reader-text"><?php esc_html_e( 'Registered to', 'church-event-manager' ); ?></span>
+					<input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>" placeholder="<?php esc_attr_e( 'To', 'church-event-manager' ); ?>" title="<?php esc_attr_e( 'Registered on or before', 'church-event-manager' ); ?>">
+				</label>
+
+				<input type="search" name="s" placeholder="<?php esc_attr_e( 'Search name, email…', 'church-event-manager' ); ?>"
+					value="<?php echo esc_attr( $search ); ?>">
+				<button type="submit" class="button"><?php esc_html_e( 'Filter', 'church-event-manager' ); ?></button>
+
+				<?php if ( $event_id || $status || $checkin || $date_from || $date_to || $search ) : ?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-registrations' ) ); ?>" class="cem-filter-clear">
+					<?php esc_html_e( 'Clear', 'church-event-manager' ); ?>
+				</a>
+				<?php endif; ?>
+
+				<span class="cem-filter-bar-spacer"></span>
+
+				<!-- Bulk actions live in the same form so a "selection count"
+				     here can naturally read the table's checked rows. -->
+				<span class="cem-bulk-count" id="cem-bulk-count" aria-live="polite"></span>
+				<select id="cem-bulk-action">
+					<option value=""><?php esc_html_e( 'Bulk Actions',         'church-event-manager' ); ?></option>
+					<option value="confirmed"><?php esc_html_e( 'Mark Confirmed',  'church-event-manager' ); ?></option>
+					<option value="checked_in"><?php esc_html_e( 'Mark Checked In','church-event-manager' ); ?></option>
+					<option value="cancelled"><?php esc_html_e( 'Mark Cancelled',  'church-event-manager' ); ?></option>
+					<option value="reminder"><?php esc_html_e( 'Send Reminder Email','church-event-manager' ); ?></option>
+				</select>
+				<button type="button" class="button" id="cem-apply-bulk"><?php esc_html_e( 'Apply', 'church-event-manager' ); ?></button>
+			</form>
 
 			<!-- Results count -->
 			<p class="cem-results-count">
@@ -458,6 +508,7 @@ class CEM_Admin {
 						<th><?php esc_html_e( 'Name',         'church-event-manager' ); ?></th>
 						<th><?php esc_html_e( 'Event',        'church-event-manager' ); ?></th>
 						<th><?php esc_html_e( 'Email / Phone','church-event-manager' ); ?></th>
+						<th><?php esc_html_e( 'Type',         'church-event-manager' ); ?></th>
 						<th><?php esc_html_e( 'Attendees',    'church-event-manager' ); ?></th>
 						<th><?php esc_html_e( 'Status',       'church-event-manager' ); ?></th>
 						<th><?php esc_html_e( 'Registered',   'church-event-manager' ); ?></th>
@@ -465,7 +516,25 @@ class CEM_Admin {
 					</tr>
 				</thead>
 				<tbody>
-				<?php foreach ( $regs as $reg ) :
+				<?php
+				// Pre-fetch registration_type meta for everything on this page in
+				// a single query so we don't run an N+1 against cem_registration_meta.
+				$reg_ids = array_map( fn( $r ) => (int) $r->id, $regs );
+				$type_map = [];
+				if ( ! empty( $reg_ids ) ) {
+					global $wpdb;
+					$ph = implode( ',', array_fill( 0, count( $reg_ids ), '%d' ) );
+					$rows = $wpdb->get_results( $wpdb->prepare(
+						"SELECT registration_id, meta_value
+						 FROM {$wpdb->prefix}cem_registration_meta
+						 WHERE meta_key = '_registration_type' AND registration_id IN ($ph)",
+						...$reg_ids
+					) );
+					foreach ( (array) $rows as $row ) {
+						$type_map[ (int) $row->registration_id ] = $row->meta_value;
+					}
+				}
+				foreach ( $regs as $reg ) :
 					$event = get_post( $reg->event_id );
 				?>
 				<tr data-id="<?php echo esc_attr( $reg->id ); ?>">
@@ -489,6 +558,13 @@ class CEM_Admin {
 						<a href="mailto:<?php echo esc_attr( $reg->email ); ?>"><?php echo esc_html( $reg->email ); ?></a>
 						<?php if ( $reg->phone ) : ?><br><small><?php echo esc_html( $reg->phone ); ?></small><?php endif; ?>
 					</td>
+					<td>
+						<?php if ( ! empty( $type_map[ (int) $reg->id ] ) ) : ?>
+						<span class="cem-badge cem-badge--blue"><?php echo esc_html( $type_map[ (int) $reg->id ] ); ?></span>
+						<?php else : ?>
+						<span class="cem-muted">—</span>
+						<?php endif; ?>
+					</td>
 					<td><?php echo esc_html( $reg->num_attendees ); ?></td>
 					<td><?php echo CEM_Helpers::status_badge( $reg->status ); ?></td>
 					<td class="cem-muted"><?php echo esc_html( CEM_Helpers::format_datetime( $reg->created_at ) ); ?></td>
@@ -508,14 +584,29 @@ class CEM_Admin {
 			</table>
 
 			<?php if ( $pages > 1 ) : ?>
-			<div class="cem-pagination tablenav">
+			<div class="tablenav cem-pagination">
 				<div class="tablenav-pages">
-					<?php for ( $p = 1; $p <= $pages; $p++ ) : ?>
-					<a href="<?php echo esc_url( add_query_arg( 'paged', $p ) ); ?>"
-						class="button <?php echo $p === $page ? 'button-primary' : ''; ?>">
-						<?php echo esc_html( $p ); ?>
-					</a>
-					<?php endfor; ?>
+					<span class="displaying-num">
+						<?php
+						printf(
+							/* translators: %s: number of items */
+							esc_html( _n( '%s item', '%s items', $total, 'church-event-manager' ) ),
+							number_format_i18n( $total )
+						);
+						?>
+					</span>
+					<?php
+					echo paginate_links( [ // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						'base'      => add_query_arg( 'paged', '%#%' ),
+						'format'    => '',
+						'prev_text' => '&laquo;',
+						'next_text' => '&raquo;',
+						'current'   => $page,
+						'total'     => $pages,
+						'type'      => 'plain',
+						'mid_size'  => 2,
+					] );
+					?>
 				</div>
 			</div>
 			<?php endif; ?>
@@ -527,12 +618,30 @@ class CEM_Admin {
 		<div id="cem-reg-modal" class="cem-modal" style="display:none">
 			<div class="cem-modal-overlay"></div>
 			<div class="cem-modal-content">
-				<button class="cem-modal-close">✕</button>
+				<button class="cem-modal-close" aria-label="<?php esc_attr_e( 'Close', 'church-event-manager' ); ?>"><span class="dashicons dashicons-no-alt"></span></button>
 				<div id="cem-reg-modal-body">
 					<p class="cem-muted"><?php esc_html_e( 'Loading…', 'church-event-manager' ); ?></p>
 				</div>
 			</div>
 		</div>
+
+		<script>
+		// Live "N selected" indicator next to the bulk-action dropdown.
+		(function(){
+			var label = document.getElementById('cem-bulk-count');
+			if (!label) return;
+			var update = function(){
+				var n = document.querySelectorAll('.cem-reg-cb:checked').length;
+				label.textContent = n ? (n + ' selected') : '';
+				label.classList.toggle('is-active', n > 0);
+			};
+			document.addEventListener('change', function(e){
+				if (e.target && (e.target.classList.contains('cem-reg-cb') || e.target.id === 'cem-select-all')) {
+					update();
+				}
+			});
+		})();
+		</script>
 		<?php
 	}
 
@@ -669,7 +778,7 @@ class CEM_Admin {
 		<div id="cem-reg-modal" class="cem-modal" style="display:none">
 			<div class="cem-modal-overlay"></div>
 			<div class="cem-modal-content">
-				<button class="cem-modal-close">✕</button>
+				<button class="cem-modal-close" aria-label="<?php esc_attr_e( 'Close', 'church-event-manager' ); ?>"><span class="dashicons dashicons-no-alt"></span></button>
 				<div id="cem-reg-modal-body"></div>
 			</div>
 		</div>
@@ -746,6 +855,55 @@ class CEM_Admin {
 				<input type="search" id="cem-checkin-search" class="cem-checkin-search"
 					placeholder="<?php esc_attr_e( 'Search by name...', 'church-event-manager' ); ?>"
 					autocomplete="off" disabled>
+
+				<button type="button" class="button button-primary cem-checkin-walkin-btn" id="cem-walkin-open" disabled>
+					<span class="dashicons dashicons-plus-alt2"></span>
+					<?php esc_html_e( 'Add Walk-in', 'church-event-manager' ); ?>
+				</button>
+			</div>
+
+			<!-- Walk-in modal: create + check in a registration in one tap. -->
+			<div id="cem-walkin-modal" class="cem-modal" style="display:none">
+				<div class="cem-modal-overlay"></div>
+				<div class="cem-modal-content cem-walkin-modal-content">
+					<button type="button" class="cem-modal-close" id="cem-walkin-close" aria-label="<?php esc_attr_e( 'Close', 'church-event-manager' ); ?>"><span class="dashicons dashicons-no-alt"></span></button>
+					<h2><?php esc_html_e( 'Add Walk-in', 'church-event-manager' ); ?></h2>
+					<p class="cem-muted"><?php esc_html_e( 'Create a confirmed registration and check this person in immediately.', 'church-event-manager' ); ?></p>
+					<form id="cem-walkin-form">
+						<div class="cem-walkin-row">
+							<label>
+								<span><?php esc_html_e( 'First name', 'church-event-manager' ); ?></span>
+								<input type="text" name="first_name" required>
+							</label>
+							<label>
+								<span><?php esc_html_e( 'Last name', 'church-event-manager' ); ?></span>
+								<input type="text" name="last_name" required>
+							</label>
+						</div>
+						<div class="cem-walkin-row">
+							<label>
+								<span><?php esc_html_e( 'Email', 'church-event-manager' ); ?></span>
+								<input type="email" name="email" placeholder="<?php esc_attr_e( 'Optional — leave blank if unknown', 'church-event-manager' ); ?>">
+							</label>
+							<label>
+								<span><?php esc_html_e( 'Phone', 'church-event-manager' ); ?></span>
+								<input type="tel" name="phone" placeholder="<?php esc_attr_e( 'Optional', 'church-event-manager' ); ?>">
+							</label>
+						</div>
+						<div class="cem-walkin-row">
+							<label>
+								<span><?php esc_html_e( 'Attendees', 'church-event-manager' ); ?></span>
+								<input type="number" name="num_attendees" min="1" value="1">
+							</label>
+						</div>
+						<div class="cem-walkin-actions">
+							<button type="submit" class="button button-primary button-large">
+								<?php esc_html_e( 'Add & Check In', 'church-event-manager' ); ?>
+							</button>
+							<span class="cem-walkin-msg" id="cem-walkin-msg"></span>
+						</div>
+					</form>
+				</div>
 			</div>
 
 			<div id="cem-checkin-grid" class="cem-checkin-grid">
@@ -793,10 +951,12 @@ class CEM_Admin {
 					<tr>
 						<th><label><?php esc_html_e('Send To','church-event-manager'); ?></label></th>
 						<td>
-							<label><input type="radio" name="cem_email_status" value="all" checked> <?php esc_html_e('All registrants','church-event-manager'); ?></label><br>
-							<label><input type="radio" name="cem_email_status" value="confirmed">    <?php esc_html_e('Confirmed only','church-event-manager'); ?></label><br>
-							<label><input type="radio" name="cem_email_status" value="pending">      <?php esc_html_e('Pending only','church-event-manager'); ?></label><br>
-							<label><input type="radio" name="cem_email_status" value="waitlisted">   <?php esc_html_e('Waitlist only','church-event-manager'); ?></label>
+							<label><input type="radio" name="cem_email_status" value="all" checked>     <?php esc_html_e( 'All registrants',         'church-event-manager' ); ?></label><br>
+							<label><input type="radio" name="cem_email_status" value="confirmed">       <?php esc_html_e( 'Confirmed only',          'church-event-manager' ); ?></label><br>
+							<label><input type="radio" name="cem_email_status" value="pending">         <?php esc_html_e( 'Pending only',            'church-event-manager' ); ?></label><br>
+							<label><input type="radio" name="cem_email_status" value="waitlisted">      <?php esc_html_e( 'Waitlist only',           'church-event-manager' ); ?></label><br>
+							<label><input type="radio" name="cem_email_status" value="checked_in">      <?php esc_html_e( 'Checked-in attendees',     'church-event-manager' ); ?></label><br>
+							<label><input type="radio" name="cem_email_status" value="not_checked_in">  <?php esc_html_e( 'No-shows (registered but not checked in)', 'church-event-manager' ); ?></label>
 						</td>
 					</tr>
 					<tr>
@@ -902,7 +1062,7 @@ class CEM_Admin {
 					<div style="background:#fff;width:90%;max-width:720px;max-height:90vh;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3);">
 						<div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;">
 							<strong id="cem-email-preview-subject" style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></strong>
-							<button type="button" id="cem-email-preview-close" class="button" style="flex-shrink:0;">✕ Close</button>
+							<button type="button" id="cem-email-preview-close" class="button" style="flex-shrink:0;"><span class="dashicons dashicons-no-alt"></span> <?php esc_html_e( 'Close', 'church-event-manager' ); ?></button>
 						</div>
 						<iframe id="cem-email-preview-iframe" style="flex:1;border:none;width:100%;min-height:500px;" sandbox="allow-same-origin"></iframe>
 					</div>
@@ -920,8 +1080,22 @@ class CEM_Admin {
 		global $wpdb;
 		$table = "{$wpdb->prefix}cem_registrations";
 
-		// Registrations per event
-		$per_event = $wpdb->get_results(
+		// ── Date range ────────────────────────────────────────────────────────
+		// Default to the last 30 days; the form lets admins pick anything else.
+		$default_from = current_time( 'Y-m-d', false );
+		$default_from = date( 'Y-m-d', strtotime( '-29 days', strtotime( $default_from ) ) );
+		$date_from = sanitize_text_field( wp_unslash( $_GET['date_from'] ?? $default_from ) );
+		$date_to   = sanitize_text_field( wp_unslash( $_GET['date_to']   ?? current_time( 'Y-m-d' ) ) );
+
+		// Sanity-check parsed dates; fall back to defaults if garbage was supplied.
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_from ) ) $date_from = $default_from;
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_to )   ) $date_to   = current_time( 'Y-m-d' );
+
+		$range_from = $date_from . ' 00:00:00';
+		$range_to   = $date_to   . ' 23:59:59';
+
+		// Registrations per event (within range)
+		$per_event = $wpdb->get_results( $wpdb->prepare(
 			"SELECT r.event_id, p.post_title,
 			        COUNT(*) as total,
 			        SUM(CASE WHEN r.status='confirmed'  THEN 1 ELSE 0 END) as confirmed,
@@ -930,28 +1104,103 @@ class CEM_Admin {
 			        SUM(CASE WHEN r.status='waitlisted' THEN 1 ELSE 0 END) as waitlisted
 			 FROM $table r
 			 LEFT JOIN {$wpdb->posts} p ON p.ID = r.event_id
+			 WHERE r.created_at BETWEEN %s AND %s
 			 GROUP BY r.event_id
 			 ORDER BY total DESC
-			 LIMIT 20"
-		);
+			 LIMIT 50",
+			$range_from, $range_to
+		) );
 
-		// Registrations per day (last 30 days)
-		$per_day = $wpdb->get_results(
+		// Registrations per day across the full range
+		$per_day = $wpdb->get_results( $wpdb->prepare(
 			"SELECT DATE(created_at) as day, COUNT(*) as count
 			 FROM $table
-			 WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+			 WHERE created_at BETWEEN %s AND %s
 			 GROUP BY DATE(created_at)
-			 ORDER BY day ASC"
+			 ORDER BY day ASC",
+			$range_from, $range_to
+		) );
+
+		// Densify: emit a row for every day in the range so the chart renders
+		// a continuous timeline even when there are gaps with zero registrations.
+		$by_day_map = [];
+		foreach ( (array) $per_day as $row ) {
+			$by_day_map[ $row->day ] = (int) $row->count;
+		}
+		$chart_labels = [];
+		$chart_data   = [];
+		$cursor       = strtotime( $date_from );
+		$end_ts       = strtotime( $date_to );
+		while ( $cursor && $cursor <= $end_ts ) {
+			$d = date( 'Y-m-d', $cursor );
+			$chart_labels[] = $d;
+			$chart_data[]   = $by_day_map[ $d ] ?? 0;
+			$cursor = strtotime( '+1 day', $cursor );
+			if ( count( $chart_labels ) > 366 ) break; // hard safety
+		}
+
+		// Per-category breakdown (events grouped by their primary cem_event_category term).
+		$per_category = $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.name as category, COUNT(r.id) as total
+			 FROM $table r
+			 INNER JOIN {$wpdb->term_relationships}  tr ON tr.object_id = r.event_id
+			 INNER JOIN {$wpdb->term_taxonomy}       tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			 INNER JOIN {$wpdb->terms}               t  ON t.term_id = tt.term_id
+			 WHERE tt.taxonomy = 'cem_event_category'
+			   AND r.created_at BETWEEN %s AND %s
+			 GROUP BY t.term_id
+			 ORDER BY total DESC",
+			$range_from, $range_to
+		) );
+
+		// Attach Chart.js (bundled CDN). Loading on this page only.
+		wp_enqueue_script(
+			'cem-chartjs',
+			'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+			[],
+			'4.4.0',
+			true
 		);
+
 		?>
 		<div class="wrap cem-wrap">
 			<h1><?php esc_html_e( 'Reports', 'church-event-manager' ); ?></h1>
+
+			<!-- Date range -->
+			<form method="get" class="cem-filter-bar cem-reports-filter">
+				<input type="hidden" name="page" value="cem-reports">
+				<label class="cem-filter-date">
+					<span><?php esc_html_e( 'From', 'church-event-manager' ); ?></span>
+					<input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>">
+				</label>
+				<label class="cem-filter-date">
+					<span><?php esc_html_e( 'To', 'church-event-manager' ); ?></span>
+					<input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>">
+				</label>
+				<button type="submit" class="button"><?php esc_html_e( 'Apply', 'church-event-manager' ); ?></button>
+				<?php
+				$presets = [
+					'7'  => __( 'Last 7 days',  'church-event-manager' ),
+					'30' => __( 'Last 30 days', 'church-event-manager' ),
+					'90' => __( 'Last 90 days', 'church-event-manager' ),
+				];
+				foreach ( $presets as $days => $label ) :
+					$preset_from = date( 'Y-m-d', strtotime( "-" . ( $days - 1 ) . " days" ) );
+					$preset_to   = current_time( 'Y-m-d' );
+					$preset_url  = admin_url( 'admin.php?page=cem-reports&date_from=' . $preset_from . '&date_to=' . $preset_to );
+				?>
+				<a href="<?php echo esc_url( $preset_url ); ?>" class="button button-link"><?php echo esc_html( $label ); ?></a>
+				<?php endforeach; ?>
+			</form>
 
 			<div class="cem-card">
 				<div class="cem-report-header">
 					<h2><?php esc_html_e( 'Registrations by Event', 'church-event-manager' ); ?></h2>
 					<a href="<?php echo esc_url( add_query_arg([
-						'action'=>'cem_export_registrations','nonce'=>wp_create_nonce('cem_export_nonce')
+						'action'    => 'cem_export_registrations',
+						'date_from' => $date_from,
+						'date_to'   => $date_to,
+						'nonce'     => wp_create_nonce( 'cem_export_nonce' ),
 					], admin_url('admin-ajax.php') ) ); ?>" class="button">
 						<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export All as CSV', 'church-event-manager' ); ?>
 					</a>
@@ -1004,28 +1253,93 @@ class CEM_Admin {
 				</table>
 			</div>
 
-			<!-- Chart data (simple bar) -->
+			<!-- Registrations over time (Chart.js line chart) -->
 			<div class="cem-card">
-				<h2><?php esc_html_e( 'Registrations — Last 30 Days', 'church-event-manager' ); ?></h2>
-				<div class="cem-chart-wrap">
-					<?php if ( empty( $per_day ) ) : ?>
-					<p class="cem-muted"><?php esc_html_e('No data yet.','church-event-manager'); ?></p>
-					<?php else :
-						$max_count = max( array_column( $per_day, 'count' ) );
+				<h2>
+					<?php
+					printf(
+						/* translators: 1: from date, 2: to date */
+						esc_html__( 'Registrations — %1$s to %2$s', 'church-event-manager' ),
+						esc_html( wp_date( get_option( 'date_format' ), strtotime( $date_from ) ) ),
+						esc_html( wp_date( get_option( 'date_format' ), strtotime( $date_to ) ) )
+					);
 					?>
-					<div class="cem-bar-chart">
-						<?php foreach ( $per_day as $day ) :
-							$pct = $max_count > 0 ? round(($day->count/$max_count)*100) : 0;
-						?>
-						<div class="cem-bar-wrap" title="<?php echo esc_attr("{$day->day}: {$day->count} registrations"); ?>">
-							<div class="cem-bar" style="height:<?php echo esc_attr($pct); ?>%"></div>
-							<div class="cem-bar-label"><?php echo esc_html( date('j/m', strtotime($day->day)) ); ?></div>
-						</div>
-						<?php endforeach; ?>
-					</div>
-					<?php endif; ?>
+				</h2>
+				<?php if ( array_sum( $chart_data ) === 0 ) : ?>
+				<p class="cem-muted"><?php esc_html_e( 'No registrations in this date range.', 'church-event-manager' ); ?></p>
+				<?php else : ?>
+				<div class="cem-chart-wrap" style="position:relative;height:300px">
+					<canvas id="cem-reg-chart"></canvas>
 				</div>
+				<script>
+				document.addEventListener('DOMContentLoaded', function () {
+					if (typeof Chart === 'undefined') return;
+					var ctx = document.getElementById('cem-reg-chart');
+					if (!ctx) return;
+					new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: <?php echo wp_json_encode( $chart_labels ); ?>,
+							datasets: [{
+								label: <?php echo wp_json_encode( __( 'Registrations', 'church-event-manager' ) ); ?>,
+								data: <?php echo wp_json_encode( $chart_data ); ?>,
+								borderColor: '#2271b1',
+								backgroundColor: 'rgba(34, 113, 177, 0.12)',
+								fill: true,
+								tension: 0.25,
+								pointRadius: 3,
+								pointHoverRadius: 5
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: { legend: { display: false } },
+							scales: {
+								y: { beginAtZero: true, ticks: { precision: 0 } },
+								x: { ticks: { maxTicksLimit: 12 } }
+							}
+						}
+					});
+				});
+				</script>
+				<?php endif; ?>
 			</div>
+
+			<!-- Per-category breakdown -->
+			<?php if ( ! empty( $per_category ) ) : ?>
+			<div class="cem-card">
+				<h2><?php esc_html_e( 'Registrations by Category', 'church-event-manager' ); ?></h2>
+				<div class="cem-chart-wrap" style="position:relative;height:280px;max-width:520px">
+					<canvas id="cem-cat-chart"></canvas>
+				</div>
+				<script>
+				document.addEventListener('DOMContentLoaded', function () {
+					if (typeof Chart === 'undefined') return;
+					var ctx = document.getElementById('cem-cat-chart');
+					if (!ctx) return;
+					new Chart(ctx, {
+						type: 'doughnut',
+						data: {
+							labels: <?php echo wp_json_encode( wp_list_pluck( $per_category, 'category' ) ); ?>,
+							datasets: [{
+								data: <?php echo wp_json_encode( array_map( 'intval', wp_list_pluck( $per_category, 'total' ) ) ); ?>,
+								backgroundColor: [
+									'#2271b1', '#996800', '#3858e9', '#8c8f94', '#cc1818',
+									'#00a32a', '#dba617', '#674ea7', '#1abc9c', '#ff6b6b'
+								]
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: { legend: { position: 'right' } }
+						}
+					});
+				});
+				</script>
+			</div>
+			<?php endif; ?>
 		</div>
 		<?php
 	}

@@ -106,16 +106,28 @@
   // ── Delete Registration ────────────────────────────────────────────────────
 
   $(document).on('click', '.cem-delete-reg', function () {
-    if (!confirm(cemAdmin.confirmDelete)) return;
     const btn   = $(this);
     const regId = btn.data('id');
 
+    // Pull the name off the row so the confirmation prompt can say
+    // *who* is about to be deleted instead of a generic "are you sure?"
+    // The action is destructive (cascades to checkins/waitlist/meta and
+    // nulls FK in email log) so the wording calls that out clearly.
+    const row    = $('tr[data-id="' + regId + '"]');
+    const person = row.find('td:nth-child(2) strong').text().trim() || 'this registration';
+    const msg    = 'Permanently delete ' + person + '?\n\n'
+                 + 'This removes the registration, any check-in record, and answers to custom questions. The action cannot be undone.';
+
+    if (!confirm(msg)) return;
+
+    btn.prop('disabled', true);
     $.post(ajax, { action: 'cem_delete_registration', nonce, registration_id: regId }, function (res) {
       if (res.success) {
-        $('tr[data-id="' + regId + '"]').fadeOut(300, function () { $(this).remove(); });
+        row.fadeOut(300, function () { $(this).remove(); });
         $('#cem-reg-modal').hide();
       } else {
-        alert(res.data.message);
+        btn.prop('disabled', false);
+        alert(res.data && res.data.message ? res.data.message : 'Delete failed.');
       }
     });
   });

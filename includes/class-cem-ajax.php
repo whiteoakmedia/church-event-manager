@@ -40,6 +40,64 @@ class CEM_Ajax {
 
 		// Check-in page
 		add_action( 'wp_ajax_cem_checkin_load',            [ $this, 'checkin_load' ] );
+		add_action( 'wp_ajax_cem_walkin_register',         [ $this, 'walkin_register' ] );
+	}
+
+	/**
+	 * Create a walk-in registration that's already confirmed and checked in.
+	 *
+	 * Used by the "+ Add Walk-in" button on the Check-In screen so volunteers
+	 * can add someone who shows up without an existing registration in a
+	 * single tap rather than opening a separate registration form.
+	 */
+	public function walkin_register() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$event_id = (int) ( $_POST['event_id'] ?? 0 );
+		if ( ! $event_id || get_post_type( $event_id ) !== 'cem_event' ) {
+			wp_send_json_error( [ 'message' => __( 'Pick an event before adding a walk-in.', 'church-event-manager' ) ] );
+		}
+
+		$first = sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) );
+		$last  = sanitize_text_field( wp_unslash( $_POST['last_name']  ?? '' ) );
+		if ( $first === '' || $last === '' ) {
+			wp_send_json_error( [ 'message' => __( 'First and last name are required.', 'church-event-manager' ) ] );
+		}
+
+		// Email is optional for walk-ins. Synthesize a placeholder so the
+		// duplicate-check + log keys still work; the placeholder is unique
+		// per-registration and visibly fake so admins can spot it later.
+		$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+		if ( ! $email ) {
+			$email = 'walkin-' . wp_generate_password( 8, false, false ) . '@local.invalid';
+		}
+
+		$result = CEM_Registration::create( [
+			'event_id'       => $event_id,
+			'first_name'     => $first,
+			'last_name'      => $last,
+			'email'          => $email,
+			'phone'          => sanitize_text_field( wp_unslash( $_POST['phone'] ?? '' ) ),
+			'num_attendees'  => max( 1, (int) ( $_POST['num_attendees'] ?? 1 ) ),
+			'notes'          => __( 'Added as walk-in from check-in screen.', 'church-event-manager' ),
+			'custom_fields'  => [],
+			'user_id'        => get_current_user_id() ?: null,
+			'payment_status' => 'free',
+		] );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+
+		// Flip status to checked_in immediately. update_status() also writes
+		// a row into cem_checkins for audit.
+		CEM_Registration::update_status( (int) $result, 'checked_in' );
+
+		wp_send_json_success( [
+			'message'         => __( 'Walk-in added and checked in.', 'church-event-manager' ),
+			'registration_id' => (int) $result,
+		] );
 	}
 
 	// ── Public handlers ───────────────────────────────────────────────────────
@@ -311,13 +369,22 @@ class CEM_Ajax {
 			wp_die( 'Security check failed.' );
 		}
 
-		$event_id = (int) ( $_GET['event_id'] ?? 0 );
-		$status   = array_map( 'sanitize_key', (array) ( $_GET['status'] ?? [] ) );
+		$event_id  = (int) ( $_GET['event_id'] ?? 0 );
+		$status    = array_map( 'sanitize_key', (array) ( $_GET['status'] ?? [] ) );
+		$date_from = sanitize_text_field( wp_unslash( $_GET['date_from'] ?? '' ) );
+		$date_to   = sanitize_text_field( wp_unslash( $_GET['date_to']   ?? '' ) );
+		$search    = sanitize_text_field( wp_unslash( $_GET['s']         ?? '' ) );
 
-		$data = CEM_Registration::get_export_data( $event_id, $status );
+		$data = CEM_Registration::get_export_data( $event_id, $status, [
+			'date_from' => $date_from,
+			'date_to'   => $date_to,
+			'search'    => $search,
+		] );
 		$csv  = CEM_Helpers::array_to_csv( $data );
 
-		$filename = 'registrations-' . date( 'Y-m-d' ) . '.csv';
+		// Use the WP timezone so a 9pm Saturday export doesn't get yesterday's
+		// date stamped on the filename.
+		$filename = 'registrations-' . current_time( 'Y-m-d' ) . '.csv';
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( "Content-Disposition: attachment; filename=\"$filename\"" );
 		header( 'Pragma: no-cache' );
@@ -538,8 +605,19 @@ class CEM_Ajax {
 		$event_id = (int) ( $_GET['event_id'] ?? 0 );
 		$status   = sanitize_key( $_GET['status'] ?? '' );
 
-		// Build status filter array (empty = all statuses)
-		$status_filter = $status ? [ $status ] : [];
+		// "not_checked_in" is a synthetic filter: it means
+		// "registered (confirmed or pending) but never checked in".
+		// We fetch by status and filter in PHP since checked_in_at is
+		// not exposed as a query argument.
+		$post_filter = null;
+		if ( $status === 'not_checked_in' ) {
+			$status_filter = [ 'confirmed', 'pending' ];
+			$post_filter   = 'no_checkin';
+		} elseif ( $status ) {
+			$status_filter = [ $status ];
+		} else {
+			$status_filter = [];
+		}
 
 		if ( $event_id ) {
 			$regs = CEM_Registration::get_for_event( $event_id, [
@@ -552,6 +630,12 @@ class CEM_Ajax {
 				'per_page' => 0,
 			] );
 			$regs = $result['registrations'];
+		}
+
+		if ( $post_filter === 'no_checkin' ) {
+			$regs = array_values( array_filter( (array) $regs, function ( $r ) {
+				return empty( $r->checked_in_at );
+			} ) );
 		}
 
 		$recipients = [];
@@ -826,14 +910,14 @@ class CEM_Ajax {
 			$pub  = get_option( 'cem_stripe_publishable_key', '' );
 			$pub_mode = str_starts_with( $pub, 'pk_test_' ) ? 'test' : ( str_starts_with( $pub, 'pk_live_' ) ? 'live' : 'unknown' );
 			$mismatch = ( $mode === 'test' && $pub_mode === 'live' ) || ( $mode === 'live' && $pub_mode === 'test' );
-			$msg = sprintf( __( '✅ Connected! Account: %s (mode: %s)', 'church-event-manager' ), $body['email'] ?? $body['id'] ?? 'unknown', $mode );
+			$msg = sprintf( __( 'Connected! Account: %s (mode: %s)', 'church-event-manager' ), $body['email'] ?? $body['id'] ?? 'unknown', $mode );
 			if ( $mismatch ) {
-				$msg .= ' ⚠️ ' . __( 'Key mismatch: secret key is', 'church-event-manager' ) . " $mode " . __( 'but publishable key is', 'church-event-manager' ) . " $pub_mode.";
+				$msg .= ' ' . __( 'WARNING: Key mismatch — secret key is', 'church-event-manager' ) . " $mode " . __( 'but publishable key is', 'church-event-manager' ) . " $pub_mode.";
 			}
 			wp_send_json_success( [ 'message' => $msg ] );
 		} else {
 			$err = $body['error']['message'] ?? "HTTP $code";
-			wp_send_json_error( [ 'message' => sprintf( __( '❌ Stripe error: %s', 'church-event-manager' ), $err ) ] );
+			wp_send_json_error( [ 'message' => sprintf( __( 'Stripe error: %s', 'church-event-manager' ), $err ) ] );
 		}
 	}
 
@@ -890,7 +974,7 @@ class CEM_Ajax {
 
 		if ( $sent ) {
 			wp_send_json_success( [
-				'message' => __( '✅ Your ticket has been sent! We\'ll be in touch at the email address you provided.', 'church-event-manager' ),
+				'message' => __( "Your ticket has been sent. We'll be in touch at the email address you provided.", 'church-event-manager' ),
 			] );
 		} else {
 			wp_send_json_error( [

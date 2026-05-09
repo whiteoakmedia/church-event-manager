@@ -181,4 +181,56 @@
     return div.innerHTML;
   }
 
+  // ── Walk-in modal ───────────────────────────────────────────────────────
+  // Enable the button only when an event is picked.
+  $('#cem-checkin-event').on('change', function () {
+    $('#cem-walkin-open').prop('disabled', !parseInt(this.value));
+  }).trigger('change');
+
+  $('#cem-walkin-open').on('click', function () {
+    if (!parseInt($('#cem-checkin-event').val())) return;
+    $('#cem-walkin-modal').show();
+    $('#cem-walkin-form')[0].reset();
+    $('#cem-walkin-msg').text('').removeClass('is-error is-success');
+    setTimeout(function () { $('#cem-walkin-form input[name="first_name"]').focus(); }, 50);
+  });
+  $('#cem-walkin-close, #cem-walkin-modal .cem-modal-overlay').on('click', function () {
+    $('#cem-walkin-modal').hide();
+  });
+
+  $('#cem-walkin-form').on('submit', function (e) {
+    e.preventDefault();
+    var $form = $(this);
+    var msg = $('#cem-walkin-msg');
+    var btn = $form.find('button[type="submit"]');
+    btn.prop('disabled', true).text('Adding…');
+    msg.text('').removeClass('is-error is-success');
+
+    var data = {
+      action: 'cem_walkin_register',
+      nonce: cemCheckin.nonce,
+      event_id: eventId,
+      first_name: $form.find('[name="first_name"]').val(),
+      last_name:  $form.find('[name="last_name"]').val(),
+      email:      $form.find('[name="email"]').val(),
+      phone:      $form.find('[name="phone"]').val(),
+      num_attendees: $form.find('[name="num_attendees"]').val()
+    };
+
+    $.post(cemCheckin.ajaxUrl, data).done(function (res) {
+      btn.prop('disabled', false).text('Add & Check In');
+      if (!res.success) {
+        msg.text(res.data && res.data.message ? res.data.message : 'Failed to add walk-in.').addClass('is-error');
+        return;
+      }
+      msg.text('✓ Added & checked in').addClass('is-success');
+      // Reload the list so the new walk-in appears immediately.
+      $('#cem-checkin-event').trigger('change');
+      setTimeout(function () { $('#cem-walkin-modal').hide(); }, 700);
+    }).fail(function () {
+      btn.prop('disabled', false).text('Add & Check In');
+      msg.text('Network error.').addClass('is-error');
+    });
+  });
+
 })(jQuery);

@@ -821,3 +821,64 @@
   gap: 8px;
 }
 .cem-recurrence-instance-notice .dashicons { color: #f59e0b; font-size: 18px; }
+
+/* ── Combined filter + bulk toolbar (Registrations admin) ── */
+.cem-filter-bar--combined {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.cem-filter-bar--combined .cem-filter-bar-spacer { flex: 1 1 auto; min-width: 12px; }
+.cem-filter-bar--combined input[type="date"] {
+  padding: 4px 8px; font-size: 13px;
+  border: 1px solid var(--cem-border); border-radius: 4px;
+}
+.cem-filter-bar--combined .cem-filter-date {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.cem-filter-bar--combined .cem-filter-clear {
+  margin-left: 4px; font-size: 13px; text-decoration: none; color: var(--cem-muted);
+}
+.cem-filter-bar--combined .cem-filter-clear:hover { color: var(--cem-danger); }
+.cem-bulk-count {
+  font-size: 12px; color: var(--cem-muted); padding: 0 8px;
+  font-weight: 600; min-width: 80px; text-align: right;
+}
+.cem-bulk-count.is-active { color: var(--cem-primary); }
+
+/* ── Reports filter bar ── */
+.cem-reports-filter {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-bottom: 16px;
+}
+.cem-reports-filter .cem-filter-date {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+}
+.cem-reports-filter .cem-filter-date input[type="date"] {
+  padding: 4px 8px; font-size: 13px;
+  border: 1px solid var(--cem-border); border-radius: 4px;
+}
+
+/* ── Walk-in modal ── */
+.cem-walkin-modal-content { max-width: 520px; padding: 28px 28px 24px; }
+.cem-walkin-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.cem-walkin-row > label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cem-walkin-row > label > span:first-child {
+  font-weight: 600; color: var(--cem-text); font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cem-walkin-row input { padding: 8px 10px; font-size: 14px; }
+.cem-walkin-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.cem-walkin-msg { font-size: 13px; color: var(--cem-muted); }
+.cem-walkin-msg.is-error   { color: var(--cem-danger); }
+.cem-walkin-msg.is-success { color: var(--cem-success); }
+.cem-checkin-walkin-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.cem-checkin-walkin-btn .dashicons {
+  width: 18px; height: 18px; font-size: 18px; line-height: 1;
+}
+.cem-checkin-walkin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Drag handle / remove icon visual cleanup ── */
+.cem-drag-handle .dashicons { color: var(--cem-muted); cursor: grab; }
+.cem-drag-handle:active .dashicons { cursor: grabbing; }

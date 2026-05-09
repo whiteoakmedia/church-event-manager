@@ -688,13 +688,17 @@ class CEM_Registration {
 
 	// ── Export ────────────────────────────────────────────────────────────────
 
-	public static function get_export_data( $event_id = 0, $status_filter = [] ) {
-		$args = [
-			'per_page' => 0,
-			'status'   => $status_filter,
-			'orderby'  => 'last_name',
-			'order'    => 'ASC',
-		];
+	public static function get_export_data( $event_id = 0, $status_filter = [], $extra = [] ) {
+		$args = wp_parse_args( $extra, [
+			'date_from' => '',
+			'date_to'   => '',
+			'search'    => '',
+		] );
+
+		$args['per_page'] = 0;
+		$args['status']   = $status_filter;
+		$args['orderby']  = 'last_name';
+		$args['order']    = 'ASC';
 
 		if ( $event_id ) {
 			$regs = self::get_for_event( $event_id, $args );
@@ -707,7 +711,21 @@ class CEM_Registration {
 		foreach ( $regs as $reg ) {
 			$event = get_post( $reg->event_id );
 			$meta  = self::get_meta( $reg->id );
-			$row   = [
+
+			// Pull registration tier (name + price) out of meta so it shows up
+			// as first-class CSV columns instead of being buried in Custom:*.
+			$reg_type  = '';
+			$reg_price = '';
+			if ( isset( $meta['_registration_type'] ) ) {
+				$reg_type = $meta['_registration_type'];
+				unset( $meta['_registration_type'] );
+			}
+			if ( isset( $meta['_registration_type_price'] ) ) {
+				$reg_price = $meta['_registration_type_price'];
+				unset( $meta['_registration_type_price'] );
+			}
+
+			$row = [
 				'ID'                => $reg->id,
 				'Code'              => $reg->registration_code,
 				'Event'             => $event ? $event->post_title : $reg->event_id,
@@ -716,6 +734,8 @@ class CEM_Registration {
 				'Email'             => $reg->email,
 				'Phone'             => $reg->phone,
 				'# Attendees'       => $reg->num_attendees,
+				'Registration Type' => $reg_type,
+				'Type Price'        => $reg_price,
 				'Status'            => $reg->status,
 				'Payment Status'    => $reg->payment_status ?? 'free',
 				'Payment Intent ID' => $reg->payment_intent_id ?? '',
@@ -724,6 +744,9 @@ class CEM_Registration {
 				'Notes'             => $reg->notes,
 			];
 			foreach ( $meta as $key => $value ) {
+				// Skip leading-underscore meta (internal); they shouldn't
+				// surface as Custom:* columns.
+				if ( strpos( (string) $key, '_' ) === 0 ) continue;
 				$row[ 'Custom: ' . $key ] = $value;
 			}
 			$rows[] = $row;
