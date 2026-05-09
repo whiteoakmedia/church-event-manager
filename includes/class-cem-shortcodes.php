@@ -53,6 +53,13 @@ class CEM_Shortcodes {
 			// Keep events visible until they have fully ended, not just started.
 			// Logic: show if (end_datetime is set AND >= now) OR (no end_datetime AND start_datetime >= now).
 			// This prevents events from disappearing from the public list the moment they begin.
+			//
+			// IMPORTANT: events that never had an end time saved have no
+			// `_cem_end_datetime` meta row at all (not just empty string), so
+			// the "no end time" branch must also match `NOT EXISTS`.
+			// Without it, those events get filtered out entirely — which is
+			// what caused 2 of 8 upcoming events to silently disappear from
+			// the public listing.
 			$now = current_time( 'mysql' );
 			$query_args['meta_query'][] = [
 				'relation' => 'OR',
@@ -63,13 +70,21 @@ class CEM_Shortcodes {
 					'compare' => '>=',
 					'type'    => 'DATETIME',
 				],
-				// No end time set — fall back to start time
+				// No end time stored — match "row missing" OR "row is empty"
+				// — and only show if the start time is still in the future.
 				[
 					'relation' => 'AND',
 					[
-						'key'     => '_cem_end_datetime',
-						'value'   => '',
-						'compare' => '=',
+						'relation' => 'OR',
+						[
+							'key'     => '_cem_end_datetime',
+							'compare' => 'NOT EXISTS',
+						],
+						[
+							'key'     => '_cem_end_datetime',
+							'value'   => '',
+							'compare' => '=',
+						],
 					],
 					[
 						'key'     => '_cem_start_datetime',
