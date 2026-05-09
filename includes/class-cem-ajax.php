@@ -456,6 +456,8 @@ class CEM_Ajax {
 			'cem_church_phone', 'cem_capacity_alert_pct',
 			// Stripe payment settings
 			'cem_stripe_publishable_key', 'cem_stripe_secret_key', 'cem_stripe_currency',
+			// Error reporting
+			'cem_client_id', 'cem_client_name', 'cem_error_reporting_endpoint',
 		];
 
 		foreach ( $text_settings as $key ) {
@@ -476,6 +478,7 @@ class CEM_Ajax {
 			'cem_send_reminders',
 			'cem_stripe_enabled',
 			'cem_stripe_test_mode',
+			'cem_error_reporting_enabled',
 		];
 		$present_checkboxes = isset( $_POST['cem_checkbox_fields'] ) && is_array( $_POST['cem_checkbox_fields'] )
 			? array_map( 'sanitize_key', $_POST['cem_checkbox_fields'] )

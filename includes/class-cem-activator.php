@@ -195,7 +195,25 @@ class CEM_Activator {
 		}
 		self::create_tables();
 		self::set_default_options();
+		self::run_data_migrations();
 		update_option( 'cem_db_version', CEM_DB_VERSION );
+	}
+
+	/**
+	 * One-time cleanup tasks that run on every DB version bump.
+	 *
+	 * Safe to call repeatedly — each task should be idempotent.
+	 */
+	private static function run_data_migrations() {
+		global $wpdb;
+
+		// 1.3.4: the per-event "After Registration Redirect" field was removed —
+		// the plugin now uses a single hardcoded redirect target. Purge the
+		// orphaned post-meta values so the database stays clean.
+		$wpdb->query( $wpdb->prepare(
+			"DELETE FROM {$wpdb->postmeta} WHERE meta_key = %s",
+			'_cem_registration_redirect'
+		) );
 	}
 
 	// ── Auto-create Pages ─────────────────────────────────────────────────────

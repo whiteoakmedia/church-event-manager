@@ -1040,11 +1040,12 @@ class CEM_Admin {
 
 			<nav class="nav-tab-wrapper">
 				<?php foreach ( [
-					'general'      => __( 'General',      'church-event-manager' ),
-					'email'        => __( 'Email',        'church-event-manager' ),
-					'registration' => __( 'Registration', 'church-event-manager' ),
-					'payments'     => __( 'Payments',     'church-event-manager' ),
-					'pages'        => __( 'Pages',        'church-event-manager' ),
+					'general'      => __( 'General',         'church-event-manager' ),
+					'email'        => __( 'Email',           'church-event-manager' ),
+					'registration' => __( 'Registration',    'church-event-manager' ),
+					'payments'     => __( 'Payments',        'church-event-manager' ),
+					'pages'        => __( 'Pages',           'church-event-manager' ),
+					'reporting'    => __( 'Error Reporting', 'church-event-manager' ),
 				] as $t => $label ) : ?>
 				<a href="?page=cem-settings&tab=<?php echo esc_attr($t); ?>" class="nav-tab <?php echo $tab===$t ? 'nav-tab-active' : ''; ?>">
 					<?php echo esc_html($label); ?>
@@ -1154,6 +1155,42 @@ class CEM_Admin {
 					<?php esc_html_e( 'Test card: 4242 4242 4242 4242, any future date, any CVC/ZIP. Both keys must be test or both must be live.', 'church-event-manager' ); ?>
 				</p>
 				<?php endif; ?>
+
+			<?php elseif ( $tab === 'reporting' ) : ?>
+				<h2><?php esc_html_e( 'Error Reporting', 'church-event-manager' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'When enabled, this site will phone home to the White Oak Media client portal whenever the Church Event Manager plugin encounters a PHP error, warning, or fatal — so we can fix problems proactively without you having to file a ticket. No registrant data is sent.', 'church-event-manager' ); ?>
+				</p>
+				<table class="form-table">
+					<?php $this->settings_checkbox( 'cem_error_reporting_enabled', __( 'Enable error reporting to White Oak Media', 'church-event-manager' ) ); ?>
+					<tr>
+						<th><label for="cem_client_id"><?php esc_html_e( 'Client ID', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="text" id="cem_client_id" name="cem_client_id"
+								value="<?php echo esc_attr( get_option( 'cem_client_id', '' ) ); ?>"
+								class="regular-text" placeholder="hillside-bristol" autocomplete="off">
+							<p class="description"><?php esc_html_e( 'Provided by White Oak Media. Identifies which client this site belongs to in the portal.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="cem_client_name"><?php esc_html_e( 'Client Name', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="text" id="cem_client_name" name="cem_client_name"
+								value="<?php echo esc_attr( get_option( 'cem_client_name', get_option( 'blogname' ) ) ); ?>"
+								class="regular-text" placeholder="Hillside Community Church">
+							<p class="description"><?php esc_html_e( 'Friendly name shown alongside reported errors. Defaults to your site name.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="cem_error_reporting_endpoint"><?php esc_html_e( 'Reporting Endpoint', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="url" id="cem_error_reporting_endpoint" name="cem_error_reporting_endpoint"
+								value="<?php echo esc_attr( get_option( 'cem_error_reporting_endpoint', CEM_Error_Reporter::DEFAULT_ENDPOINT ) ); ?>"
+								class="large-text" autocomplete="off">
+							<p class="description"><?php esc_html_e( 'Leave as default unless White Oak Media provides a different URL.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+				</table>
 
 			<?php elseif ( $tab === 'pages' ) : ?>
 				<h2><?php esc_html_e( 'Page Assignments', 'church-event-manager' ); ?></h2>

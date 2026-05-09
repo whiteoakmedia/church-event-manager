@@ -163,6 +163,9 @@ class CEM_Registration {
 			}
 		} catch ( \Throwable $e ) {
 			error_log( 'CEM: notification hook failed for registration ' . $registration_id . ' — ' . $e->getMessage() );
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, 'cem_after_registration hook' );
+			}
 		}
 
 		return $registration_id;

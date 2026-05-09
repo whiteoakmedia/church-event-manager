@@ -3,7 +3,7 @@
  * Plugin Name:  Church Event Manager
  * Plugin URI:   https://whiteoakmedia.io
  * Description:  A comprehensive event management system built for churches. Includes event registration, custom fields, bulk emailing, waitlists, check-ins, volunteer management, and a volunteer-friendly admin dashboard.
- * Version:      1.3.4
+ * Version:      1.4.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       White Oak Media LLC
@@ -21,17 +21,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-define( 'CEM_VERSION',         '1.3.4' );
+define( 'CEM_VERSION',         '1.4.0' );
 define( 'CEM_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'CEM_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
 define( 'CEM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-define( 'CEM_DB_VERSION',      '1.2.0' );
+define( 'CEM_DB_VERSION',      '1.3.0' );
 
 // ─── Autoload dependencies ────────────────────────────────────────────────────
 function cem_load_dependencies() {
 	$files = [
 		'includes/class-cem-activator.php',
 		'includes/class-cem-deactivator.php',
+		'includes/class-cem-error-reporter.php',
 		'includes/class-cem-helpers.php',
 		'includes/class-cem-post-types.php',
 		'includes/class-cem-registration.php',
@@ -75,6 +76,12 @@ function cem_register_post_types_for_rewrites() {
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 function CEM_init() {
 	cem_load_dependencies();
+
+	// Wire up the error reporter as early as possible so any fatal during
+	// the rest of bootstrap is still captured and phoned home.
+	if ( class_exists( 'CEM_Error_Reporter' ) ) {
+		CEM_Error_Reporter::boot();
+	}
 
 	// Localization
 	load_plugin_textdomain( 'church-event-manager', false, dirname( CEM_PLUGIN_BASENAME ) . '/languages' );
