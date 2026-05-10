@@ -366,6 +366,14 @@ class CEM_Email {
 
 		$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
 
+		// Build "Save to Calendar" deep-links for the confirmation email.
+		// Returns an empty array for groups (recurring meetings don't
+		// translate cleanly to a single calendar entry) — the template
+		// handles that case by hiding the buttons.
+		$calendar_links = ( ! $is_group && $event )
+			? CEM_Helpers::get_calendar_links( $event->ID )
+			: [];
+
 		return [
 			'first_name'          => $reg->first_name,
 			'last_name'           => $reg->last_name,
@@ -375,6 +383,7 @@ class CEM_Email {
 			'num_attendees'       => $reg->num_attendees,
 			'registration_code'   => $reg->registration_code,
 			'registration_status' => $reg->status,
+			'event_id'            => $event ? (int) $event->ID : 0,
 			'event_title'         => $event ? $event->post_title : '',
 			'event_description'   => $event ? wp_trim_words( $event->post_content, 30 ) : '',
 			'event_url'           => $event ? get_permalink( $event->ID ) : '',
@@ -383,6 +392,7 @@ class CEM_Email {
 			'event_end_time'      => $end      ? CEM_Helpers::format_time( $end )   : '',
 			'event_location'      => $location ?: '',
 			'manage_url'          => $manage_url,
+			'calendar_links'      => $calendar_links,
 			'church_name'         => get_bloginfo( 'name' ),
 			'church_url'          => home_url(),
 			'church_phone'        => get_option( 'cem_church_phone', '' ),

@@ -208,4 +208,83 @@ class CEM_Helpers {
 			'cem_code' => urlencode( $registration_code ),
 		], $base );
 	}
+
+	/**
+	 * Build "Save to Calendar" deep-links for a given event.
+	 *
+	 * Returns an array with three keys, or an empty array if the event has
+	 * no start datetime (in which case there's nothing useful to add).
+	 *
+	 *   - google : Google Calendar quick-add URL (works on mobile + desktop)
+	 *   - outlook: Outlook Web quick-add URL
+	 *   - ics    : Direct download of the .ics file served by
+	 *              CEM_Public::handle_ical_download (Apple Calendar /
+	 *              iCal / Outlook desktop / Thunderbird / anything that
+	 *              speaks RFC 5545)
+	 *
+	 * Times are sent in UTC because all three providers normalize to the
+	 * viewer's local timezone on import.
+	 *
+	 * @param int $event_id
+	 * @return array
+	 */
+	public static function get_calendar_links( $event_id ) {
+		$event_id = (int) $event_id;
+		if ( ! $event_id || get_post_type( $event_id ) !== 'cem_event' ) {
+			return [];
+		}
+
+		$start_dt = get_post_meta( $event_id, '_cem_start_datetime', true );
+		if ( ! $start_dt ) return [];
+
+		$end_dt    = get_post_meta( $event_id, '_cem_end_datetime', true );
+		$start_ts  = strtotime( $start_dt );
+		$end_ts    = $end_dt ? strtotime( $end_dt ) : ( $start_ts + 3600 );
+
+		$title       = get_the_title( $event_id );
+		$description = wp_strip_all_tags( get_the_excerpt( $event_id ) );
+		$url         = get_permalink( $event_id );
+		$location    = trim( implode( ', ', array_filter( [
+			get_post_meta( $event_id, '_cem_location', true ),
+			get_post_meta( $event_id, '_cem_location_address', true ),
+		] ) ) );
+
+		// Google + Outlook accept their own date formats but both accept
+		// ISO-style UTC timestamps. We use the format each one prefers
+		// for maximum compatibility with their inbound parsers.
+		$gcal_dates = gmdate( 'Ymd\THis\Z', $start_ts ) . '/' . gmdate( 'Ymd\THis\Z', $end_ts );
+		$outlook_st = gmdate( 'Y-m-d\TH:i:s\Z', $start_ts );
+		$outlook_et = gmdate( 'Y-m-d\TH:i:s\Z', $end_ts );
+
+		$details_text = trim( $description . ( $url ? "\n\n" . $url : '' ) );
+
+		$google = add_query_arg( array_filter( [
+			'action'   => 'TEMPLATE',
+			'text'     => $title,
+			'dates'    => $gcal_dates,
+			'details'  => $details_text,
+			'location' => $location,
+		] ), 'https://calendar.google.com/calendar/render' );
+
+		$outlook = add_query_arg( array_filter( [
+			'path'     => '/calendar/action/compose',
+			'rru'      => 'addevent',
+			'subject'  => $title,
+			'startdt'  => $outlook_st,
+			'enddt'    => $outlook_et,
+			'body'     => $details_text,
+			'location' => $location,
+		] ), 'https://outlook.live.com/calendar/0/deeplink/compose' );
+
+		$ics = add_query_arg( [
+			'cem_ical' => 1,
+			'event_id' => $event_id,
+		], home_url( '/' ) );
+
+		return [
+			'google'  => $google,
+			'outlook' => $outlook,
+			'ics'     => $ics,
+		];
+	}
 }

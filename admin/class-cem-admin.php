@@ -100,7 +100,19 @@ class CEM_Admin {
 		// Dedicated check-in page assets
 		if ( $hook === 'church-events_page_cem-checkin' ) {
 			wp_enqueue_style( 'cem-checkin', CEM_PLUGIN_URL . 'admin/css/cem-checkin.css', [ 'cem-admin' ], CEM_VERSION );
-			wp_enqueue_script( 'cem-checkin', CEM_PLUGIN_URL . 'admin/js/cem-checkin.js', [ 'jquery' ], CEM_VERSION, true );
+
+			// QR scanner — html5-qrcode v2.3.8, MIT, ~110KB.
+			// Pinned version + loaded on the check-in page only so we don't
+			// affect any other admin page weight.
+			wp_enqueue_script(
+				'cem-html5-qrcode',
+				'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+				[],
+				'2.3.8',
+				true
+			);
+
+			wp_enqueue_script( 'cem-checkin', CEM_PLUGIN_URL . 'admin/js/cem-checkin.js', [ 'jquery', 'cem-html5-qrcode' ], CEM_VERSION, true );
 			wp_localize_script( 'cem-checkin', 'cemCheckin', [
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'cem_admin_nonce' ),
@@ -112,6 +124,13 @@ class CEM_Admin {
 					'selectEvent' => __( 'Select an event above to get started.', 'church-event-manager' ),
 					'error'       => __( 'Something went wrong. Please try again.', 'church-event-manager' ),
 					'success'     => __( 'Checked in!', 'church-event-manager' ),
+					'scanWaiting' => __( 'Waiting for first scan…', 'church-event-manager' ),
+					'scanSuccess' => __( '✓ Checked in: %s', 'church-event-manager' ),
+					'scanAlready' => __( 'Already checked in: %s', 'church-event-manager' ),
+					'scanNotFound'=> __( 'Not registered for this event.', 'church-event-manager' ),
+					'scanInvalid' => __( 'That QR isn\'t a check-in code.', 'church-event-manager' ),
+					'scanCamFail' => __( 'Camera unavailable. Check browser permissions.', 'church-event-manager' ),
+					'scanNoEvent' => __( 'Pick an event before scanning.', 'church-event-manager' ),
 				],
 			] );
 		}
@@ -860,6 +879,46 @@ class CEM_Admin {
 					<span class="dashicons dashicons-plus-alt2"></span>
 					<?php esc_html_e( 'Add Walk-in', 'church-event-manager' ); ?>
 				</button>
+
+				<button type="button" class="button cem-checkin-scan-btn" id="cem-scan-open" disabled>
+					<span class="dashicons dashicons-camera-alt"></span>
+					<?php esc_html_e( 'Scan QR', 'church-event-manager' ); ?>
+				</button>
+			</div>
+
+			<!-- ── Continuous QR scanner modal ──────────────────────────────────── -->
+			<div id="cem-scanner-modal" class="cem-modal cem-scanner-modal" style="display:none">
+				<div class="cem-modal-overlay"></div>
+				<div class="cem-modal-content cem-scanner-modal-content">
+					<button type="button" class="cem-modal-close" id="cem-scanner-close" aria-label="<?php esc_attr_e( 'Close scanner', 'church-event-manager' ); ?>"><span class="dashicons dashicons-no-alt"></span></button>
+					<h2><?php esc_html_e( 'Scan QR codes', 'church-event-manager' ); ?></h2>
+					<p class="cem-muted cem-scanner-help"><?php esc_html_e( 'Point the camera at a registrant\'s QR code. They\'ll be checked in automatically — keep scanning for the next person.', 'church-event-manager' ); ?></p>
+
+					<div id="cem-scanner-frame" class="cem-scanner-frame">
+						<!-- html5-qrcode injects its <video> element into this div -->
+					</div>
+
+					<!-- Last-scan feedback banner -->
+					<div id="cem-scanner-feedback" class="cem-scanner-feedback" role="status" aria-live="polite">
+						<span class="cem-scanner-feedback-text"><?php esc_html_e( 'Waiting for first scan…', 'church-event-manager' ); ?></span>
+					</div>
+
+					<div class="cem-scanner-stats">
+						<span id="cem-scanner-count">0</span>
+						<span class="cem-scanner-stats-label"><?php esc_html_e( 'checked in this session', 'church-event-manager' ); ?></span>
+					</div>
+
+					<div class="cem-scanner-controls">
+						<label class="cem-scanner-toggle">
+							<input type="checkbox" id="cem-scanner-sound" checked>
+							<?php esc_html_e( 'Sound on scan', 'church-event-manager' ); ?>
+						</label>
+						<button type="button" class="button" id="cem-scanner-switch-cam" style="display:none">
+							<span class="dashicons dashicons-image-rotate"></span>
+							<?php esc_html_e( 'Switch camera', 'church-event-manager' ); ?>
+						</button>
+					</div>
+				</div>
 			</div>
 
 			<!-- Walk-in modal: create + check in a registration in one tap. -->

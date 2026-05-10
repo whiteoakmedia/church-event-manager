@@ -3,7 +3,7 @@
  * Plugin Name:  Church Event Manager
  * Plugin URI:   https://whiteoakmedia.io
  * Description:  A comprehensive event management system built for churches. Includes event registration, custom fields, bulk emailing, waitlists, check-ins, volunteer management, and a volunteer-friendly admin dashboard.
- * Version:      1.7.1
+ * Version:      1.8.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       White Oak Media LLC
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-define( 'CEM_VERSION',         '1.7.1' );
+define( 'CEM_VERSION',         '1.8.0' );
 define( 'CEM_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'CEM_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
 define( 'CEM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -34,6 +34,7 @@ function cem_load_dependencies() {
 		'includes/class-cem-deactivator.php',
 		'includes/class-cem-error-reporter.php',
 		'includes/class-cem-helpers.php',
+		'includes/class-cem-qr.php',
 		'includes/class-cem-post-types.php',
 		'includes/class-cem-registration.php',
 		'includes/class-cem-email.php',

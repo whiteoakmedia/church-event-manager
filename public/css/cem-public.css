@@ -1232,3 +1232,26 @@
 .cem-detail-schedule-list span {
   display: block;
 }
+
+/* ── Manage page: QR card ────────────────────────────────── */
+.cem-manage-qr {
+  margin-top: 20px;
+  padding: 18px;
+  text-align: center;
+  background: #fafafa;
+  border: 1px solid var(--cem-border);
+  border-radius: 8px;
+  display: inline-block;
+}
+.cem-manage-qr img {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+}
+.cem-manage-qr-caption {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--cem-muted);
+  font-weight: 500;
+}

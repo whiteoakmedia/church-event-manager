@@ -1113,6 +1113,23 @@ class CEM_Shortcodes {
 					<?php echo esc_html( $reg->num_attendees ); ?></p>
 				<p><strong><?php esc_html_e( 'Registration Code:', 'church-event-manager' ); ?></strong>
 					<code><?php echo esc_html( $reg->registration_code ); ?></code></p>
+
+				<?php
+				// QR — same code as the email. People who lose the email
+				// can pull this page up on their phone and present it at
+				// check-in instead.
+				$qr_url = class_exists( 'CEM_QR' )
+					? CEM_QR::get_url( $reg->registration_code )
+					: '';
+				if ( $qr_url && $reg->status !== 'cancelled' ) :
+				?>
+				<div class="cem-manage-qr">
+					<img src="<?php echo esc_url( $qr_url ); ?>"
+						width="180" height="180"
+						alt="<?php esc_attr_e( 'Check-in QR code', 'church-event-manager' ); ?>">
+					<p class="cem-manage-qr-caption"><?php esc_html_e( 'Show this at check-in.', 'church-event-manager' ); ?></p>
+				</div>
+				<?php endif; ?>
 			</div>
 
 			<?php if ( $reg->status === 'cancelled' ) : ?>

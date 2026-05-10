@@ -649,6 +649,12 @@ class CEM_Registration {
 		$reg = self::get( $registration_id );
 		if ( ! $reg ) return false;
 
+		// Drop the cached QR PNG (if any) so a recycled code can't
+		// return a stale image. No-op if the QR helper isn't loaded.
+		if ( ! empty( $reg->registration_code ) && class_exists( 'CEM_QR' ) ) {
+			CEM_QR::bust_cache( $reg->registration_code );
+		}
+
 		// Cascade: drop every related row so we don't leave orphans pointing
 		// at a registration_id that no longer exists. Email log entries are
 		// kept for audit, but their registration_id is nulled so they don't

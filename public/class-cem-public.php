@@ -48,20 +48,35 @@ class CEM_Public {
 		add_action( 'template_redirect',   [ $this, 'handle_ical_download' ] );
 		add_action( 'template_redirect',   [ $this, 'redirect_events_slug' ] );
 		add_action( 'rest_api_init',       [ $this, 'register_rest_routes' ] );
+
+		// Cache cleanup — drop the cached QR PNG when a registration
+		// is deleted or cancelled so a recycled code can't return a
+		// stale image.
+		add_action( 'cem_registration_cancelled', [ $this, 'invalidate_qr_for_registration' ], 10, 1 );
 	}
 
 	/**
-	 * Fresh-nonce REST endpoint. Public, no-cache, returns a freshly-minted
-	 * `cem_register_nonce` so a CDN-cached event page can still submit
-	 * successfully. Without this, the nonce baked into the cached HTML by
-	 * wp_nonce_field() expires after 24 h while the page lives much longer
-	 * in cache, and every visitor lands on a stale form.
+	 * Register the QR-image route. Public, no auth — the registration
+	 * code itself is the access token (same model as the manage URL).
 	 *
-	 * Nonces are session/IP-scoped tokens — exposing the endpoint that
-	 * generates them is safe and is the standard WP pattern for caching-
-	 * compatible AJAX submissions.
+	 * GET /wp-json/cem/v1/qr/{code}.png  →  PNG of the manage URL
 	 */
 	public function register_rest_routes() {
+		register_rest_route( 'cem/v1', '/qr/(?P<code>[A-Za-z0-9-]+)\.png', [
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => [ $this, 'rest_serve_qr' ],
+			'args' => [
+				'code' => [
+					'sanitize_callback' => function ( $v ) { return preg_replace( '/[^A-Za-z0-9-]/', '', (string) $v ); },
+				],
+			],
+		] );
+
+		// Fresh-nonce endpoint. Public, no-cache. Returns a freshly-minted
+		// `cem_register_nonce` so a cached page can still submit successfully.
+		// Nonces are session/IP-scoped tokens — exposing the endpoint that
+		// generates them is safe and is the standard WP pattern for this.
 		register_rest_route( 'cem/v1', '/nonce', [
 			'methods'             => 'GET',
 			'permission_callback' => '__return_true',
@@ -70,12 +85,50 @@ class CEM_Public {
 	}
 
 	public function rest_serve_nonce( $request ) {
-		nocache_headers(); // belt-and-suspenders: stop every layer from caching this
+		// Defensive headers: stop every layer from caching this response.
+		nocache_headers();
 		return rest_ensure_response( [
-			'nonce'        => wp_create_nonce( 'cem_register_nonce' ),
-			'public_nonce' => wp_create_nonce( 'cem_public_nonce' ),
-			'ts'           => time(),
+			'nonce'         => wp_create_nonce( 'cem_register_nonce' ),
+			'public_nonce'  => wp_create_nonce( 'cem_public_nonce' ),
+			'ts'            => time(),
 		] );
+	}
+
+	public function rest_serve_qr( $request ) {
+		$code = (string) $request->get_param( 'code' );
+		$path = CEM_QR::generate_png( $code );
+
+		if ( is_wp_error( $path ) ) {
+			// Don't leak which codes exist — just 404 on any failure.
+			return new WP_Error(
+				'cem_qr_not_found',
+				__( 'QR not available.', 'church-event-manager' ),
+				[ 'status' => 404 ]
+			);
+		}
+
+		// REST API normally returns JSON. To stream a PNG we need to
+		// take over the response and exit before the dispatcher
+		// re-encodes our return value.
+		nocache_headers(); // suppress WP's default Cache-Control: no-cache
+		header( 'Content-Type: image/png' );
+		header( 'Content-Length: ' . filesize( $path ) );
+		// Cache aggressively — the PNG is keyed by a unique random
+		// code, so it can't change once generated.
+		header( 'Cache-Control: public, max-age=31536000, immutable' );
+		readfile( $path );
+		exit;
+	}
+
+	/**
+	 * Hook target for `cem_registration_cancelled`. Receives a
+	 * registration_id; resolves it to a code and busts the cache.
+	 */
+	public function invalidate_qr_for_registration( $registration_id ) {
+		$reg = CEM_Registration::get( (int) $registration_id );
+		if ( $reg && ! empty( $reg->registration_code ) ) {
+			CEM_QR::bust_cache( $reg->registration_code );
+		}
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────
@@ -106,8 +159,10 @@ class CEM_Public {
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'cem_public_nonce' ),
 			// Fresh-nonce endpoint — used by the registration form to pull a
-			// brand-new nonce just before submission. Makes the form resilient
-			// to aggressive page caching (CDN, full-page cache, Cloudflare).
+			// brand-new nonce just before submission. This makes the form
+			// resilient to aggressive page caching (CDN, full-page cache,
+			// Cloudflare) where the baked-in nonce in the cached HTML can go
+			// stale before someone actually submits the form.
 			'nonceUrl' => rest_url( 'cem/v1/nonce' ),
 			'strings' => [
 				'submitting'          => __( 'Submitting…', 'church-event-manager' ),

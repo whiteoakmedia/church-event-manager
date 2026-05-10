@@ -306,3 +306,118 @@
     font-size: 18px;
   }
 }
+
+/* ── QR scanner modal ────────────────────────────────────── */
+.cem-checkin-scan-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.cem-checkin-scan-btn .dashicons {
+  width: 18px; height: 18px; font-size: 18px; line-height: 1;
+}
+.cem-checkin-scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cem-scanner-modal-content {
+  max-width: 540px;
+  padding: 24px 24px 20px;
+}
+.cem-scanner-modal-content h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.cem-scanner-help {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cem-scanner-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 480px;
+  background: #0f172a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.cem-scanner-frame video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.cem-scanner-feedback {
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #4b5563;
+  margin-bottom: 12px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cem-scanner-feedback.is-success {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+.cem-scanner-feedback.is-warning {
+  background: #fffbeb;
+  border-color: #d97706;
+  color: #92400e;
+}
+.cem-scanner-feedback.is-error {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #991b1b;
+}
+.cem-scanner-feedback.is-idle {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.cem-scanner-stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+  font-size: 13px;
+  color: var(--cem-muted);
+}
+.cem-scanner-stats #cem-scanner-count {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--cem-text);
+  line-height: 1;
+}
+.cem-scanner-stats-label { letter-spacing: 0.02em; }
+
+.cem-scanner-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.cem-scanner-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--cem-text);
+}
+.cem-scanner-toggle input[type="checkbox"] { margin: 0; }
+
+@media (max-width: 600px) {
+  .cem-scanner-modal-content { padding: 18px 14px; }
+  .cem-scanner-frame { max-height: 70vh; }
+}

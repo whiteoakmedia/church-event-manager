@@ -109,8 +109,9 @@ class CEM_Ajax {
 		// Verify nonce
 		if ( ! isset( $_POST['cem_nonce'] ) || ! wp_verify_nonce( $_POST['cem_nonce'], 'cem_register_nonce' ) ) {
 			// Surface nonce failures to the portal so we catch caching
-			// regressions in the wild. The error reporter rate-limits per
-			// signature (1 hr) so a misconfigured CDN can't spam us.
+			// regressions in the wild. The error reporter already
+			// rate-limits per signature (1 hr), so a flood of failures
+			// from a misconfigured CDN can't spam us.
 			if ( class_exists( 'CEM_Error_Reporter' ) ) {
 				$has = isset( $_POST['cem_nonce'] ) ? 'present' : 'missing';
 				CEM_Error_Reporter::report_exception(
@@ -120,7 +121,7 @@ class CEM_Ajax {
 			}
 			ob_end_clean();
 			wp_send_json_error( [
-				'message' => __( 'Your session expired — please refresh the page and try again.', 'church-event-manager' ),
+				'message' => __( "Your session expired — please refresh the page and try again.", 'church-event-manager' ),
 			] );
 		}
 
@@ -1022,14 +1023,18 @@ class CEM_Ajax {
 		$total       = 0;
 		foreach ( $regs as $r ) {
 			$registrants[] = [
-				'id'            => (int) $r->id,
-				'first_name'    => $r->first_name,
-				'last_name'     => $r->last_name,
-				'email'         => $r->email,
-				'phone'         => $r->phone,
-				'num_attendees' => (int) $r->num_attendees,
-				'status'        => $r->status,
-				'checked_in_at' => $r->checked_in_at,
+				'id'                => (int) $r->id,
+				'first_name'        => $r->first_name,
+				'last_name'         => $r->last_name,
+				'email'             => $r->email,
+				'phone'             => $r->phone,
+				'num_attendees'     => (int) $r->num_attendees,
+				'status'            => $r->status,
+				'checked_in_at'     => $r->checked_in_at,
+				// Exposed so the QR scanner can match a scanned code
+				// against the in-memory registrant list without any
+				// extra round trips.
+				'registration_code' => $r->registration_code,
 			];
 			$total += (int) $r->num_attendees;
 			if ( $r->status === 'checked_in' ) {
