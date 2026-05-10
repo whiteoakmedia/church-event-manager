@@ -108,8 +108,20 @@ class CEM_Ajax {
 
 		// Verify nonce
 		if ( ! isset( $_POST['cem_nonce'] ) || ! wp_verify_nonce( $_POST['cem_nonce'], 'cem_register_nonce' ) ) {
+			// Surface nonce failures to the portal so we catch caching
+			// regressions in the wild. The error reporter rate-limits per
+			// signature (1 hr) so a misconfigured CDN can't spam us.
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				$has = isset( $_POST['cem_nonce'] ) ? 'present' : 'missing';
+				CEM_Error_Reporter::report_exception(
+					new \RuntimeException( "Registration nonce failed (cem_nonce: {$has})" ),
+					'handle_registration:nonce'
+				);
+			}
 			ob_end_clean();
-			wp_send_json_error( [ 'message' => __( 'Security check failed.', 'church-event-manager' ) ] );
+			wp_send_json_error( [
+				'message' => __( 'Your session expired — please refresh the page and try again.', 'church-event-manager' ),
+			] );
 		}
 
 		$event_id   = (int) ( $_POST['event_id'] ?? 0 );

@@ -4,6 +4,43 @@
 
   const ajax = cemPublic.ajaxUrl;
 
+  /**
+   * Pull a freshly-minted cem_register_nonce from the plugin's REST endpoint
+   * and write it into the form's hidden cem_nonce input before submission.
+   *
+   * Why: the nonce baked into the page HTML by wp_nonce_field() expires after
+   * 24 h. When a CDN / page cache (e.g. Cloudflare, CDN Cache plugin) serves
+   * the same cached HTML for longer than that, every visitor lands on a page
+   * with an expired nonce and the AJAX call returns "Security check failed."
+   * Fetching fresh on submit dodges that entirely.
+   *
+   * Resolves with `true` on success, `false` if the request failed — in which
+   * case we fall back to the baked-in nonce (same behavior as before).
+   */
+  function refreshNonce(form) {
+    if (!cemPublic.nonceUrl) return $.Deferred().resolve(false).promise();
+    return $.ajax({
+      url: cemPublic.nonceUrl,
+      method: 'GET',
+      cache: false,
+      dataType: 'json',
+      timeout: 5000,
+    }).then(function (res) {
+      if (res && res.nonce) {
+        var $field = form.find('input[name="cem_nonce"]');
+        if ($field.length) {
+          $field.val(res.nonce);
+        } else {
+          form.append('<input type="hidden" name="cem_nonce" value="' + res.nonce + '">');
+        }
+        return true;
+      }
+      return false;
+    }, function () {
+      return false; // network/timeout — fall back to baked nonce
+    });
+  }
+
   // ── Registration Form ──────────────────────────────────────────────────────
 
   $(document).on('submit', '#cem-registration-form', function (e) {
@@ -47,37 +84,40 @@
     spinner.show();
     msgs.html('');
 
-    const formData = form.serialize() + '&action=cem_register';
+    // Refresh the nonce just-in-time so cached pages still submit cleanly,
+    // then POST. .always() runs whether or not the fetch succeeded — on
+    // failure we fall back to the baked-in nonce.
+    refreshNonce(form).always(function () {
+      const formData = form.serialize() + '&action=cem_register';
 
-    $.post(ajax, formData, function (res) {
-      btn.prop('disabled', false).text(btn.data('original-text') || 'Register Now');
-      spinner.hide();
+      $.post(ajax, formData, function (res) {
+        btn.prop('disabled', false).text(btn.data('original-text') || 'Register Now');
+        spinner.hide();
 
-      if (res.success) {
-        form.slideUp(300);
-        $('#cem-success-message')
-          .html(res.data.message + '<br><small>Your registration code: <strong>' + res.data.code + '</strong></small>')
-          .slideDown(300);
+        if (res.success) {
+          form.slideUp(300);
+          $('#cem-success-message')
+            .html(res.data.message + '<br><small>Your registration code: <strong>' + res.data.code + '</strong></small>')
+            .slideDown(300);
 
-        // Scroll to success message
-        $('html, body').animate({
-          scrollTop: $('#cem-success-message').offset().top - 80
-        }, 400);
+          $('html, body').animate({
+            scrollTop: $('#cem-success-message').offset().top - 80
+          }, 400);
 
-        // Redirect after a short delay if a redirect URL is set
-        if (res.data.redirect_url) {
-          setTimeout(function () {
-            window.location.href = res.data.redirect_url;
-          }, 2500);
+          if (res.data.redirect_url) {
+            setTimeout(function () {
+              window.location.href = res.data.redirect_url;
+            }, 2500);
+          }
+        } else {
+          msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
+          $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
         }
-      } else {
-        msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
-        $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
-      }
-    }).fail(function () {
-      btn.prop('disabled', false).text(btn.data('original-text') || 'Register Now');
-      spinner.hide();
-      msgs.html('<div class="cem-notice cem-notice-error">' + cemPublic.strings.error + '</div>');
+      }).fail(function () {
+        btn.prop('disabled', false).text(btn.data('original-text') || 'Register Now');
+        spinner.hide();
+        msgs.html('<div class="cem-notice cem-notice-error">' + cemPublic.strings.error + '</div>');
+      });
     });
   });
 
@@ -118,23 +158,25 @@
     btn.prop('disabled', true).text(cemPublic.strings.submitting || 'Submitting…');
     msgs.html('');
 
-    $.post(ajax, form.serialize() + '&action=cem_register', function (res) {
-      btn.prop('disabled', false).text('Join Group');
-      if (res.success) {
-        form.slideUp(300);
-        msgs.html(
-          '<div class="cem-notice cem-notice-success">' +
-          res.data.message +
-          '</div>'
-        ).show();
-        $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 400);
-      } else {
-        msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
-        $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
-      }
-    }).fail(function () {
-      btn.prop('disabled', false).text('Join Group');
-      msgs.html('<div class="cem-notice cem-notice-error">' + (cemPublic.strings.error || 'Something went wrong. Please try again.') + '</div>');
+    refreshNonce(form).always(function () {
+      $.post(ajax, form.serialize() + '&action=cem_register', function (res) {
+        btn.prop('disabled', false).text('Join Group');
+        if (res.success) {
+          form.slideUp(300);
+          msgs.html(
+            '<div class="cem-notice cem-notice-success">' +
+            res.data.message +
+            '</div>'
+          ).show();
+          $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 400);
+        } else {
+          msgs.html('<div class="cem-notice cem-notice-error">' + res.data.message + '</div>');
+          $('html, body').animate({ scrollTop: msgs.offset().top - 80 }, 300);
+        }
+      }).fail(function () {
+        btn.prop('disabled', false).text('Join Group');
+        msgs.html('<div class="cem-notice cem-notice-error">' + (cemPublic.strings.error || 'Something went wrong. Please try again.') + '</div>');
+      });
     });
   });
 

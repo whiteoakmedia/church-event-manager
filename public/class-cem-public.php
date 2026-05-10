@@ -47,6 +47,35 @@ class CEM_Public {
 		add_filter( 'template_include',    [ $this, 'single_event_template' ],  99  );
 		add_action( 'template_redirect',   [ $this, 'handle_ical_download' ] );
 		add_action( 'template_redirect',   [ $this, 'redirect_events_slug' ] );
+		add_action( 'rest_api_init',       [ $this, 'register_rest_routes' ] );
+	}
+
+	/**
+	 * Fresh-nonce REST endpoint. Public, no-cache, returns a freshly-minted
+	 * `cem_register_nonce` so a CDN-cached event page can still submit
+	 * successfully. Without this, the nonce baked into the cached HTML by
+	 * wp_nonce_field() expires after 24 h while the page lives much longer
+	 * in cache, and every visitor lands on a stale form.
+	 *
+	 * Nonces are session/IP-scoped tokens — exposing the endpoint that
+	 * generates them is safe and is the standard WP pattern for caching-
+	 * compatible AJAX submissions.
+	 */
+	public function register_rest_routes() {
+		register_rest_route( 'cem/v1', '/nonce', [
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => [ $this, 'rest_serve_nonce' ],
+		] );
+	}
+
+	public function rest_serve_nonce( $request ) {
+		nocache_headers(); // belt-and-suspenders: stop every layer from caching this
+		return rest_ensure_response( [
+			'nonce'        => wp_create_nonce( 'cem_register_nonce' ),
+			'public_nonce' => wp_create_nonce( 'cem_public_nonce' ),
+			'ts'           => time(),
+		] );
 	}
 
 	// ────────────────────────────────────────────────────────────────────────────
@@ -76,6 +105,10 @@ class CEM_Public {
 		wp_localize_script( 'cem-public', 'cemPublic', [
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'cem_public_nonce' ),
+			// Fresh-nonce endpoint — used by the registration form to pull a
+			// brand-new nonce just before submission. Makes the form resilient
+			// to aggressive page caching (CDN, full-page cache, Cloudflare).
+			'nonceUrl' => rest_url( 'cem/v1/nonce' ),
 			'strings' => [
 				'submitting'          => __( 'Submitting…', 'church-event-manager' ),
 				'error'               => __( 'An error occurred. Please try again.', 'church-event-manager' ),
