@@ -280,35 +280,28 @@ class CEM_Shortcodes {
 
 					<div class="cem-event-body">
 						<?php
-						// Multi-day detection — if start and end land on different
-						// calendar days, render two badges with an arrow between
-						// instead of just the start date. Same-day events get the
-						// single badge they always have (no visual change).
+						// Multi-day detection — start and end land on different
+						// calendar days. Multi-day events render a compact
+						// horizontal chip above the title (inside .cem-event-info,
+						// see below). Single-day events keep the existing big
+						// vertical badge in the left badge column.
 						$start_ts      = $start ? strtotime( $start ) : 0;
 						$end_ts        = $end   ? strtotime( $end )   : 0;
 						$is_multi_day  = ( $start_ts && $end_ts
 							&& date_i18n( 'Y-m-d', $start_ts ) !== date_i18n( 'Y-m-d', $end_ts ) );
+
+						// Build the range label here so we can render it inside
+						// the info column further down. Year shown on the end
+						// always; year on the start only when years differ.
+						$range_label = '';
+						if ( $is_multi_day ) {
+							$same_year = date_i18n( 'Y', $start_ts ) === date_i18n( 'Y', $end_ts );
+							$range_label = $same_year
+								? date_i18n( 'M j', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts )
+								: date_i18n( 'M j, Y', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts );
+						}
 						?>
-						<?php if ( $start ) : ?>
-						<?php if ( $is_multi_day ) : ?>
-							<?php
-							// Compact horizontal chip — multi-day events take up
-							// too much real estate as two stacked pills, and
-							// without the year it's ambiguous which year the
-							// end date lands in. One line, year on the end, year
-							// on both only when they actually differ.
-							$start_year = date_i18n( 'Y', $start_ts );
-							$end_year   = date_i18n( 'Y', $end_ts );
-							if ( $start_year !== $end_year ) {
-								$range_label = date_i18n( 'M j, Y', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts );
-							} else {
-								$range_label = date_i18n( 'M j', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts );
-							}
-							?>
-							<div class="cem-event-date-range">
-								<?php echo esc_html( $range_label ); ?>
-							</div>
-						<?php else : ?>
+						<?php if ( $start && ! $is_multi_day ) : ?>
 							<div class="cem-event-date-wrap">
 								<div class="cem-event-date-badge">
 									<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $start_ts ) ); ?></span>
@@ -316,9 +309,12 @@ class CEM_Shortcodes {
 								</div>
 							</div>
 						<?php endif; ?>
-						<?php endif; ?>
 
 						<div class="cem-event-info">
+							<?php if ( $is_multi_day && $range_label ) : ?>
+							<div class="cem-event-date-range"><?php echo esc_html( $range_label ); ?></div>
+							<?php endif; ?>
+
 							<h3 class="cem-event-title">
 								<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 								<?php if ( $is_recurring ) : ?>

@@ -144,25 +144,28 @@
   flex-shrink: 0;
 }
 
-/* Multi-day events: a single compact horizontal chip with the year on
-   the end (and on the start too if start/end years differ). Replaces
-   the previous two-stacked-pills design which was visually heavy and
-   never showed the year. */
+/* Multi-day events: a slim inline date-range chip rendered ABOVE the
+   event title (inside .cem-event-info). Single-day events keep the
+   big vertical badge in the left column; multi-day events skip that
+   badge so the chip can sit at full info-column width without
+   squashing the rest of the card. */
 .cem-event-date-range {
-  display: inline-flex;
-  align-items: center;
-  background: var(--cem-primary);
-  color: #fff;
-  border-radius: var(--cem-radius-sm);
-  padding: 6px 12px;
-  font-size: 12px;
+  display: inline-block;
+  background: rgba(59, 89, 152, 0.08); /* tinted, not filled — secondary */
+  color: var(--cem-primary);
+  border: 1px solid rgba(59, 89, 152, 0.18);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  line-height: 1.3;
+  line-height: 1.5;
   white-space: nowrap;
-  flex-shrink: 0;
-  align-self: flex-start; /* sit at the top of the body row */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cem-date-month {
