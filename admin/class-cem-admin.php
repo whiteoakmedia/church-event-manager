@@ -139,9 +139,11 @@ class CEM_Admin {
 	// ── Admin Notices ─────────────────────────────────────────────────────────
 
 	public function admin_notices() {
-		// Show notice if SMTP isn't configured
-		$from = get_option( 'cem_from_email', '' );
 		$screen = get_current_screen();
+
+		// Show notice if SMTP isn't configured (only on plugin-owned screens
+		// so we don't shout at every admin page).
+		$from = get_option( 'cem_from_email', '' );
 		if ( $screen && strpos( $screen->id, 'cem' ) !== false && ! $from ) :
 		?>
 		<div class="notice notice-warning is-dismissible">
@@ -153,6 +155,34 @@ class CEM_Admin {
 			?></p>
 		</div>
 		<?php endif;
+
+		// Surface event-save validation notices stashed in a transient by
+		// save_event_meta(). The transient is keyed to user + post so two
+		// editors editing two events can't see each other's notices, and
+		// is short-lived (60 s) so it's gone after the first page load.
+		if ( $screen && $screen->post_type === 'cem_event' ) {
+			$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0;
+			if ( $post_id ) {
+				$key      = 'cem_event_save_notice_' . get_current_user_id() . '_' . $post_id;
+				$notices  = get_transient( $key );
+				if ( is_array( $notices ) ) {
+					delete_transient( $key );
+					foreach ( (array) ( $notices['errors'] ?? [] ) as $msg ) {
+						printf(
+							'<div class="notice notice-error"><p><strong>%s</strong> %s</p></div>',
+							esc_html__( 'Date error:', 'church-event-manager' ),
+							esc_html( $msg )
+						);
+					}
+					foreach ( (array) ( $notices['warnings'] ?? [] ) as $msg ) {
+						printf(
+							'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+							esc_html( $msg )
+						);
+					}
+				}
+			}
+		}
 	}
 
 	// ── Plugin links ──────────────────────────────────────────────────────────
@@ -2208,20 +2238,66 @@ class CEM_Admin {
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
 		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled' ];
 
+		// ── Parse all datetime values up front, then cross-validate ─────────
+		// We need start + end together before deciding whether to save the
+		// end value or warn the admin. Two failure modes we want to catch:
+		//
+		//   1. End-before-start: never legitimate; refuse to save the end
+		//      and surface a red error notice on the next page load.
+		//   2. End more than a year past start: almost always a year-typo
+		//      (e.g. `2027-04-30` instead of `2026-04-30`). Save anyway —
+		//      legitimate multi-year events exist — but flash an amber
+		//      warning so the editor can self-correct.
+		$parsed_ts        = [];
+		$validation_block = []; // hard errors — used to suppress saving the field
+		$validation_warn  = []; // soft warnings — saving proceeds
+
 		foreach ( $datetime_fields as $key ) {
-			if ( isset( $_POST[$key] ) && $_POST[$key] !== '' ) {
-				$raw_dt = sanitize_text_field( wp_unslash( $_POST[$key] ) );
-				$ts     = strtotime( $raw_dt );
-				// strtotime() returns false on garbage input. Without this
-				// guard, date('Y-m-d H:i:s', false) silently set the event
-				// to 1970-01-01 with no warning to the admin. If the input
-				// can't be parsed, leave the existing value untouched.
-				if ( $ts ) {
-					update_post_meta( $post_id, $key, date( 'Y-m-d H:i:s', $ts ) );
-				}
+			if ( isset( $_POST[ $key ] ) && $_POST[ $key ] !== '' ) {
+				$raw = sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
+				$ts  = strtotime( $raw );
+				$parsed_ts[ $key ] = $ts ?: null;
+			} else {
+				$parsed_ts[ $key ] = null;
+			}
+		}
+
+		$start_ts = $parsed_ts['_cem_start_datetime'] ?? null;
+		$end_ts   = $parsed_ts['_cem_end_datetime']   ?? null;
+
+		if ( $start_ts && $end_ts ) {
+			if ( $end_ts < $start_ts ) {
+				// Block: drop the end value so we don't persist invalid data.
+				$parsed_ts['_cem_end_datetime'] = null;
+				$validation_block[] = __( 'The end date is before the start date — that\'s not a valid event range. Your end date was not saved; please correct it and update again.', 'church-event-manager' );
+			} elseif ( ( $end_ts - $start_ts ) > YEAR_IN_SECONDS ) {
+				$start_label = date_i18n( get_option( 'date_format', 'M j, Y' ), $start_ts );
+				$end_label   = date_i18n( get_option( 'date_format', 'M j, Y' ), $end_ts );
+				$validation_warn[] = sprintf(
+					/* translators: 1: start date, 2: end date */
+					__( 'Heads up — this event runs for over a year (%1$s → %2$s). Did you mean to set the end date that far out? Double-check the year.', 'church-event-manager' ),
+					$start_label,
+					$end_label
+				);
+			}
+		}
+
+		foreach ( $datetime_fields as $key ) {
+			if ( $parsed_ts[ $key ] ) {
+				update_post_meta( $post_id, $key, date( 'Y-m-d H:i:s', $parsed_ts[ $key ] ) );
 			} else {
 				delete_post_meta( $post_id, $key );
 			}
+		}
+
+		// Stash any notices in a short-lived transient keyed to user + post.
+		// admin_notices() picks these up on the redirect that follows save.
+		if ( ! empty( $validation_block ) || ! empty( $validation_warn ) ) {
+			set_transient(
+				'cem_event_save_notice_' . get_current_user_id() . '_' . $post_id,
+				[ 'errors' => $validation_block, 'warnings' => $validation_warn ],
+				60
+			);
 		}
 		foreach ( $text_fields   as $key ) update_post_meta( $post_id, $key, sanitize_text_field( $_POST[$key] ?? '' ) );
 		foreach ( $url_fields    as $key ) update_post_meta( $post_id, $key, esc_url_raw( $_POST[$key] ?? '' ) );
