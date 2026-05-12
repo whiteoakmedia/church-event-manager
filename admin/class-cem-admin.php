@@ -839,7 +839,10 @@ class CEM_Admin {
 	// ── Check-In Page ─────────────────────────────────────────────────────────
 
 	public function page_checkin() {
-		// Get upcoming events for the dropdown
+		// Get upcoming events for the dropdown — filtered to only those
+		// with check-in explicitly enabled. Events that don't need
+		// attendance tracking (food drives, fundraisers) stay off the list
+		// entirely so a volunteer can't accidentally pick the wrong one.
 		$events = get_posts( [
 			'post_type'      => 'cem_event',
 			'post_status'    => 'publish',
@@ -847,12 +850,20 @@ class CEM_Admin {
 			'meta_key'       => '_cem_start_datetime',
 			'orderby'        => 'meta_value',
 			'order'          => 'ASC',
-			'meta_query'     => [ [
-				'key'     => '_cem_start_datetime',
-				'value'   => date( 'Y-m-d', strtotime( '-7 days' ) ),
-				'compare' => '>=',
-				'type'    => 'DATE',
-			] ],
+			'meta_query'     => [
+				'relation' => 'AND',
+				[
+					'key'     => '_cem_start_datetime',
+					'value'   => date( 'Y-m-d', strtotime( '-7 days' ) ),
+					'compare' => '>=',
+					'type'    => 'DATE',
+				],
+				[
+					'key'     => '_cem_checkin_enabled',
+					'value'   => '1',
+					'compare' => '=',
+				],
+			],
 		] );
 
 		// Find today's event to auto-select
@@ -2044,15 +2055,20 @@ class CEM_Admin {
 	}
 
 	public function mb_event_reg( $post ) {
-		$cap        = get_post_meta( $post->ID, '_cem_capacity', true );
-		$deadline   = get_post_meta( $post->ID, '_cem_registration_deadline', true );
-		$max_pp     = get_post_meta( $post->ID, '_cem_max_attendees_per_reg', true );
-		$reg_st     = get_post_meta( $post->ID, '_cem_registration_status', true );
-		$reg_enabled = get_post_meta( $post->ID, '_cem_registration_enabled', true );
-		$reg_type   = get_post_meta( $post->ID, '_cem_registration_type', true ) ?: 'individual';
+		$cap             = get_post_meta( $post->ID, '_cem_capacity', true );
+		$deadline        = get_post_meta( $post->ID, '_cem_registration_deadline', true );
+		$max_pp          = get_post_meta( $post->ID, '_cem_max_attendees_per_reg', true );
+		$reg_st          = get_post_meta( $post->ID, '_cem_registration_status', true );
+		$reg_enabled     = get_post_meta( $post->ID, '_cem_registration_enabled', true );
+		$reg_type        = get_post_meta( $post->ID, '_cem_registration_type', true ) ?: 'individual';
+		$checkin_enabled = get_post_meta( $post->ID, '_cem_checkin_enabled', true );
 
-		// Default to enabled for new/existing events without the meta set
+		// Default to enabled for new/existing events without the meta set.
 		if ( $reg_enabled === '' ) $reg_enabled = '1';
+		// Check-in is opt-in: only events the admin explicitly enables get a
+		// QR code in the confirmation email and appear on the Check-In screen.
+		// New events default to '0'. (Existing events that never had this
+		// meta set are also treated as '0' until someone toggles them on.)
 		?>
 		<div class="cem-meta-grid cem-meta-grid--v2">
 
@@ -2062,6 +2078,16 @@ class CEM_Admin {
 						<input type="checkbox" name="_cem_registration_enabled" value="1" id="cem-reg-enabled"
 							<?php checked( $reg_enabled, '1' ); ?>>
 						<span><strong><?php esc_html_e( 'Enable registration form', 'church-event-manager' ); ?></strong> — <?php esc_html_e( 'When unchecked, the event page shows event info only with no sign-up form.', 'church-event-manager' ); ?></span>
+					</label>
+				</div>
+			</div>
+
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-body cem-checkbox-row" style="margin:0;background:#fff;border:none">
+					<label class="cem-toggle-label">
+						<input type="checkbox" name="_cem_checkin_enabled" value="1" id="cem-checkin-enabled"
+							<?php checked( $checkin_enabled, '1' ); ?>>
+						<span><strong><?php esc_html_e( 'Enable check-in for this event', 'church-event-manager' ); ?></strong> — <?php esc_html_e( "Adds a QR code to confirmation emails and the registrant's manage page, and lists this event on the Check-In screen. Leave off for events that don't need attendance tracking (drop-off drives, fundraisers, etc.).", 'church-event-manager' ); ?></span>
 					</label>
 				</div>
 			</div>
@@ -2236,7 +2262,7 @@ class CEM_Admin {
 		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
 		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
-		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled' ];
+		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled', '_cem_checkin_enabled' ];
 
 		// ── Parse all datetime values up front, then cross-validate ─────────
 		// We need start + end together before deciding whether to save the

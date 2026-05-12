@@ -32,10 +32,7 @@
     --gold:       #e8b252;
   }
 
-  @page {
-    size: Letter;
-    margin: 0.55in 0.7in;
-  }
+  @page { size: Letter; margin: 0.55in 0.7in; }
 
   * { box-sizing: border-box; }
 
@@ -72,7 +69,6 @@
     text-transform: uppercase;
     margin-bottom: 16px;
   }
-  .pill.is-secondary { background: var(--navy-deep); }
 
   .cover h1 {
     font-family: 'Gilroy';
@@ -120,7 +116,6 @@
     margin-bottom: 28px;
     page-break-inside: avoid;
   }
-
   section.new-page { page-break-before: always; }
 
   .kicker {
@@ -293,7 +288,7 @@
   <header class="cover">
     <span class="pill">New feature</span>
     <h1>QR <span class="accent">check-in</span> is here.</h1>
-    <p class="lede">Every event registrant now gets a personal check-in code in their confirmation email. On Sunday morning, your team scans them with any tablet or phone — no name searching, no clipboard. Less line, more welcome.</p>
+    <p class="lede">Every event registrant now gets a personal check-in code in their confirmation email. Whenever an event happens — Sunday service, Wednesday night, a Saturday outreach, a Friday-to-Sunday retreat — your team scans them in with any phone or tablet. Less line, more welcome.</p>
     <div class="cover-meta">
       <div class="item">
         <span>Version</span>
@@ -318,7 +313,7 @@
   <section>
     <span class="kicker">Why it matters</span>
     <h2>The check-in table just got <span class="accent">a lot faster.</span></h2>
-    <p class="lead">For most of our churches, the bottleneck on event mornings isn't capacity — it's the line at the table while a volunteer searches for someone's name on a list. QR check-in collapses that to a single scan.</p>
+    <p class="lead">Whether it's a Sunday-morning service, a midweek dinner, or a weekend retreat, the bottleneck at the check-in table is almost always the same: a volunteer thumbing through a printed list or scrolling a tablet looking for someone's name. QR check-in collapses that to a single scan.</p>
 
     <div class="perks">
       <div class="perk">
@@ -340,7 +335,7 @@
   <section class="new-page">
     <span class="kicker">For your registrants</span>
     <h2>What attendees <span class="accent">see and do.</span></h2>
-    <p class="lead">No extra step on their end. Their existing confirmation email just got a little smarter — and they don't have to do anything until they walk in the door.</p>
+    <p class="lead">There's nothing new for them to learn. The same confirmation email they already get just has a little more in it — and they don't need to do anything with it until they arrive.</p>
 
     <ol class="steps">
       <li>
@@ -352,25 +347,25 @@
         <span class="step-detail">A black-and-white square code, plus the words "Show this code at check-in." Same email that already has the date, time, location, and a link to manage their registration.</span>
       </li>
       <li>
-        <strong>On the day of the event, they pull the email up on their phone</strong>
-        <span class="step-detail">They don't even have to open the email — most phones surface the QR right in the preview. If they lose the email, the same QR also appears on the "Manage My Registration" page.</span>
+        <strong>When they arrive, they pull the email up on their phone</strong>
+        <span class="step-detail">They don't even have to open the email — most phones surface the QR right in the preview. If they lose the email, the same QR also appears on the "Manage My Registration" page, so they can pull it up from any browser.</span>
       </li>
       <li>
-        <strong>They walk in. Volunteer scans. Done.</strong>
+        <strong>They walk up. Volunteer scans. Done.</strong>
         <span class="step-detail">No name spelling, no clipboard hunting, no "are you in the system?"</span>
       </li>
     </ol>
 
     <div class="callout">
-      <strong>A bonus you didn't ask for:</strong> the same email also got "Save to your calendar" buttons for Google, Apple, and Outlook. One tap puts the event on their calendar with the right title, time, and location pre-filled. Fewer no-shows because nobody forgot.
+      <strong>A bonus you didn't ask for:</strong> the same email also got "Save to your calendar" buttons for Google, Apple, and Outlook. One tap puts the event on their calendar with the right title, time, and location pre-filled. Fewer no-shows because nobody forgot when it was.
     </div>
   </section>
 
   <!-- ── HOW VOLUNTEERS USE IT ──────────────────── -->
   <section class="new-page">
     <span class="kicker">For your team</span>
-    <h2>How to scan people in <span class="accent">on Sunday morning.</span></h2>
-    <p class="lead">Anyone who can use the existing check-in screen can use the scanner — there's nothing new to learn beyond pointing a camera at a code.</p>
+    <h2>How to scan people in <span class="accent">at the event.</span></h2>
+    <p class="lead">Anyone who can use the existing check-in screen can use the scanner — there's nothing new to learn beyond pointing a camera at a code. Works for any event regardless of day or time.</p>
 
     <ol class="steps">
       <li>
@@ -378,8 +373,8 @@
         <span class="step-detail">Church Events → Check-In. Use any device with a camera: laptop, iPad, or your phone. The site needs to load on https:// (yours does — required for camera access).</span>
       </li>
       <li>
-        <strong>Pick today's event from the dropdown</strong>
-        <span class="step-detail">Events happening today are marked "TODAY" so you can't grab the wrong one. The volunteer list and the scan button only become active once an event is selected.</span>
+        <strong>Pick the event you're checking people in for</strong>
+        <span class="step-detail">Use the dropdown at the top of the screen. Events happening today are flagged with a "TODAY" label so you can grab the right one quickly — but you can pick any event in the list, whatever day or time it runs.</span>
       </li>
       <li>
         <strong>Tap "📷 Scan QR"</strong>
@@ -403,7 +398,7 @@
 
     <dl class="faq">
       <dt>What if someone shows me the wrong QR code?</dt>
-      <dd>The scanner checks the code against the current event's registrants. If it's not in that event, you'll see a red "Not registered for this event" banner with a low buzz — no risk of checking someone into the wrong service.</dd>
+      <dd>The scanner checks the code against the currently-selected event's registrants. If it's not in that event, you'll see a red "Not registered for this event" banner with a low buzz — no risk of checking someone into the wrong event by mistake.</dd>
 
       <dt>What if someone scans their QR twice?</dt>
       <dd>The second scan shows an amber "Already checked in: [Name]" banner. No double counts, no confusion.</dd>
@@ -411,8 +406,11 @@
       <dt>What if a registrant doesn't have their phone?</dt>
       <dd>The name search on the check-in screen works exactly like it did before — type a few letters, tap their card. The QR is a faster lane, not the only lane.</dd>
 
+      <dt>Does this work for multi-day events (retreats, conferences)?</dt>
+      <dd>Yes. The QR is tied to the registration, not a specific day. The same code works whether you scan it Friday night or Sunday morning.</dd>
+
       <dt>What if our internet is spotty?</dt>
-      <dd>The scanner runs in the browser and checks codes against a list already loaded for the event. You only need internet to load the page at the start of the service.</dd>
+      <dd>The scanner runs in the browser and checks codes against a list already loaded for the event. You only need internet to load the page at the start of check-in — after that, scans work on the cached list.</dd>
 
       <dt>Does this cost more?</dt>
       <dd>No. It's included with your existing plugin at no extra cost. The QR codes are generated on your own site — nothing is sent to a third-party service.</dd>

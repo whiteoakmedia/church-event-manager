@@ -59,6 +59,13 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Pick an event before adding a walk-in.', 'church-event-manager' ) ] );
 		}
 
+		// Walk-ins only make sense for events that track check-in. Refuse
+		// the request if check-in is disabled on this event so a stale
+		// browser tab can't bypass the dropdown filter.
+		if ( ! CEM_Helpers::is_checkin_enabled( $event_id ) ) {
+			wp_send_json_error( [ 'message' => __( 'Check-in is not enabled for this event.', 'church-event-manager' ) ] );
+		}
+
 		$first = sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) );
 		$last  = sanitize_text_field( wp_unslash( $_POST['last_name']  ?? '' ) );
 		if ( $first === '' || $last === '' ) {

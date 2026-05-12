@@ -201,6 +201,22 @@ class CEM_Helpers {
 	 * a *fresh* nonce in the cancel button at page-render time (see
 	 * CEM_Shortcodes::render_manage_registration()).
 	 */
+	/**
+	 * Is check-in enabled for this event?
+	 *
+	 * Gates the QR code in confirmation emails and on the manage page,
+	 * the event's presence in the Check-In screen dropdown, and the
+	 * walk-in registration endpoint. Opt-in: missing/empty meta = OFF.
+	 *
+	 * Always returns false for non-event post types (e.g. groups, where
+	 * check-in is conceptually different and not exposed today).
+	 */
+	public static function is_checkin_enabled( $event_id ) {
+		if ( ! $event_id ) return false;
+		if ( get_post_type( $event_id ) !== 'cem_event' ) return false;
+		return get_post_meta( $event_id, '_cem_checkin_enabled', true ) === '1';
+	}
+
 	public static function get_manage_url( $registration_code ) {
 		$page_id = get_option( 'cem_my_registrations_page_id' );
 		$base    = $page_id ? get_permalink( $page_id ) : home_url( '/my-registrations/' );

@@ -374,6 +374,13 @@ class CEM_Email {
 			? CEM_Helpers::get_calendar_links( $event->ID )
 			: [];
 
+		// Per-event opt-in: only events with check-in explicitly enabled
+		// get the QR code in the confirmation email. Groups don't get
+		// check-in QRs by default.
+		$checkin_enabled = ( ! $is_group && $event )
+			? CEM_Helpers::is_checkin_enabled( $event->ID )
+			: false;
+
 		return [
 			'first_name'          => $reg->first_name,
 			'last_name'           => $reg->last_name,
@@ -393,6 +400,7 @@ class CEM_Email {
 			'event_location'      => $location ?: '',
 			'manage_url'          => $manage_url,
 			'calendar_links'      => $calendar_links,
+			'checkin_enabled'     => $checkin_enabled,
 			'church_name'         => get_bloginfo( 'name' ),
 			'church_url'          => home_url(),
 			'church_phone'        => get_option( 'cem_church_phone', '' ),

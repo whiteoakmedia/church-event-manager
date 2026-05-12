@@ -1194,10 +1194,15 @@ class CEM_Shortcodes {
 				// QR — same code as the email. People who lose the email
 				// can pull this page up on their phone and present it at
 				// check-in instead.
-				$qr_url = class_exists( 'CEM_QR' )
-					? CEM_QR::get_url( $reg->registration_code )
-					: '';
-				if ( $qr_url && $reg->status !== 'cancelled' ) :
+				//
+				// Only renders for events that have check-in explicitly
+				// enabled. The QR is meaningless for events with no
+				// check-in flow, so we don't show it.
+				$show_qr = ( $reg->status !== 'cancelled' )
+					&& class_exists( 'CEM_QR' )
+					&& CEM_Helpers::is_checkin_enabled( $reg->event_id );
+				$qr_url  = $show_qr ? CEM_QR::get_url( $reg->registration_code ) : '';
+				if ( $qr_url ) :
 				?>
 				<div class="cem-manage-qr">
 					<img src="<?php echo esc_url( $qr_url ); ?>"

@@ -19,9 +19,14 @@
 // QR code — encodes the manage URL. At check-in the volunteer scans
 // it; at home the registrant can scan it with their phone camera to
 // open their manage page directly.
-$qr_url = ( class_exists( 'CEM_QR' ) && ! empty( $registration_code ) )
-	? CEM_QR::get_url( $registration_code )
-	: '';
+//
+// Only render the QR when the EVENT has check-in explicitly enabled.
+// Events like food drives or fundraisers don't need attendance
+// tracking, so we keep their confirmation emails clean.
+$qr_url = '';
+if ( ! empty( $checkin_enabled ) && class_exists( 'CEM_QR' ) && ! empty( $registration_code ) ) {
+	$qr_url = CEM_QR::get_url( $registration_code );
+}
 if ( $qr_url ) :
 ?>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto 0;border-collapse:collapse">
