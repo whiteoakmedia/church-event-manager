@@ -125,6 +125,20 @@
   align-items: flex-start;
 }
 
+/* Wrap holds either a single date badge OR a start→end range. */
+.cem-event-date-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.cem-event-date-wrap--range {
+  /* On narrow cards, stack the two pills vertically with the arrow
+     in between so they don't crush the rest of the body. */
+  flex-wrap: wrap;
+  max-width: 130px;
+}
+
 .cem-event-date-badge {
   display: flex;
   flex-direction: column;
@@ -135,6 +149,21 @@
   padding: 8px 12px;
   min-width: 52px;
   flex-shrink: 0;
+}
+
+/* End-date pill in a range — slightly lighter so the eye reads the
+   start as the primary "when does this start?" date. */
+.cem-event-date-badge--end {
+  background: var(--cem-primary-dk);
+  opacity: 0.92;
+}
+
+.cem-event-date-arrow {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cem-muted);
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .cem-date-month {

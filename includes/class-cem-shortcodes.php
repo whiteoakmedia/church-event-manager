@@ -279,10 +279,29 @@ class CEM_Shortcodes {
 					<?php endif; ?>
 
 					<div class="cem-event-body">
+						<?php
+						// Multi-day detection — if start and end land on different
+						// calendar days, render two badges with an arrow between
+						// instead of just the start date. Same-day events get the
+						// single badge they always have (no visual change).
+						$start_ts      = $start ? strtotime( $start ) : 0;
+						$end_ts        = $end   ? strtotime( $end )   : 0;
+						$is_multi_day  = ( $start_ts && $end_ts
+							&& date_i18n( 'Y-m-d', $start_ts ) !== date_i18n( 'Y-m-d', $end_ts ) );
+						?>
 						<?php if ( $start ) : ?>
-						<div class="cem-event-date-badge">
-							<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', strtotime( $start ) ) ); ?></span>
-							<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', strtotime( $start ) ) ); ?></span>
+						<div class="cem-event-date-wrap<?php echo $is_multi_day ? ' cem-event-date-wrap--range' : ''; ?>">
+							<div class="cem-event-date-badge">
+								<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $start_ts ) ); ?></span>
+								<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', $start_ts ) ); ?></span>
+							</div>
+							<?php if ( $is_multi_day ) : ?>
+							<span class="cem-event-date-arrow" aria-hidden="true">→</span>
+							<div class="cem-event-date-badge cem-event-date-badge--end">
+								<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $end_ts ) ); ?></span>
+								<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', $end_ts ) ); ?></span>
+							</div>
+							<?php endif; ?>
 						</div>
 						<?php endif; ?>
 
