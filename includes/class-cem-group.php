@@ -936,8 +936,24 @@ class CEM_Group {
 
 	public static function format_time( $time_24h ) {
 		if ( ! $time_24h ) return '';
-		$ts = strtotime( '2000-01-01 ' . $time_24h );
-		return $ts ? wp_date( get_option( 'time_format', 'g:i a' ), $ts ) : $time_24h;
+
+		// A group meeting time is just a wall-clock value — "10:00" means
+		// 10am no matter where the server is. The old implementation went
+		// through strtotime()/wp_date(), which parses in the server TZ and
+		// reformats in the site TZ. On a UTC-server / EST-site setup that
+		// shifted every meeting time by 4–5 hours (10am rendered as 5am).
+		// Parse with DateTime + an explicit UTC timezone for BOTH steps so
+		// no conversion ever happens; we're just reformatting the string.
+		$try_formats = [ 'H:i:s', 'H:i', 'G:i' ];
+		$dt = false;
+		$utc = new \DateTimeZone( 'UTC' );
+		foreach ( $try_formats as $fmt ) {
+			$dt = \DateTime::createFromFormat( $fmt, $time_24h, $utc );
+			if ( $dt instanceof \DateTime ) break;
+		}
+		if ( ! $dt instanceof \DateTime ) return $time_24h;
+
+		return $dt->format( get_option( 'time_format', 'g:i a' ) );
 	}
 
 	/**
