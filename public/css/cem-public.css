@@ -125,18 +125,11 @@
   align-items: flex-start;
 }
 
-/* Wrap holds either a single date badge OR a start→end range. */
+/* Single-day events keep the existing big vertical badge. */
 .cem-event-date-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
   flex-shrink: 0;
-}
-.cem-event-date-wrap--range {
-  /* On narrow cards, stack the two pills vertically with the arrow
-     in between so they don't crush the rest of the body. */
-  flex-wrap: wrap;
-  max-width: 130px;
 }
 
 .cem-event-date-badge {
@@ -151,19 +144,25 @@
   flex-shrink: 0;
 }
 
-/* End-date pill in a range — slightly lighter so the eye reads the
-   start as the primary "when does this start?" date. */
-.cem-event-date-badge--end {
-  background: var(--cem-primary-dk);
-  opacity: 0.92;
-}
-
-.cem-event-date-arrow {
-  font-size: 16px;
+/* Multi-day events: a single compact horizontal chip with the year on
+   the end (and on the start too if start/end years differ). Replaces
+   the previous two-stacked-pills design which was visually heavy and
+   never showed the year. */
+.cem-event-date-range {
+  display: inline-flex;
+  align-items: center;
+  background: var(--cem-primary);
+  color: #fff;
+  border-radius: var(--cem-radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--cem-muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  line-height: 1.3;
+  white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1;
+  align-self: flex-start; /* sit at the top of the body row */
 }
 
 .cem-date-month {

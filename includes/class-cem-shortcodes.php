@@ -290,19 +290,32 @@ class CEM_Shortcodes {
 							&& date_i18n( 'Y-m-d', $start_ts ) !== date_i18n( 'Y-m-d', $end_ts ) );
 						?>
 						<?php if ( $start ) : ?>
-						<div class="cem-event-date-wrap<?php echo $is_multi_day ? ' cem-event-date-wrap--range' : ''; ?>">
-							<div class="cem-event-date-badge">
-								<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $start_ts ) ); ?></span>
-								<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', $start_ts ) ); ?></span>
+						<?php if ( $is_multi_day ) : ?>
+							<?php
+							// Compact horizontal chip — multi-day events take up
+							// too much real estate as two stacked pills, and
+							// without the year it's ambiguous which year the
+							// end date lands in. One line, year on the end, year
+							// on both only when they actually differ.
+							$start_year = date_i18n( 'Y', $start_ts );
+							$end_year   = date_i18n( 'Y', $end_ts );
+							if ( $start_year !== $end_year ) {
+								$range_label = date_i18n( 'M j, Y', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts );
+							} else {
+								$range_label = date_i18n( 'M j', $start_ts ) . ' → ' . date_i18n( 'M j, Y', $end_ts );
+							}
+							?>
+							<div class="cem-event-date-range">
+								<?php echo esc_html( $range_label ); ?>
 							</div>
-							<?php if ( $is_multi_day ) : ?>
-							<span class="cem-event-date-arrow" aria-hidden="true">→</span>
-							<div class="cem-event-date-badge cem-event-date-badge--end">
-								<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $end_ts ) ); ?></span>
-								<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', $end_ts ) ); ?></span>
+						<?php else : ?>
+							<div class="cem-event-date-wrap">
+								<div class="cem-event-date-badge">
+									<span class="cem-date-month"><?php echo esc_html( date_i18n( 'M', $start_ts ) ); ?></span>
+									<span class="cem-date-day"><?php echo esc_html( date_i18n( 'j', $start_ts ) ); ?></span>
+								</div>
 							</div>
-							<?php endif; ?>
-						</div>
+						<?php endif; ?>
 						<?php endif; ?>
 
 						<div class="cem-event-info">
