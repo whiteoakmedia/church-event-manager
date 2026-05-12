@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QR Check-In — Feature Update</title>
+<style>
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Light.otf') format('opentype');
+    font-weight: 300; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Medium.ttf') format('truetype');
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-ExtraBold.otf') format('opentype');
+    font-weight: 800; font-style: normal;
+  }
+
+  :root {
+    --oak:        #b45143;
+    --oak-light:  #c8695c;
+    --navy:       #2e3642;
+    --navy-deep:  #1a2029;
+    --cream:      #f3f1eb;
+    --cream-dark: #e8e2d6;
+    --stone:      #e0d4c1;
+    --dim:        #8a8275;
+    --gold:       #e8b252;
+  }
+
+  @page {
+    size: Letter;
+    margin: 0.55in 0.7in;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #ffffff;
+    color: var(--navy-deep);
+    font-family: 'Gilroy', 'Inter', system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc { max-width: 700px; margin: 0 auto; }
+
+  /* ── Cover ─────────────────────────────────────── */
+  .cover {
+    padding: 0 0 26px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--stone);
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 40px;
+    background: var(--oak);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 9pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .pill.is-secondary { background: var(--navy-deep); }
+
+  .cover h1 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 34pt;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--navy-deep);
+    margin: 0 0 14px;
+  }
+  .cover h1 .accent { color: var(--oak); }
+
+  .cover .lede {
+    font-size: 12.5pt;
+    line-height: 1.55;
+    color: var(--navy);
+    margin: 0;
+    max-width: 560px;
+    font-weight: 300;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    margin-top: 22px;
+    font-size: 9pt;
+  }
+  .cover-meta .item span:first-child {
+    display: block;
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 3px;
+  }
+  .cover-meta .item span:last-child {
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 10pt;
+  }
+
+  /* ── Sections ──────────────────────────────────── */
+  section {
+    margin-bottom: 28px;
+    page-break-inside: avoid;
+  }
+
+  section.new-page { page-break-before: always; }
+
+  .kicker {
+    display: block;
+    font-weight: 500;
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--oak);
+    margin-bottom: 6px;
+  }
+
+  h2 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 20pt;
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+    color: var(--navy-deep);
+    margin: 0 0 14px;
+  }
+  h2 .accent { color: var(--oak); }
+
+  p { margin: 0 0 10px; }
+  p.lead {
+    font-size: 11.5pt;
+    color: var(--navy);
+    line-height: 1.55;
+    max-width: 600px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Highlight callout ─────────────────────────── */
+  .callout {
+    background: #fafaf8;
+    border: 1px solid var(--cream-dark);
+    border-left: 4px solid var(--oak);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 10.5pt;
+    line-height: 1.55;
+  }
+  .callout strong {
+    font-weight: 800;
+    color: var(--navy-deep);
+  }
+
+  /* ── Steps ─────────────────────────────────────── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 0 0 18px 46px;
+    counter-increment: step;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    page-break-inside: avoid;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 0;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--oak);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 13pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .steps li strong {
+    display: block;
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 11pt;
+    margin: 4px 0 4px;
+    letter-spacing: -0.005em;
+  }
+  .steps li .step-detail {
+    color: var(--navy);
+    font-weight: 300;
+  }
+
+  /* ── Three-column "perks" ──────────────────────── */
+  .perks {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 16px 0 4px;
+  }
+  .perks .perk {
+    padding: 14px 14px 12px;
+    background: #fafaf8;
+    border: 1px solid var(--cream-dark);
+    border-radius: 6px;
+    page-break-inside: avoid;
+  }
+  .perks .perk h4 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 11pt;
+    color: var(--navy-deep);
+    margin: 0 0 4px;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+  }
+  .perks .perk p {
+    font-size: 9.5pt;
+    line-height: 1.45;
+    color: var(--navy);
+    margin: 0;
+  }
+
+  /* ── FAQ ───────────────────────────────────────── */
+  .faq dt {
+    font-weight: 800;
+    font-size: 10.5pt;
+    color: var(--navy-deep);
+    margin: 14px 0 4px;
+    letter-spacing: -0.005em;
+  }
+  .faq dt::before {
+    content: '— ';
+    color: var(--oak);
+    font-weight: 800;
+  }
+  .faq dd {
+    margin: 0 0 4px;
+    padding: 0;
+    font-size: 10pt;
+    color: var(--navy);
+    line-height: 1.55;
+  }
+
+  /* ── Footer ────────────────────────────────────── */
+  .doc-foot {
+    margin-top: 32px;
+    padding-top: 14px;
+    border-top: 1px solid var(--stone);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8.5pt;
+  }
+  .doc-foot .brand {
+    font-weight: 800;
+    color: var(--navy-deep);
+    letter-spacing: -0.01em;
+  }
+  .doc-foot .meta {
+    color: var(--dim);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ── COVER ──────────────────────────────────── -->
+  <header class="cover">
+    <span class="pill">New feature</span>
+    <h1>QR <span class="accent">check-in</span> is here.</h1>
+    <p class="lede">Every event registrant now gets a personal check-in code in their confirmation email. On Sunday morning, your team scans them with any tablet or phone — no name searching, no clipboard. Less line, more welcome.</p>
+    <div class="cover-meta">
+      <div class="item">
+        <span>Version</span>
+        <span>1.8.0</span>
+      </div>
+      <div class="item">
+        <span>Available</span>
+        <span>Now</span>
+      </div>
+      <div class="item">
+        <span>Extra cost</span>
+        <span>None</span>
+      </div>
+      <div class="item">
+        <span>Setup time</span>
+        <span>Zero — already on</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── WHY IT MATTERS ─────────────────────────── -->
+  <section>
+    <span class="kicker">Why it matters</span>
+    <h2>The check-in table just got <span class="accent">a lot faster.</span></h2>
+    <p class="lead">For most of our churches, the bottleneck on event mornings isn't capacity — it's the line at the table while a volunteer searches for someone's name on a list. QR check-in collapses that to a single scan.</p>
+
+    <div class="perks">
+      <div class="perk">
+        <h4>Seconds, not minutes</h4>
+        <p>One scan = one check-in. A line of 30 people clears in under a minute.</p>
+      </div>
+      <div class="perk">
+        <h4>No app to install</h4>
+        <p>Volunteers use the existing check-in screen in any browser. Registrants use their email.</p>
+      </div>
+      <div class="perk">
+        <h4>Quiet on the back end</h4>
+        <p>Every scan logs the same audit trail as a manual check-in. Your reports don't change.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW REGISTRANTS USE IT ─────────────────── -->
+  <section class="new-page">
+    <span class="kicker">For your registrants</span>
+    <h2>What attendees <span class="accent">see and do.</span></h2>
+    <p class="lead">No extra step on their end. Their existing confirmation email just got a little smarter — and they don't have to do anything until they walk in the door.</p>
+
+    <ol class="steps">
+      <li>
+        <strong>They register normally</strong>
+        <span class="step-detail">Same form, same flow as before. Nothing changes here.</span>
+      </li>
+      <li>
+        <strong>Their confirmation email now includes a personal QR</strong>
+        <span class="step-detail">A black-and-white square code, plus the words "Show this code at check-in." Same email that already has the date, time, location, and a link to manage their registration.</span>
+      </li>
+      <li>
+        <strong>On the day of the event, they pull the email up on their phone</strong>
+        <span class="step-detail">They don't even have to open the email — most phones surface the QR right in the preview. If they lose the email, the same QR also appears on the "Manage My Registration" page.</span>
+      </li>
+      <li>
+        <strong>They walk in. Volunteer scans. Done.</strong>
+        <span class="step-detail">No name spelling, no clipboard hunting, no "are you in the system?"</span>
+      </li>
+    </ol>
+
+    <div class="callout">
+      <strong>A bonus you didn't ask for:</strong> the same email also got "Save to your calendar" buttons for Google, Apple, and Outlook. One tap puts the event on their calendar with the right title, time, and location pre-filled. Fewer no-shows because nobody forgot.
+    </div>
+  </section>
+
+  <!-- ── HOW VOLUNTEERS USE IT ──────────────────── -->
+  <section class="new-page">
+    <span class="kicker">For your team</span>
+    <h2>How to scan people in <span class="accent">on Sunday morning.</span></h2>
+    <p class="lead">Anyone who can use the existing check-in screen can use the scanner — there's nothing new to learn beyond pointing a camera at a code.</p>
+
+    <ol class="steps">
+      <li>
+        <strong>Open the Check-In screen in your WordPress admin</strong>
+        <span class="step-detail">Church Events → Check-In. Use any device with a camera: laptop, iPad, or your phone. The site needs to load on https:// (yours does — required for camera access).</span>
+      </li>
+      <li>
+        <strong>Pick today's event from the dropdown</strong>
+        <span class="step-detail">Events happening today are marked "TODAY" so you can't grab the wrong one. The volunteer list and the scan button only become active once an event is selected.</span>
+      </li>
+      <li>
+        <strong>Tap "📷 Scan QR"</strong>
+        <span class="step-detail">A modal opens with a live camera preview. First time you do this on a new device, the browser will ask permission to use the camera — say yes once and it remembers.</span>
+      </li>
+      <li>
+        <strong>Hold the camera up to each registrant's QR</strong>
+        <span class="step-detail">As soon as the code is in frame, you'll hear a soft "ka-ching" chime and a green "✓ Checked in: [Name]" banner flashes. The scanner stays open — just keep moving to the next person. Phones display the QR in the email preview, so most registrants don't even need to open the email.</span>
+      </li>
+      <li>
+        <strong>The line clears</strong>
+        <span class="step-detail">Need to add a walk-in? Hit "Add Walk-in" right next to the scan button. Need to find someone whose phone died? The name search still works exactly as before. Use whichever fits the moment.</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ── FAQ ────────────────────────────────────── -->
+  <section>
+    <span class="kicker">Common questions</span>
+    <h2>What we've already <span class="accent">been asked.</span></h2>
+
+    <dl class="faq">
+      <dt>What if someone shows me the wrong QR code?</dt>
+      <dd>The scanner checks the code against the current event's registrants. If it's not in that event, you'll see a red "Not registered for this event" banner with a low buzz — no risk of checking someone into the wrong service.</dd>
+
+      <dt>What if someone scans their QR twice?</dt>
+      <dd>The second scan shows an amber "Already checked in: [Name]" banner. No double counts, no confusion.</dd>
+
+      <dt>What if a registrant doesn't have their phone?</dt>
+      <dd>The name search on the check-in screen works exactly like it did before — type a few letters, tap their card. The QR is a faster lane, not the only lane.</dd>
+
+      <dt>What if our internet is spotty?</dt>
+      <dd>The scanner runs in the browser and checks codes against a list already loaded for the event. You only need internet to load the page at the start of the service.</dd>
+
+      <dt>Does this cost more?</dt>
+      <dd>No. It's included with your existing plugin at no extra cost. The QR codes are generated on your own site — nothing is sent to a third-party service.</dd>
+
+      <dt>Can attendees print the QR instead of using their phone?</dt>
+      <dd>Yes. The QR is on the manage-registration page as well as in the email — they can print either one, and the scanner reads it off paper just as easily as off a screen.</dd>
+    </dl>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────── -->
+  <footer class="doc-foot">
+    <span class="brand">White Oak Media</span>
+    <span class="meta">whiteoakmedia.io · Feature: QR check-in · v1.8.0</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -39,7 +39,10 @@ class CEM_Shortcodes {
 
 		$query_args = [
 			'post_type'      => 'cem_event',
-			'post_status'    => 'publish',
+			// Explicit array of ONLY 'publish'. Some third-party plugins
+			// (SEO / security) inject filters that expand the status set;
+			// passing an array makes intent explicit and easier to audit.
+			'post_status'    => [ 'publish' ],
 			'posts_per_page' => (int) $atts['per_page'],
 			'paged'          => $page,
 			'orderby'        => 'meta_value',
@@ -113,6 +116,37 @@ class CEM_Shortcodes {
 		}
 
 		$query = new WP_Query( $query_args );
+
+		// ── Defensive filter: only render truly-published, non-past events ─────
+		// Belt-and-suspenders. The query above already restricts to published
+		// + future, but third-party query filters, recurrence-instance
+		// regenerators, or object-cache weirdness have surfaced trashed
+		// events on live sites before. This loop walks every returned post
+		// and drops anything that doesn't actually pass the rules at render
+		// time. A second authoritative check, not a redundant one.
+		if ( $query->have_posts() ) {
+			$hide_past   = ( $atts['show_past'] !== 'yes' );
+			$now_ts      = strtotime( current_time( 'mysql' ) );
+			$keep        = [];
+			foreach ( $query->posts as $p ) {
+				if ( ! $p || empty( $p->ID ) ) continue;
+
+				// Authoritative status check from the actual posts table.
+				if ( get_post_status( $p->ID ) !== 'publish' ) continue;
+
+				if ( $hide_past ) {
+					$end_dt   = get_post_meta( $p->ID, '_cem_end_datetime',   true );
+					$start_dt = get_post_meta( $p->ID, '_cem_start_datetime', true );
+					$cutoff   = $end_dt ?: $start_dt;
+					if ( $cutoff && strtotime( $cutoff ) < $now_ts ) continue;
+				}
+
+				$keep[] = $p;
+			}
+			$query->posts      = array_values( $keep );
+			$query->post_count = count( $query->posts );
+			$query->found_posts = count( $query->posts );
+		}
 
 		// ── Recurring: filter out "hidden" future duplicates ────────────────────
 		// When a recurrence group has _cem_recurrence_hide_future = '1', only the
@@ -200,6 +234,20 @@ class CEM_Shortcodes {
 			<div class="cem-events-<?php echo esc_attr( $atts['layout'] ); ?>">
 				<?php while ( $query->have_posts() ) : $query->the_post();
 					$event_id    = get_the_ID();
+
+					// Final, last-line-of-defense check. Even if a stale
+					// recurrence instance, an aggressive cache layer, or
+					// a third-party query filter managed to slip a non-
+					// published or past event past the query AND the
+					// post-query filter above, skip rendering its card.
+					if ( get_post_status( $event_id ) !== 'publish' ) continue;
+					if ( $atts['show_past'] !== 'yes' ) {
+						$_end   = get_post_meta( $event_id, '_cem_end_datetime',   true );
+						$_start = get_post_meta( $event_id, '_cem_start_datetime', true );
+						$_cut   = $_end ?: $_start;
+						if ( $_cut && strtotime( $_cut ) < current_time( 'timestamp' ) ) continue;
+					}
+
 					$start       = get_post_meta( $event_id, '_cem_start_datetime', true );
 					$end         = get_post_meta( $event_id, '_cem_end_datetime', true );
 					$location    = get_post_meta( $event_id, '_cem_location', true );
@@ -366,7 +414,7 @@ class CEM_Shortcodes {
 
 		$query_args = [
 			'post_type'      => 'cem_group',
-			'post_status'    => 'publish',
+			'post_status'    => [ 'publish' ],
 			'posts_per_page' => (int) $atts['per_page'],
 			'orderby'        => 'title',
 			'order'          => 'ASC',
