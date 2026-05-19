@@ -282,9 +282,21 @@ class CEM_Email {
 			) ) );
 		}
 
+		// Bulletproof template render — any throwable inside the template
+		// (a missing var promoted to fatal in PHP 8, a hijacked WP filter
+		// throwing, etc.) is caught and reported, NOT propagated up to
+		// kill the email send pipeline. Partial output up to the throw
+		// is returned so the email still has some body.
 		ob_start();
 		extract( $vars ); // phpcs:ignore WordPress.PHP.DontExtract
-		include $file;
+		try {
+			include $file;
+		} catch ( \Throwable $e ) {
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, "load_template: {$template_name}" );
+			}
+			// Don't rethrow.
+		}
 		$html = ob_get_clean();
 
 		return CEM_Helpers::parse_template( $html, $vars );
@@ -367,19 +379,37 @@ class CEM_Email {
 		$manage_url = CEM_Helpers::get_manage_url( $reg->registration_code );
 
 		// Build "Save to Calendar" deep-links for the confirmation email.
-		// Returns an empty array for groups (recurring meetings don't
-		// translate cleanly to a single calendar entry) — the template
-		// handles that case by hiding the buttons.
-		$calendar_links = ( ! $is_group && $event )
-			? CEM_Helpers::get_calendar_links( $event->ID )
-			: [];
+		// Wrapped in try/catch because this helper touches WordPress's
+		// permalink + post-content filter chain, which third-party plugins
+		// (Elementor, page builders, SEO plugins) can hijack and throw
+		// from. We CANNOT let that take down the entire email pipeline —
+		// in v1.8.0 it did exactly that, silencing every confirmation and
+		// admin notification email for a week. Empty array is a safe
+		// fallback; the template just skips the buttons block.
+		$calendar_links = [];
+		if ( ! $is_group && $event ) {
+			try {
+				$calendar_links = CEM_Helpers::get_calendar_links( $event->ID );
+			} catch ( \Throwable $e ) {
+				if ( class_exists( 'CEM_Error_Reporter' ) ) {
+					CEM_Error_Reporter::report_exception( $e, 'get_calendar_links during email render' );
+				}
+			}
+		}
 
 		// Per-event opt-in: only events with check-in explicitly enabled
-		// get the QR code in the confirmation email. Groups don't get
-		// check-in QRs by default.
-		$checkin_enabled = ( ! $is_group && $event )
-			? CEM_Helpers::is_checkin_enabled( $event->ID )
-			: false;
+		// get the QR code in the confirmation email. Same defensive
+		// wrapper as calendar_links above.
+		$checkin_enabled = false;
+		if ( ! $is_group && $event ) {
+			try {
+				$checkin_enabled = CEM_Helpers::is_checkin_enabled( $event->ID );
+			} catch ( \Throwable $e ) {
+				if ( class_exists( 'CEM_Error_Reporter' ) ) {
+					CEM_Error_Reporter::report_exception( $e, 'is_checkin_enabled during email render' );
+				}
+			}
+		}
 
 		return [
 			'first_name'          => $reg->first_name,

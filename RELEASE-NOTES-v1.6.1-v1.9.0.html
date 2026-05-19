@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Church Event Manager — Release Notes v1.6.1 → v1.9.0</title>
+<style>
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Light.otf') format('opentype');
+    font-weight: 300; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Medium.ttf') format('truetype');
+    font-weight: 500; font-style: normal;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-ExtraBold.otf') format('opentype');
+    font-weight: 800; font-style: normal;
+  }
+
+  :root {
+    --oak: #b45143;
+    --navy: #2e3642;
+    --navy-deep: #1a2029;
+    --cream: #f3f1eb;
+    --cream-dark: #e8e2d6;
+    --stone: #e0d4c1;
+    --dim: #8a8275;
+    --gold: #e8b252;
+  }
+
+  @page { size: Letter; margin: 0.55in 0.7in; }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #ffffff;
+    color: var(--navy-deep);
+    font-family: 'Gilroy', 'Inter', system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc { max-width: 700px; margin: 0 auto; }
+
+  /* ── Cover ─────────────────────────────────────── */
+  .cover {
+    padding: 0 0 22px;
+    border-bottom: 1px solid var(--stone);
+    margin-bottom: 24px;
+  }
+  .kicker {
+    font-weight: 500;
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0 0 10px;
+  }
+  .cover h1 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 30pt;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--navy-deep);
+    margin: 0 0 12px;
+  }
+  .cover h1 .accent { color: var(--oak); }
+  .cover .lede {
+    font-weight: 300;
+    font-size: 11.5pt;
+    line-height: 1.5;
+    color: var(--navy);
+    margin: 0;
+    max-width: 560px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 36px;
+    margin-top: 22px;
+    font-size: 9pt;
+  }
+  .cover-meta .item span:first-child {
+    display: block;
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 3px;
+  }
+  .cover-meta .item span:last-child {
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 10pt;
+  }
+
+  /* ── Section ─────────────────────────────────────── */
+  section.release {
+    padding: 14px 0 22px;
+    border-bottom: 1px solid var(--cream-dark);
+    page-break-inside: avoid;
+  }
+  section.release:last-of-type { border-bottom: none; }
+  section.release.new-page { page-break-before: always; }
+
+  .release-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    display: inline-block;
+    padding: 3px 11px;
+    border-radius: 40px;
+    background: var(--navy-deep);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 8.5pt;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .pill.is-major { background: var(--oak); }
+  .pill.is-hotfix { background: var(--gold); color: var(--navy-deep); }
+  .release-date {
+    font-size: 8.5pt;
+    font-weight: 500;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .release h2 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 16pt;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--navy-deep);
+    margin: 6px 0 10px;
+  }
+  .release h2 .accent { color: var(--oak); }
+
+  .release p.summary {
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--navy);
+    margin: 0 0 10px;
+    max-width: 620px;
+  }
+
+  .group-label {
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--oak);
+    margin: 14px 0 4px;
+  }
+
+  ul.changes {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 4px;
+  }
+  ul.changes li {
+    position: relative;
+    padding: 3px 0 3px 18px;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: var(--navy);
+    font-weight: 300;
+    page-break-inside: avoid;
+  }
+  ul.changes li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px;
+    width: 8px; height: 2px;
+    background: var(--oak);
+  }
+  ul.changes li strong {
+    font-weight: 800;
+    color: var(--navy-deep);
+  }
+  ul.changes li code {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 9pt;
+    background: var(--cream);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--navy-deep);
+  }
+
+  /* ── Footer ──────────────────────────────────────── */
+  .doc-foot {
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid var(--stone);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8.5pt;
+  }
+  .doc-foot .brand {
+    font-weight: 800;
+    color: var(--navy-deep);
+    letter-spacing: -0.01em;
+  }
+  .doc-foot .meta {
+    color: var(--dim);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ── COVER ─────────────────────────────────────── -->
+  <header class="cover">
+    <p class="kicker">Release notes · Hillside Community Church</p>
+    <h1>Church Event<br>Manager — <span class="accent">v1.6.1 → v1.9.0</span></h1>
+    <p class="lede">Twelve releases since the last changelog. Major: QR check-in, save-to-calendar, multi-meeting groups, editor redesign. Plus a stack of small fixes that close real holes — caching, timezone, trashed events, and date-entry typos.</p>
+    <div class="cover-meta">
+      <div class="item">
+        <span>Latest version</span>
+        <span>1.9.0</span>
+      </div>
+      <div class="item">
+        <span>Window</span>
+        <span>May 9 — May 12, 2026</span>
+      </div>
+      <div class="item">
+        <span>Releases shipped</span>
+        <span>12</span>
+      </div>
+      <div class="item">
+        <span>Prepared by</span>
+        <span>White Oak Media</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 1.9.0 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill is-major">v1.9.0</span>
+      <span class="release-date">May 12, 2026</span>
+    </div>
+    <h2>Per-event <span class="accent">check-in toggle</span></h2>
+    <p class="summary">Not every event needs attendance tracking. A food drive, a fundraiser, a drop-off collection — those don't need QR codes cluttering the confirmation email. New toggle in the event editor decides.</p>
+
+    <p class="group-label">In the event editor</p>
+    <ul class="changes">
+      <li>New checkbox under Sign-Up Settings: <strong>"Enable check-in for this event."</strong> Default unchecked. Opt-in per event.</li>
+    </ul>
+
+    <p class="group-label">What it gates</p>
+    <ul class="changes">
+      <li><strong>Confirmation email</strong> — QR code block only renders when check-in is on.</li>
+      <li><strong>Manage page</strong> — QR card only renders when check-in is on.</li>
+      <li><strong>Check-In screen dropdown</strong> — only events with check-in enabled appear there. Volunteers can't accidentally pick the wrong event.</li>
+      <li><strong>Walk-in endpoint</strong> — refuses requests for non-check-in events, server-side defense.</li>
+    </ul>
+
+    <p class="group-label">One-time cleanup needed</p>
+    <ul class="changes">
+      <li>After updating, open each event that actually needs check-in (CR Vet Dinner, OneMeal Packing, Park Outreach, Snack & Swap, Church Picnic, etc.) and tick the new box. ~5 minutes total.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.8.5 - 1.8.6 (Multi-day card design) ─────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.8.3 — 1.8.6</span>
+      <span class="release-date">May 12, 2026</span>
+    </div>
+    <h2>Multi-day events <span class="accent">show a date range</span> on the card</h2>
+    <p class="summary">Cards used to only show the start date for events spanning multiple days, which made it impossible to know when something actually ended. Now: a compact pill above the title reads "APR 30 → DEC 1, 2026" so the full range — including year — is visible at a glance.</p>
+    <ul class="changes">
+      <li>Same-year ranges show one year on the end: <code>MAY 1 → MAY 28, 2026</code>.</li>
+      <li>Cross-year ranges show year on both: <code>DEC 31, 2026 → JAN 5, 2027</code>.</li>
+      <li>Single-day events keep the existing prominent square date badge.</li>
+      <li>Three iterations of design polish to get the spacing right and stop the chip from squashing the rest of the card body on long ranges.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.8.4 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.8.4</span>
+      <span class="release-date">May 12, 2026</span>
+    </div>
+    <h2>Date-entry <span class="accent">guardrail</span> on event save</h2>
+    <p class="summary">A year-typo on an event's end date (e.g. 2027 instead of 2026) is invisible until it bites you — the event displays the right start date but never expires from the upcoming list. Two new save-time checks catch this.</p>
+    <ul class="changes">
+      <li><strong>Hard block:</strong> if end is before start, the end value isn't saved and you get a red error notice: "The end date is before the start date — your end date was not saved."</li>
+      <li><strong>Soft warning:</strong> if end is more than a year after start, the save proceeds but a yellow banner appears: "Heads up — this event runs for over a year. Did you mean to set the end date that far out?"</li>
+      <li>No interruption for normal saves. Only fires when something's actually off.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.8.2 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.8.2</span>
+      <span class="release-date">May 12, 2026</span>
+    </div>
+    <h2>Defense against <span class="accent">stale events</span> on the listing</h2>
+    <p class="summary">A trashed event was still appearing on the public listing because an upstream CDN was serving a cached version of the page. Even though the plugin's query already excluded the event, we added three layers of defensive filtering so a trashed or past event can never paint regardless of how stale the cache is.</p>
+    <ul class="changes">
+      <li>Query, post-query filter, and render loop each authoritatively re-check post_status and end-date.</li>
+      <li>Reads directly from the WordPress posts table at each stage — can't be fooled by stale post-meta or query filters.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.8.1 ─────────────────────────────────────── -->
+  <section class="release new-page">
+    <div class="release-head">
+      <span class="pill is-hotfix">v1.8.1 · hotfix</span>
+      <span class="release-date">May 10, 2026</span>
+    </div>
+    <h2>Group meeting times <span class="accent">no longer shift by hours</span></h2>
+    <p class="summary">Walking Group's Wednesday meeting was showing as 5pm on the public site but 12pm in admin — a 5-hour drift. Root cause: a timezone mismatch when rendering the group's time field. Fixed so admin and public always agree.</p>
+  </section>
+
+  <!-- ── 1.8.0 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill is-major">v1.8.0</span>
+      <span class="release-date">May 10, 2026</span>
+    </div>
+    <h2>QR check-in, webcam scanner, <span class="accent">save-to-calendar</span></h2>
+    <p class="summary">The biggest release in this window. Every registrant gets a personal QR code in their confirmation email. Volunteers scan them in with a phone or tablet camera. And every confirmation email got "Save to your calendar" buttons for Google, Apple, and Outlook.</p>
+
+    <p class="group-label">QR codes</p>
+    <ul class="changes">
+      <li>QR rendered on your own server (no third-party service). Cached as a PNG for fast loads.</li>
+      <li>Appears in the confirmation email and on the registrant's "Manage My Registration" page.</li>
+      <li>Plain black-and-white for maximum scanner reliability on any device.</li>
+    </ul>
+
+    <p class="group-label">Webcam check-in scanner</p>
+    <ul class="changes">
+      <li>New "Scan QR" button on the Check-In screen. Opens a live camera preview.</li>
+      <li><strong>Continuous mode:</strong> every successful scan auto-checks the person in. No tap needed. Volunteers walk down the line scanning each phone.</li>
+      <li>Auto-detects rear camera on tablets; switches between cameras if there's more than one.</li>
+      <li>Two-tone chime on success, soft buzz on error. Toggleable.</li>
+      <li>Three states: green "Checked in: [Name]", amber "Already checked in" (no double-counts), red "Not registered for this event."</li>
+    </ul>
+
+    <p class="group-label">Save to calendar</p>
+    <ul class="changes">
+      <li>Three pill buttons in the confirmation email: <strong>Google Calendar</strong>, <strong>Apple Calendar</strong>, <strong>Outlook</strong>.</li>
+      <li>One tap puts the event on the registrant's calendar with title, time, location, and event link pre-filled.</li>
+      <li>Covers ~99% of attendees regardless of their email/calendar setup.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.7.1 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill is-hotfix">v1.7.1 · hotfix</span>
+      <span class="release-date">May 10, 2026</span>
+    </div>
+    <h2>Registration <span class="accent">"Security check failed"</span> fix</h2>
+    <p class="summary">Some attendees were getting an error when submitting the registration form. Root cause: a security token baked into the event page was expiring after 24 hours, but the page itself was being cached for longer. The form now fetches a fresh token at submit time, immune to caching.</p>
+    <ul class="changes">
+      <li>Plugin-side fix is permanent — handles aggressive page caching, browser-tab-left-open-overnight, anything that makes the page older than its token.</li>
+      <li>User-facing error message also rewritten: "Your session expired — please refresh the page and try again" instead of the technical-sounding original.</li>
+      <li>Failures are now also reported to White Oak Media's monitoring dashboard so we see them before clients have to email about them.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.7.0 ─────────────────────────────────────── -->
+  <section class="release new-page">
+    <div class="release-head">
+      <span class="pill is-major">v1.7.0</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Groups can have <span class="accent">multiple meeting times</span></h2>
+    <p class="summary">Walking Group meets Tuesday at 6:30pm, Wednesday at noon, and Saturday at 9am. Before this release, that meant three separate "Walking Group" entries. Now: one group entry, three meeting times listed.</p>
+    <ul class="changes">
+      <li>New repeater table in the group editor: <strong>"+ Add another meeting time"</strong> for as many rows as needed.</li>
+      <li>Group cards on the listing page stack all meeting times under the calendar icon.</li>
+      <li>Single-group page lists every time in the schedule block.</li>
+      <li>Event calendar plots each meeting time on its respective day — a group meeting Tue/Wed/Sat shows up three times per week.</li>
+      <li>Existing single-meeting groups carry over automatically. Open one and you'll see the existing schedule already in row 1; tap "+ Add another" to add more.</li>
+    </ul>
+  </section>
+
+  <!-- ── 1.6.2 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.6.2</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Group editor gets the <span class="accent">UX redesign</span></h2>
+    <p class="summary">Groups now match the event editor's clean card-based layout. Six sections — Description, Type & Status, Schedule, Where it meets, Leadership & Contact, Options — each with its own icon and color-coded status pills.</p>
+  </section>
+
+  <!-- ── 1.6.1 ─────────────────────────────────────── -->
+  <section class="release">
+    <div class="release-head">
+      <span class="pill">v1.6.1</span>
+      <span class="release-date">May 9, 2026</span>
+    </div>
+    <h2>Event editor <span class="accent">UX redesign</span></h2>
+    <p class="summary">The "When & Where" and "Sign-Up Settings" meta boxes were a wall of uppercase labels with a confused field order. Rebuilt into clear visual sections.</p>
+    <ul class="changes">
+      <li>Six sections, each with its own icon: Date & Time, Location, Organizer, Pricing, Status, Recurrence.</li>
+      <li>Side-by-side fields where they pair naturally (start/end time, organizer name/email).</li>
+      <li>Status replaced from a one-option dropdown into a real <strong>Active / Postponed / Cancelled</strong> segmented pill control.</li>
+      <li>Cost field has a proper currency-prefix input (<code>$ 25.00</code>) instead of a stretched number box.</li>
+      <li>Sentence-case labels at normal weight — no more uppercase letter-spaced shouting.</li>
+    </ul>
+  </section>
+
+  <!-- ── FOOTER ────────────────────────────────────── -->
+  <footer class="doc-foot">
+    <span class="brand">White Oak Media</span>
+    <span class="meta">whiteoakmedia.io · Release log v1.6.1 → v1.9.0</span>
+  </footer>
+
+</div>
+</body>
+</html>

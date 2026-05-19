@@ -258,7 +258,15 @@ class CEM_Helpers {
 		$end_ts    = $end_dt ? strtotime( $end_dt ) : ( $start_ts + 3600 );
 
 		$title       = get_the_title( $event_id );
-		$description = wp_strip_all_tags( get_the_excerpt( $event_id ) );
+		// Build description WITHOUT touching get_the_excerpt() — that triggers
+		// the WP filter chain (strip_shortcodes → excerpt_remove_blocks →
+		// wp_trim_words) which can silently throw on sites running Elementor
+		// or other page builders. A failure here used to take down the entire
+		// email-send pipeline because this helper was called from inside
+		// get_template_vars(). Use the raw post_content directly instead.
+		$post        = get_post( $event_id );
+		$raw_content = $post ? $post->post_content : '';
+		$description = wp_trim_words( wp_strip_all_tags( strip_shortcodes( $raw_content ) ), 30 );
 		$url         = get_permalink( $event_id );
 		$location    = trim( implode( ', ', array_filter( [
 			get_post_meta( $event_id, '_cem_location', true ),

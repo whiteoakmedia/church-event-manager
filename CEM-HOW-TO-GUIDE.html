@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Church Event Manager — How-To Guide</title>
+<style>
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Light.otf') format('opentype');
+    font-weight: 300;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-Medium.ttf') format('truetype');
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: 'Gilroy';
+    src: url('file:///Users/zacharygreen/Obsidian/White%20Oak%20Media/white-oak-media/public/fonts/Gilroy-ExtraBold.otf') format('opentype');
+    font-weight: 800;
+  }
+
+  :root {
+    --oak:        #b45143;
+    --navy:       #2e3642;
+    --navy-deep:  #1a2029;
+    --cream:      #f3f1eb;
+    --cream-dark: #e8e2d6;
+    --stone:      #e0d4c1;
+    --dim:        #8a8275;
+    --gold:       #e8b252;
+  }
+
+  @page { size: Letter; margin: 0.55in 0.7in; }
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #fff;
+    color: var(--navy-deep);
+    font-family: 'Gilroy', 'Inter', system-ui, sans-serif;
+    font-weight: 300;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .doc { max-width: 700px; margin: 0 auto; }
+
+  /* ── Cover ──────────────────────────────────────── */
+  .cover {
+    padding: 0 0 22px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--stone);
+  }
+  .pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 40px;
+    background: var(--oak);
+    color: #fff;
+    font-weight: 800;
+    font-size: 9pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 32pt;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--navy-deep);
+    margin: 0 0 12px;
+  }
+  .cover h1 .accent { color: var(--oak); }
+  .cover .lede {
+    font-size: 12pt;
+    line-height: 1.55;
+    color: var(--navy);
+    margin: 0;
+    max-width: 580px;
+  }
+  .cover-meta {
+    display: flex; gap: 32px; margin-top: 22px; font-size: 9pt;
+  }
+  .cover-meta .item span:first-child {
+    display: block; font-weight: 500; font-size: 8pt;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 3px;
+  }
+  .cover-meta .item span:last-child {
+    font-weight: 800; color: var(--navy-deep); font-size: 10pt;
+  }
+
+  /* ── TOC ────────────────────────────────────────── */
+  .toc {
+    background: #fafaf8;
+    border: 1px solid var(--cream-dark);
+    border-radius: 6px;
+    padding: 16px 22px 14px;
+    margin: 6px 0 28px;
+  }
+  .toc h3 {
+    margin: 0 0 8px;
+    font-size: 9pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--oak);
+    font-weight: 500;
+  }
+  .toc ol {
+    margin: 0; padding-left: 20px;
+    counter-reset: chapter;
+    list-style: none;
+  }
+  .toc ol li {
+    counter-increment: chapter;
+    font-size: 10.5pt;
+    line-height: 1.65;
+    color: var(--navy);
+    position: relative;
+    padding-left: 22px;
+  }
+  .toc ol li::before {
+    content: counter(chapter, decimal-leading-zero);
+    position: absolute; left: -8px; top: 0;
+    font-weight: 800;
+    font-size: 9pt;
+    color: var(--oak);
+    letter-spacing: 0.05em;
+  }
+  .toc ol li strong { font-weight: 800; color: var(--navy-deep); }
+
+  /* ── Sections ───────────────────────────────────── */
+  section.chapter {
+    margin-bottom: 32px;
+    page-break-inside: avoid;
+  }
+  section.chapter.new-page { page-break-before: always; }
+
+  .chapter-head {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--stone);
+  }
+  .kicker {
+    display: block;
+    font-weight: 500;
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--oak);
+    margin-bottom: 6px;
+  }
+  h2 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 22pt;
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    color: var(--navy-deep);
+    margin: 0 0 6px;
+  }
+  h2 .accent { color: var(--oak); }
+  .chapter-lede {
+    font-size: 11pt;
+    line-height: 1.55;
+    color: var(--navy);
+    margin: 0;
+    max-width: 600px;
+  }
+
+  h3 {
+    font-family: 'Gilroy';
+    font-weight: 800;
+    font-size: 12pt;
+    color: var(--navy-deep);
+    margin: 18px 0 6px;
+    letter-spacing: -0.005em;
+  }
+
+  p { margin: 0 0 9px; }
+
+  /* ── Steps ──────────────────────────────────────── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 0 0 16px 42px;
+    counter-increment: step;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    page-break-inside: avoid;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--oak);
+    color: #fff;
+    font-weight: 800;
+    font-size: 11.5pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .steps li strong {
+    display: block;
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 10.5pt;
+    margin-bottom: 3px;
+  }
+  .steps li .step-detail {
+    color: var(--navy);
+    font-weight: 300;
+  }
+  .steps li code {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 9.5pt;
+    background: var(--cream);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ── Callouts ───────────────────────────────────── */
+  .callout {
+    background: #fafaf8;
+    border: 1px solid var(--cream-dark);
+    border-left: 4px solid var(--oak);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 14px 0;
+    font-size: 10.25pt;
+    line-height: 1.55;
+  }
+  .callout.is-warn { border-left-color: var(--gold); }
+  .callout.is-tip  { border-left-color: var(--navy); }
+  .callout strong { font-weight: 800; color: var(--navy-deep); }
+  .callout-label {
+    display: inline-block;
+    font-weight: 800;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--oak);
+    margin-right: 6px;
+  }
+  .callout.is-warn .callout-label { color: var(--gold); color: #a07000; }
+  .callout.is-tip  .callout-label { color: var(--navy); }
+
+  /* ── Mini table ─────────────────────────────────── */
+  table.minitable {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 10pt;
+  }
+  table.minitable th, table.minitable td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--cream-dark);
+    vertical-align: top;
+  }
+  table.minitable th {
+    background: #fafaf8;
+    font-weight: 800;
+    color: var(--navy-deep);
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  table.minitable td:first-child {
+    font-weight: 800;
+    color: var(--navy-deep);
+    white-space: nowrap;
+    width: 32%;
+  }
+
+  /* ── Footer ─────────────────────────────────────── */
+  .doc-foot {
+    margin-top: 28px;
+    padding-top: 14px;
+    border-top: 1px solid var(--stone);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 8.5pt;
+  }
+  .doc-foot .brand {
+    font-weight: 800;
+    color: var(--navy-deep);
+    letter-spacing: -0.01em;
+  }
+  .doc-foot .meta {
+    color: var(--dim);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ── COVER ──────────────────────────────────── -->
+  <header class="cover">
+    <span class="pill">How-to guide</span>
+    <h1>Church Event Manager — <span class="accent">how-to guide</span></h1>
+    <p class="lede">Everything you and your team need to do in the plugin: adding events, managing groups with multiple meeting times, enabling check-in, scanning QR codes, adding walk-ins. Written for the volunteer or staff member running an event — not the developer.</p>
+    <div class="cover-meta">
+      <div class="item"><span>Covers</span><span>Plugin v1.9.0</span></div>
+      <div class="item"><span>Audience</span><span>Admin + volunteers</span></div>
+      <div class="item"><span>Read time</span><span>~10 minutes</span></div>
+      <div class="item"><span>Prepared by</span><span>White Oak Media</span></div>
+    </div>
+  </header>
+
+  <!-- ── TOC ────────────────────────────────────── -->
+  <nav class="toc">
+    <h3>What's inside</h3>
+    <ol>
+      <li><strong>Adding a new event</strong> — the redesigned event editor</li>
+      <li><strong>Multi-day events</strong> — events that span more than one day</li>
+      <li><strong>Enabling check-in</strong> — when to turn QR check-in on or off</li>
+      <li><strong>Running check-in at an event</strong> — the QR scanner</li>
+      <li><strong>Adding walk-ins</strong> — people who show up without registering</li>
+      <li><strong>Multi-time groups</strong> — when one group meets on different days</li>
+      <li><strong>Bonus features</strong> — save-to-calendar, date warnings</li>
+      <li><strong>Quick reference</strong> — visual cues + common questions</li>
+    </ol>
+  </nav>
+
+  <!-- ── 1. ADDING A NEW EVENT ──────────────────── -->
+  <section class="chapter new-page">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 1</span>
+      <h2>Adding a <span class="accent">new event</span></h2>
+      <p class="chapter-lede">The event editor was rebuilt into clean, sectioned cards. Each section handles one job — when, where, who, how much, status, and recurrence.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <strong>Go to Church Events → Add New Event</strong>
+        <span class="step-detail">From your WordPress admin sidebar.</span>
+      </li>
+      <li>
+        <strong>Type a title at the top</strong>
+        <span class="step-detail">This is what shows up on cards and emails. Be specific — "Spring Women's Retreat 2026" beats "Retreat."</span>
+      </li>
+      <li>
+        <strong>Fill in Date & Time</strong>
+        <span class="step-detail">Pick a start date and time. End is optional — set it for events with a clear stopping point (dinners, retreats). Skip it for casual drop-ins.</span>
+      </li>
+      <li>
+        <strong>Add Location</strong>
+        <span class="step-detail">Venue or room name plus full street address. If you've got a Google Maps link, paste it — registrants get a tappable map link in their confirmation. Toggle "online or hybrid" if there's a stream component.</span>
+      </li>
+      <li>
+        <strong>Set Organizer</strong>
+        <span class="step-detail">Name and email of whoever is running the event. The email becomes the "Reply-To" on the confirmation so registrants can reach the right person.</span>
+      </li>
+      <li>
+        <strong>Pricing (optional)</strong>
+        <span class="step-detail">Leave blank for free events. Enter <code>0.00</code> to display "Free" on the card. For tiered pricing (Adult / Student / Child), use the Pricing tiers section in Sign-Up Settings further down.</span>
+      </li>
+      <li>
+        <strong>Status</strong>
+        <span class="step-detail">Three pills: Active (green), Postponed (amber), Cancelled (red). Click whichever applies. Defaults to Active.</span>
+      </li>
+      <li>
+        <strong>Recurrence (optional)</strong>
+        <span class="step-detail">Toggle on if this event repeats. Choose Daily / Weekly / Monthly, pick which days, optionally set an end date. The plugin generates the future occurrences for you.</span>
+      </li>
+      <li>
+        <strong>Set capacity + deadlines in Sign-Up Settings</strong>
+        <span class="step-detail">Maximum attendees, max guests one person can sign up, sign-up deadline, and "Sign-up status" (Open / Closed). Capacity 0 means unlimited.</span>
+      </li>
+      <li>
+        <strong>Click Publish</strong>
+        <span class="step-detail">Event goes live on the events page. Registrations can come in immediately.</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ── 2. MULTI-DAY EVENTS ────────────────────── -->
+  <section class="chapter">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 2</span>
+      <h2>Multi-day <span class="accent">events</span></h2>
+      <p class="chapter-lede">For events that span multiple calendar days — a Friday-to-Sunday retreat, a week-long camp, a multi-day conference — the card automatically shows a clean date-range pill instead of just a start date.</p>
+    </div>
+
+    <h3>How it looks on the public site</h3>
+    <table class="minitable">
+      <thead><tr><th>Type</th><th>What the card shows</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Same-day event</td>
+          <td>Big square pill — month over day, e.g. MAY / 17</td>
+        </tr>
+        <tr>
+          <td>Multi-day, same year</td>
+          <td>Compact horizontal pill, year on the end: <code>JUN 6 → JUN 8, 2026</code></td>
+        </tr>
+        <tr>
+          <td>Multi-day, different years</td>
+          <td>Year on both: <code>DEC 31, 2026 → JAN 5, 2027</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>How to set it up</h3>
+    <p>Nothing different from a normal event. Just set a start date AND an end date that falls on a different calendar day. The card display switches automatically.</p>
+
+    <div class="callout is-warn">
+      <span class="callout-label">Heads up</span>
+      <strong>Watch the year.</strong> If you accidentally set an end date a year out from when you meant — by mistyping 2027 instead of 2026 — the plugin now catches it. You'll see a yellow warning when you click Update: "Heads up — this event runs for over a year." Double-check the year and update again. If it really is a multi-year event (rare, but real), the warning is dismissible.
+    </div>
+  </section>
+
+  <!-- ── 3. ENABLING CHECK-IN ───────────────────── -->
+  <section class="chapter new-page">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 3</span>
+      <h2>Enabling <span class="accent">check-in</span> for an event</h2>
+      <p class="chapter-lede">Some events need attendance tracking (dinners, retreats, kids' programs). Others don't (food drives, fundraisers, drop-off collections). The plugin makes this a per-event choice so the right events get QR codes and the rest stay clean.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <strong>Edit the event</strong>
+        <span class="step-detail">Church Events → All Events → click the event title.</span>
+      </li>
+      <li>
+        <strong>Scroll to Sign-Up Settings</strong>
+        <span class="step-detail">It's the meta box below "When & Where."</span>
+      </li>
+      <li>
+        <strong>Check "Enable check-in for this event"</strong>
+        <span class="step-detail">The second checkbox in the section. Reads: "Adds a QR code to confirmation emails and the registrant's manage page, and lists this event on the Check-In screen."</span>
+      </li>
+      <li>
+        <strong>Update</strong>
+        <span class="step-detail">From this moment on, every new confirmation email for this event includes a QR code. Existing registrants get the QR too — it's on their "Manage My Registration" page even if their email predates the toggle.</span>
+      </li>
+    </ol>
+
+    <div class="callout is-tip">
+      <span class="callout-label">Decision rule</span>
+      Turn check-in <strong>on</strong> when you want to know who actually walked through the door. Turn it <strong>off</strong> when registration alone is the goal (someone signed up, someone got a confirmation, done).
+    </div>
+
+    <h3>Examples</h3>
+    <table class="minitable">
+      <thead><tr><th>Event</th><th>Check-in?</th></tr></thead>
+      <tbody>
+        <tr><td>Easter Service registration</td><td>On — you want a head count at the door</td></tr>
+        <tr><td>Men's Retreat</td><td>On — multi-day event, paid, attendance matters</td></tr>
+        <tr><td>Kids' Camp</td><td>On — safety + attendance</td></tr>
+        <tr><td>Food drive collection</td><td>Off — people drop cans, you don't track who showed up</td></tr>
+        <tr><td>Online giving campaign</td><td>Off — no in-person attendance</td></tr>
+        <tr><td>Bake sale (drop-in)</td><td>Off — public foot traffic, no list</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 4. RUNNING CHECK-IN ────────────────────── -->
+  <section class="chapter new-page">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 4</span>
+      <h2>Running check-in <span class="accent">at the event</span></h2>
+      <p class="chapter-lede">Volunteers point a phone or tablet camera at each registrant's QR. The scanner stays open and chimes for each successful scan. No app to install.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <strong>Open the Check-In screen</strong>
+        <span class="step-detail">In WordPress admin: Church Events → Check-In. Use any device with a camera — laptop, iPad, your phone.</span>
+      </li>
+      <li>
+        <strong>Pick the event from the dropdown</strong>
+        <span class="step-detail">Only events with check-in enabled appear. Events happening today are tagged "TODAY." Pick the right one — once selected, the scanner becomes available.</span>
+      </li>
+      <li>
+        <strong>Tap "📷 Scan QR"</strong>
+        <span class="step-detail">A modal opens with a live camera preview. First time you do this on a device, the browser asks permission to use the camera. Say yes once; it remembers.</span>
+      </li>
+      <li>
+        <strong>Hold the camera up to each registrant's QR</strong>
+        <span class="step-detail">As soon as the code's in frame, you'll hear a soft "ka-ching" chime and a green banner reads "✓ Checked in: [Name]." The scanner stays open — move to the next person without tapping anything.</span>
+      </li>
+      <li>
+        <strong>If something's off, the scanner tells you</strong>
+        <span class="step-detail">Amber banner: "Already checked in: [Name]" — no double-counts. Red banner with a low buzz: "Not registered for this event" — wrong event or wrong QR. Just keep going.</span>
+      </li>
+      <li>
+        <strong>Close the scanner when the line clears</strong>
+        <span class="step-detail">Tap the X or press Escape. The screen returns to the full list, where you can still search by name and tap individual cards for the rest of the event.</span>
+      </li>
+    </ol>
+
+    <div class="callout is-tip">
+      <span class="callout-label">Tip</span>
+      Phones typically display the QR right in the email preview — registrants don't even have to open the email. If their phone is dead, the QR is also on their "Manage My Registration" page (link in the confirmation), or use name search instead.
+    </div>
+  </section>
+
+  <!-- ── 5. WALK-INS ────────────────────────────── -->
+  <section class="chapter">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 5</span>
+      <h2>Adding <span class="accent">walk-ins</span></h2>
+      <p class="chapter-lede">Someone shows up who didn't register. Instead of bouncing them to the registration form, your volunteer adds them on the spot — registered AND checked in in one tap.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <strong>On the Check-In screen, click "+ Add Walk-in"</strong>
+        <span class="step-detail">Next to the "Scan QR" button. Only available once an event is selected, and only for events with check-in enabled.</span>
+      </li>
+      <li>
+        <strong>Type first name and last name</strong>
+        <span class="step-detail">These are required. Email and phone are optional — leave blank if you don't have them. A placeholder email is generated automatically so the duplicate check still works.</span>
+      </li>
+      <li>
+        <strong>Set number of attendees</strong>
+        <span class="step-detail">Defaults to 1. If it's a family of four, enter 4.</span>
+      </li>
+      <li>
+        <strong>Click "Add & Check In"</strong>
+        <span class="step-detail">The person is registered, confirmed, AND checked in — all in one shot. The list refreshes automatically so you can see them in the registrant list with a green "Checked In" badge.</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ── 6. MULTI-TIME GROUPS ───────────────────── -->
+  <section class="chapter new-page">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 6</span>
+      <h2>Groups with <span class="accent">multiple meeting times</span></h2>
+      <p class="chapter-lede">Some groups meet on more than one day — a walking group on Tuesday, Wednesday, AND Saturday. Instead of three separate "Walking Group" entries, you create one group and list all the times under it.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <strong>Go to Church Events → Add New Group</strong>
+        <span class="step-detail">Or edit an existing group.</span>
+      </li>
+      <li>
+        <strong>Fill in the basics</strong>
+        <span class="step-detail">Description, Type & Status, leadership, location — same as before.</span>
+      </li>
+      <li>
+        <strong>Scroll to the Meeting Times section</strong>
+        <span class="step-detail">You'll see a repeater table with columns for How Often, Day, Time, and a remove button.</span>
+      </li>
+      <li>
+        <strong>Fill row 1 with your first meeting time</strong>
+        <span class="step-detail">e.g. Weekly · Tuesday · 6:30 PM.</span>
+      </li>
+      <li>
+        <strong>Click "+ Add another meeting time" for each additional day</strong>
+        <span class="step-detail">Add as many rows as you need. e.g. Weekly · Wednesday · 12:00 PM. Weekly · Saturday · 9:00 AM.</span>
+      </li>
+      <li>
+        <strong>Remove a row by clicking the trash icon on its right</strong>
+        <span class="step-detail">The last remaining row can't be deleted — it just clears its values instead.</span>
+      </li>
+      <li>
+        <strong>Click Publish or Update</strong>
+        <span class="step-detail">The group's card and detail page will list all the meeting times stacked under the calendar icon. The events calendar (if you use the calendar shortcode) plots each meeting on its respective day.</span>
+      </li>
+    </ol>
+
+    <div class="callout is-tip">
+      <span class="callout-label">Migrating</span>
+      If you've already got three "Walking Group" entries because the old version only allowed one meeting time, consolidate: pick one to keep, add the other times to it, then move the duplicates to Trash.
+    </div>
+  </section>
+
+  <!-- ── 7. BONUS FEATURES ──────────────────────── -->
+  <section class="chapter">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 7</span>
+      <h2>Bonus features <span class="accent">you don't have to do anything for</span></h2>
+      <p class="chapter-lede">These work automatically — no setup, no toggles. Just know they're there so you can answer questions when registrants ask.</p>
+    </div>
+
+    <h3>Save to Calendar buttons</h3>
+    <p>Every confirmation email now has three buttons under the event info: <strong>Google Calendar</strong>, <strong>Apple Calendar</strong>, <strong>Outlook</strong>. One tap puts the event on the registrant's calendar with the title, time, location, and link pre-filled. No action needed from you.</p>
+
+    <h3>Date-typo warnings</h3>
+    <p>When you save an event with weird dates, the plugin catches the obvious mistakes:</p>
+    <ul class="changes" style="list-style:none;padding:0;margin:8px 0 0">
+      <li style="position:relative;padding:3px 0 3px 18px;font-size:10pt;line-height:1.5;color:var(--navy)"><span style="position:absolute;left:0;top:12px;width:8px;height:2px;background:var(--oak);display:block"></span><strong>End before start</strong> — saves blocked, red error: "Your end date was not saved." Fix and resubmit.</li>
+      <li style="position:relative;padding:3px 0 3px 18px;font-size:10pt;line-height:1.5;color:var(--navy)"><span style="position:absolute;left:0;top:12px;width:8px;height:2px;background:var(--oak);display:block"></span><strong>End more than a year out</strong> — yellow warning: "Heads up — this event runs for over a year. Did you mean to set the end date that far out?"</li>
+    </ul>
+
+    <h3>"Past" status badge</h3>
+    <p>In the admin events list, every event has a small status pill: <strong>Upcoming</strong>, <strong>Past</strong>, <strong>Cancelled</strong>, or <strong>Postponed</strong>. Past events stay published (so registrations are preserved for reporting) but disappear from the public listing automatically.</p>
+  </section>
+
+  <!-- ── 8. QUICK REFERENCE ─────────────────────── -->
+  <section class="chapter new-page">
+    <div class="chapter-head">
+      <span class="kicker">Chapter 8</span>
+      <h2>Quick reference <span class="accent">+ FAQ</span></h2>
+      <p class="chapter-lede">Visual cues you'll see across the plugin, plus answers to the questions we get asked most.</p>
+    </div>
+
+    <h3>Status pills you'll see</h3>
+    <table class="minitable">
+      <tbody>
+        <tr><td>Green "Active"</td><td>Event is happening as scheduled.</td></tr>
+        <tr><td>Green "Open"</td><td>(Groups) Accepting new members.</td></tr>
+        <tr><td>Amber "Postponed"</td><td>Event delayed; registrations preserved.</td></tr>
+        <tr><td>Red "Cancelled"</td><td>Event will not happen; no new registrations accepted.</td></tr>
+        <tr><td>Gray "Past"</td><td>Event has ended. No longer visible on public listing.</td></tr>
+        <tr><td>Amber "Full"</td><td>(Groups) At capacity; new sign-ups blocked.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Frequently asked</h3>
+
+    <p><strong>I changed an event but the website still shows the old version.</strong><br>
+    Caching. Wait a few minutes or hard-refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows). If it's still off after an hour, message us.</p>
+
+    <p><strong>A registrant says they got a "Security check failed" error.</strong><br>
+    This was fixed in v1.7.1 — should no longer happen. If you still see it reported, let us know and we'll investigate.</p>
+
+    <p><strong>How do I see who's registered for an event?</strong><br>
+    Church Events → Registrations. Filter by event in the dropdown. Export CSV if you need it offline.</p>
+
+    <p><strong>How do I delete a registration?</strong><br>
+    From the Registrations table, click the trash icon on the row. You'll get a confirmation prompt that names the person being deleted so you don't fat-finger it.</p>
+
+    <p><strong>Why doesn't this event appear on the Check-In screen?</strong><br>
+    Check-in isn't enabled for it. Edit the event, scroll to Sign-Up Settings, check "Enable check-in for this event," and Update. See Chapter 3.</p>
+
+    <p><strong>Can someone print their QR instead of using their phone?</strong><br>
+    Yes. The QR is on the manage-registration page as well as in the email. Prints fine; the scanner reads it off paper.</p>
+
+    <p><strong>What if my internet goes out during check-in?</strong><br>
+    Once the check-in screen has loaded the event list, scans work against that loaded list. You only need internet when you first open the page.</p>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────── -->
+  <footer class="doc-foot">
+    <span class="brand">White Oak Media</span>
+    <span class="meta">whiteoakmedia.io · CEM how-to guide · v1.9.0</span>
+  </footer>
+
+</div>
+</body>
+</html>
