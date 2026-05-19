@@ -1029,6 +1029,7 @@ class CEM_Admin {
 			<nav class="nav-tab-wrapper">
 				<a href="?page=cem-emails&tab=compose" class="nav-tab <?php echo $tab==='compose' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Compose & Send','church-event-manager'); ?></a>
 				<a href="?page=cem-emails&tab=log"     class="nav-tab <?php echo $tab==='log'     ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Email Log','church-event-manager'); ?></a>
+				<a href="?page=cem-emails&tab=diagnostics" class="nav-tab <?php echo $tab==='diagnostics' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Diagnostics','church-event-manager'); ?></a>
 			</nav>
 
 			<?php if ( $tab === 'compose' ) : ?>
@@ -1114,6 +1115,69 @@ class CEM_Admin {
 				</div>
 
 				<div id="cem-email-result"></div>
+			</div>
+
+			<?php elseif ( $tab === 'diagnostics' ) :
+				$recent  = get_option( 'cem_email_recent_attempts', [] );
+				$lastErr = get_option( 'cem_last_notification_error', null );
+			?>
+			<div class="cem-card">
+				<h2><?php esc_html_e( 'Email Pipeline Diagnostics', 'church-event-manager' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Use this when emails appear to be missing. Recent Attempts shows every call into the send pipeline (even ones that errored before the Email Log row was written). Last Notification Error shows the most recent thrown exception from send_confirmation / send_admin_notification.', 'church-event-manager' ); ?></p>
+
+				<h3><?php esc_html_e( 'Last Notification Error', 'church-event-manager' ); ?></h3>
+				<?php if ( empty( $lastErr ) ) : ?>
+					<p class="cem-muted"><?php esc_html_e( 'No errors recorded.', 'church-event-manager' ); ?></p>
+				<?php else : ?>
+					<table class="widefat striped">
+						<tbody>
+							<tr><th style="width:160px"><?php esc_html_e( 'Time', 'church-event-manager' ); ?></th><td><?php echo esc_html( $lastErr['time'] ?? '' ); ?></td></tr>
+							<tr><th><?php esc_html_e( 'Where', 'church-event-manager' ); ?></th><td><?php echo esc_html( $lastErr['where'] ?? '' ); ?></td></tr>
+							<tr><th><?php esc_html_e( 'Registration', 'church-event-manager' ); ?></th><td><?php echo esc_html( $lastErr['reg_id'] ?? '' ); ?></td></tr>
+							<tr><th><?php esc_html_e( 'Message', 'church-event-manager' ); ?></th><td><code><?php echo esc_html( $lastErr['message'] ?? '' ); ?></code></td></tr>
+							<tr><th><?php esc_html_e( 'File', 'church-event-manager' ); ?></th><td><code><?php echo esc_html( $lastErr['file'] ?? '' ); ?></code></td></tr>
+						</tbody>
+					</table>
+				<?php endif; ?>
+
+				<h3 style="margin-top:24px"><?php esc_html_e( 'Recent Send Attempts (last 10)', 'church-event-manager' ); ?></h3>
+				<?php if ( empty( $recent ) ) : ?>
+					<p class="cem-muted"><?php esc_html_e( 'No send attempts recorded since v1.9.3. If a registration completes and nothing appears here, CEM_Email::send() was never called — the failure is upstream (CEM_Notifications or CEM_Registration::create).', 'church-event-manager' ); ?></p>
+				<?php else : ?>
+					<table class="wp-list-table widefat fixed striped">
+						<thead><tr>
+							<th style="width:150px"><?php esc_html_e( 'Time', 'church-event-manager' ); ?></th>
+							<th style="width:140px"><?php esc_html_e( 'Status', 'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'To', 'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Subject', 'church-event-manager' ); ?></th>
+							<th style="width:120px"><?php esc_html_e( 'Type', 'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Error', 'church-event-manager' ); ?></th>
+						</tr></thead>
+						<tbody>
+						<?php foreach ( (array) $recent as $r ) : ?>
+							<tr>
+								<td class="cem-muted"><?php echo esc_html( $r['time'] ?? '' ); ?></td>
+								<td><code><?php echo esc_html( $r['status'] ?? '' ); ?></code></td>
+								<td><?php echo esc_html( $r['to'] ?? '' ); ?></td>
+								<td><?php echo esc_html( $r['subject'] ?? '' ); ?></td>
+								<td><span class="cem-badge"><?php echo esc_html( $r['type'] ?? '' ); ?></span></td>
+								<td><?php echo $r['error'] ? '<code>' . esc_html( $r['error'] ) . '</code>' : '<span class="cem-muted">—</span>'; ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				<?php endif; ?>
+
+				<h3 style="margin-top:24px"><?php esc_html_e( 'Environment', 'church-event-manager' ); ?></h3>
+				<table class="widefat striped">
+					<tbody>
+						<tr><th style="width:200px"><?php esc_html_e( 'Plugin Version', 'church-event-manager' ); ?></th><td><?php echo esc_html( defined('CEM_VERSION') ? CEM_VERSION : '?' ); ?></td></tr>
+						<tr><th><?php esc_html_e( 'From Name', 'church-event-manager' ); ?></th><td><?php echo esc_html( get_option( 'cem_from_name', get_bloginfo( 'name' ) ) ); ?></td></tr>
+						<tr><th><?php esc_html_e( 'From Email', 'church-event-manager' ); ?></th><td><?php echo esc_html( get_option( 'cem_from_email', get_option( 'admin_email' ) ) ); ?></td></tr>
+						<tr><th><?php esc_html_e( 'Admin Notify Email', 'church-event-manager' ); ?></th><td><?php echo esc_html( get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) ) ); ?></td></tr>
+						<tr><th><?php esc_html_e( 'wp_mail Override', 'church-event-manager' ); ?></th><td><?php echo function_exists('wp_mail') ? 'available' : 'MISSING'; ?> · SMTP plugin: <?php echo ( defined('WPMS_ON') || class_exists('WPMailSMTP\\Core') ) ? 'WP Mail SMTP active' : 'not detected'; ?></td></tr>
+					</tbody>
+				</table>
 			</div>
 
 			<?php else : // log tab ?>

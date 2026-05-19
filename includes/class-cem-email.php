@@ -29,7 +29,27 @@ class CEM_Email {
 		];
 		$args = wp_parse_args( $args, $defaults );
 
+		// Bulletproof send: this function now ALWAYS writes a log entry,
+		// even on early returns and exceptions, so the Email Log in admin
+		// reflects every attempt with a clear status + reason. Empty log
+		// = function never called. Anything else means we got here and
+		// the row tells you what happened.
+		$base_log = [
+			'event_id'        => $args['event_id'],
+			'registration_id' => $args['registration_id'],
+			'to_email'        => (string) $args['to_email'],
+			'to_name'         => $args['to_name'],
+			'subject'         => (string) $args['subject'],
+			'message'         => '',
+			'type'            => $args['type'],
+		];
+
 		if ( empty( $args['to_email'] ) || empty( $args['subject'] ) ) {
+			self::log( array_merge( $base_log, [
+				'status'        => 'failed',
+				'error_message' => 'empty to_email or subject',
+			] ) );
+			self::record_last_attempt( 'returned_early_empty_field', $args );
 			return false;
 		}
 
@@ -50,6 +70,11 @@ class CEM_Email {
 		$recipients = array_values( array_filter( array_map( 'sanitize_email', (array) $recipients ), 'is_email' ) );
 
 		if ( empty( $recipients ) ) {
+			self::log( array_merge( $base_log, [
+				'status'        => 'failed',
+				'error_message' => 'no valid recipients after parsing: ' . substr( $args['to_email'], 0, 200 ),
+			] ) );
+			self::record_last_attempt( 'returned_early_no_recipients', $args );
 			return false;
 		}
 
@@ -62,11 +87,23 @@ class CEM_Email {
 			$to = $recipients;
 		}
 
-		$message = self::wrap_in_layout( $args['message'], $args['subject'] );
+		// Wrap layout building AND wp_mail in try/catch so a throw from a
+		// third-party SMTP plugin / wp_mail filter can't kill the log write.
+		$sent          = false;
+		$error_message = null;
+		$message       = '';
 
-		$sent = wp_mail( $to, $args['subject'], $message, $headers );
+		try {
+			$message = self::wrap_in_layout( $args['message'], $args['subject'] );
+			$sent    = wp_mail( $to, $args['subject'], $message, $headers );
+		} catch ( \Throwable $e ) {
+			$error_message = 'Exception during wp_mail: ' . $e->getMessage();
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, 'CEM_Email::send wp_mail' );
+			}
+		}
 
-		// Log
+		// Always log — even on exception.
 		self::log( [
 			'event_id'        => $args['event_id'],
 			'registration_id' => $args['registration_id'],
@@ -76,9 +113,33 @@ class CEM_Email {
 			'message'         => $message,
 			'type'            => $args['type'],
 			'status'          => $sent ? 'sent' : 'failed',
+			'error_message'   => $error_message ?: ( $sent ? null : 'wp_mail returned false' ),
 		] );
 
+		self::record_last_attempt( $sent ? 'sent' : 'failed', $args, $error_message );
+
 		return $sent;
+	}
+
+	/**
+	 * Captures a compact record of the most recent send attempt in a
+	 * wp_option so an admin can inspect the email pipeline state without
+	 * needing server log access. Kept as a rolling list of the last 10
+	 * attempts.
+	 */
+	private static function record_last_attempt( $status, array $args, $error_message = null ) {
+		$log = get_option( 'cem_email_recent_attempts', [] );
+		if ( ! is_array( $log ) ) $log = [];
+		array_unshift( $log, [
+			'time'    => current_time( 'mysql' ),
+			'status'  => $status,
+			'to'      => $args['to_email'] ?? '',
+			'subject' => substr( $args['subject'] ?? '', 0, 160 ),
+			'type'    => $args['type'] ?? '',
+			'error'   => $error_message,
+		] );
+		$log = array_slice( $log, 0, 10 );
+		update_option( 'cem_email_recent_attempts', $log, false );
 	}
 
 	// ── Bulk Send ─────────────────────────────────────────────────────────────
@@ -127,27 +188,41 @@ class CEM_Email {
 	// ── Confirmation Email ────────────────────────────────────────────────────
 
 	public static function send_confirmation( $registration_id ) {
-		$reg   = CEM_Registration::get( $registration_id );
-		if ( ! $reg ) return false;
+		try {
+			$reg   = CEM_Registration::get( $registration_id );
+			if ( ! $reg ) return false;
 
-		$event = get_post( $reg->event_id );
-		$vars  = self::get_template_vars( $reg, $event );
+			$event = get_post( $reg->event_id );
+			$vars  = self::get_template_vars( $reg, $event );
 
-		$subject = CEM_Helpers::parse_template(
-			get_option( 'cem_confirmation_subject', 'Registration Confirmed – {event_title}' ),
-			$vars
-		);
-		$message = self::load_template( 'confirmation', $vars );
+			$subject = CEM_Helpers::parse_template(
+				get_option( 'cem_confirmation_subject', 'Registration Confirmed – {event_title}' ),
+				$vars
+			);
+			$message = self::load_template( 'confirmation', $vars );
 
-		return self::send( [
-			'to_email'        => $reg->email,
-			'to_name'         => trim( $reg->first_name . ' ' . $reg->last_name ),
-			'subject'         => $subject,
-			'message'         => $message,
-			'event_id'        => $reg->event_id,
-			'registration_id' => $registration_id,
-			'type'            => 'confirmation',
-		] );
+			return self::send( [
+				'to_email'        => $reg->email,
+				'to_name'         => trim( $reg->first_name . ' ' . $reg->last_name ),
+				'subject'         => $subject,
+				'message'         => $message,
+				'event_id'        => $reg->event_id,
+				'registration_id' => $registration_id,
+				'type'            => 'confirmation',
+			] );
+		} catch ( \Throwable $e ) {
+			update_option( 'cem_last_notification_error', [
+				'time'    => current_time( 'mysql' ),
+				'where'   => 'send_confirmation',
+				'reg_id'  => $registration_id,
+				'message' => $e->getMessage(),
+				'file'    => $e->getFile() . ':' . $e->getLine(),
+			], false );
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, 'CEM_Email::send_confirmation' );
+			}
+			return false;
+		}
 	}
 
 	// ── Reminder Email ────────────────────────────────────────────────────────
@@ -205,38 +280,52 @@ class CEM_Email {
 	// ── Admin Notification ────────────────────────────────────────────────────
 
 	public static function send_admin_notification( $registration_id ) {
-		$reg   = CEM_Registration::get( $registration_id );
-		if ( ! $reg ) return false;
+		try {
+			$reg   = CEM_Registration::get( $registration_id );
+			if ( ! $reg ) return false;
 
-		$event     = get_post( $reg->event_id );
-		$admin_url = admin_url( 'admin.php?page=cem-registrations&event_id=' . $reg->event_id );
-		$vars      = array_merge( self::get_template_vars( $reg, $event ), [
-			'admin_url' => $admin_url,
-		] );
+			$event     = get_post( $reg->event_id );
+			$admin_url = admin_url( 'admin.php?page=cem-registrations&event_id=' . $reg->event_id );
+			$vars      = array_merge( self::get_template_vars( $reg, $event ), [
+				'admin_url' => $admin_url,
+			] );
 
-		$message = self::load_template( 'admin-notification', $vars );
-		$subject = sprintf(
-			__( 'New Registration: %s – %s %s', 'church-event-manager' ),
-			$event ? $event->post_title : 'Event #' . $reg->event_id,
-			$reg->first_name, $reg->last_name
-		);
+			$message = self::load_template( 'admin-notification', $vars );
+			$subject = sprintf(
+				__( 'New Registration: %s – %s %s', 'church-event-manager' ),
+				$event ? $event->post_title : 'Event #' . $reg->event_id,
+				$reg->first_name, $reg->last_name
+			);
 
-		// Use the per-event organizer email if set, otherwise fall back to the
-		// global notify address, then the site admin email.
-		$organizer_email = $event
-			? sanitize_email( get_post_meta( $event->ID, '_cem_organizer_email', true ) )
-			: '';
-		$to_email = $organizer_email
-			?: get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) );
+			// Use the per-event organizer email if set, otherwise fall back to the
+			// global notify address, then the site admin email.
+			$organizer_email = $event
+				? sanitize_email( get_post_meta( $event->ID, '_cem_organizer_email', true ) )
+				: '';
+			$to_email = $organizer_email
+				?: get_option( 'cem_admin_notify_email', get_option( 'admin_email' ) );
 
-		return self::send( [
-			'to_email'        => $to_email,
-			'subject'         => $subject,
-			'message'         => $message,
-			'event_id'        => $reg->event_id,
-			'registration_id' => $registration_id,
-			'type'            => 'admin_notification',
-		] );
+			return self::send( [
+				'to_email'        => $to_email,
+				'subject'         => $subject,
+				'message'         => $message,
+				'event_id'        => $reg->event_id,
+				'registration_id' => $registration_id,
+				'type'            => 'admin_notification',
+			] );
+		} catch ( \Throwable $e ) {
+			update_option( 'cem_last_notification_error', [
+				'time'    => current_time( 'mysql' ),
+				'where'   => 'send_admin_notification',
+				'reg_id'  => $registration_id,
+				'message' => $e->getMessage(),
+				'file'    => $e->getFile() . ':' . $e->getLine(),
+			], false );
+			if ( class_exists( 'CEM_Error_Reporter' ) ) {
+				CEM_Error_Reporter::report_exception( $e, 'CEM_Email::send_admin_notification' );
+			}
+			return false;
+		}
 	}
 
 	// ── Waitlist Promotion Email ──────────────────────────────────────────────
