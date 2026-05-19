@@ -86,7 +86,21 @@ class CEM_Public {
 
 	public function rest_serve_nonce( $request ) {
 		// Defensive headers: stop every layer from caching this response.
+		//
+		// nocache_headers() alone wasn't enough on sites behind Bunny CDN —
+		// Bunny was overriding the Cache-Control we set to its own default
+		// `public, max-age=3600`, so the "fresh" nonce was actually a stale
+		// 1-hour-old nonce that failed wp_verify_nonce on submit. We now
+		// send CDN-specific cache directives that Bunny / Cloudflare /
+		// Fastly / Varnish all honor, alongside the standard WP nocache.
 		nocache_headers();
+		header( 'Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0', true );
+		header( 'CDN-Cache-Control: no-store',                                            true );
+		header( 'Cloudflare-CDN-Cache-Control: no-store',                                  true );
+		header( 'Surrogate-Control: no-store',                                            true );
+		header( 'Pragma: no-cache',                                                       true );
+		header( 'Expires: Wed, 11 Jan 1984 05:00:00 GMT',                                 true );
+
 		return rest_ensure_response( [
 			'nonce'         => wp_create_nonce( 'cem_register_nonce' ),
 			'public_nonce'  => wp_create_nonce( 'cem_public_nonce' ),

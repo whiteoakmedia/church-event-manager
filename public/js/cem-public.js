@@ -19,12 +19,26 @@
    */
   function refreshNonce(form) {
     if (!cemPublic.nonceUrl) return $.Deferred().resolve(false).promise();
+    // Cache-bust the URL itself — `cache: false` only sets a query
+    // param via jQuery, but some CDNs (Bunny in particular) strip
+    // unknown query params from the cache key. Embedding the
+    // timestamp directly in a meaningful-looking param + sending
+    // No-Store headers + an explicit Cache-Control header on the
+    // request makes the request truly uncacheable end-to-end.
+    var url = cemPublic.nonceUrl
+      + (cemPublic.nonceUrl.indexOf('?') === -1 ? '?' : '&')
+      + 'ts=' + Date.now()
+      + '&r='  + Math.random().toString(36).slice(2);
     return $.ajax({
-      url: cemPublic.nonceUrl,
+      url: url,
       method: 'GET',
       cache: false,
       dataType: 'json',
       timeout: 5000,
+      headers: {
+        'Cache-Control': 'no-store, no-cache',
+        'Pragma':        'no-cache',
+      },
     }).then(function (res) {
       if (res && res.nonce) {
         // Update the form's hidden nonce input in-place. The form may also
