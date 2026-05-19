@@ -183,6 +183,21 @@ class CEM_Helpers {
 	/** Replace template variables in a string. */
 	public static function parse_template( $template, array $vars ) {
 		foreach ( $vars as $key => $value ) {
+			// Coerce to string. PHP 8.1+ throws TypeError if str_replace's
+			// $replace is not a string — and several template vars are arrays
+			// (calendar_links) or booleans (checkin_enabled) that templates
+			// reference via PHP, not via {placeholder} substitution. Skip
+			// non-scalars entirely and stringify scalars defensively.
+			if ( is_array( $value ) || is_object( $value ) ) {
+				continue;
+			}
+			if ( is_bool( $value ) ) {
+				$value = $value ? '1' : '';
+			} elseif ( $value === null ) {
+				$value = '';
+			} else {
+				$value = (string) $value;
+			}
 			$template = str_replace( '{' . $key . '}', $value, $template );
 		}
 		return $template;
