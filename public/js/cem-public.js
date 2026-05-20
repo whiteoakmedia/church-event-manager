@@ -96,6 +96,18 @@
       return;
     }
 
+    // Mixed-tier mode: require at least one tier with qty > 0.
+    if (form.data('mixed-tiers') == 1) { // eslint-disable-line eqeqeq
+      var totalQty = 0;
+      form.find('.cem-tier-qty').each(function () {
+        totalQty += parseInt($(this).val(), 10) || 0;
+      });
+      if (totalQty < 1) {
+        msgs.html('<div class="cem-notice cem-notice-error">Please choose at least one attendee in any tier.</div>');
+        return;
+      }
+    }
+
     btn.prop('disabled', true).text(cemPublic.strings.submitting);
     spinner.show();
     msgs.html('');
@@ -216,6 +228,86 @@
       btn.text(btn.data('original-text') || 'Register Now');
     }
   });
+
+  // ── Mixed-Tier Quantity Mode ──────────────────────────────────────────────
+  // When the event has "Allow mixed quantities" enabled, the form renders a
+  // qty input per tier instead of radios. Recompute total + total headcount
+  // on every change. Also auto-syncs the hidden num_attendees field so the
+  // capacity check and confirmation email both reflect the real headcount.
+
+  function cemMixedTiersRecalc($form) {
+    if (!$form.length || $form.data('mixed-tiers') != 1) return; // eslint-disable-line eqeqeq
+
+    var symbol = (typeof cemStripe !== 'undefined' && cemStripe.priceDisplay)
+      ? cemStripe.priceDisplay.charAt(0)
+      : '$';
+
+    var total     = 0;
+    var headcount = 0;
+    var lines     = [];
+
+    $form.find('.cem-tier-qty').each(function () {
+      var qty   = parseInt($(this).val(), 10) || 0;
+      var price = parseFloat($(this).data('price')) || 0;
+      var name  = $(this).data('name') || '';
+      if (qty > 0) {
+        var sub = qty * price;
+        total     += sub;
+        headcount += qty;
+        lines.push(
+          '<div style="display:flex;justify-content:space-between;margin:2px 0">'
+          + '<span>' + qty + ' &times; ' + $('<span>').text(name).html()
+          + ' @ ' + symbol + price.toFixed(2) + '</span>'
+          + '<span>' + symbol + sub.toFixed(2) + '</span>'
+          + '</div>'
+        );
+      }
+    });
+
+    $form.find('#cem-tier-qty-lines').html(lines.join('') || '<span style="color:#888">No quantities selected yet.</span>');
+    $form.find('#cem-tier-qty-total-display').text(symbol + total.toFixed(2));
+
+    // Ensure a hidden num_attendees field exists; sync it to headcount.
+    var $hidden = $form.find('input[name="num_attendees"]');
+    if (!$hidden.length) {
+      $hidden = $('<input type="hidden" name="num_attendees" value="1">').appendTo($form);
+    }
+    $hidden.val(Math.max(headcount, 1));
+
+    // Also hide the user-facing "Number of Attendees" field row in mixed mode
+    // (it's derived, not entered). Visible num_attendees fields keep an id.
+    $form.find('#cem_num_attendees').closest('.cem-form-row').hide();
+
+    // Update submit button label.
+    var $btn = $form.find('#cem-submit-btn');
+    if ($btn.length) {
+      if (total > 0) {
+        $btn.text(symbol + total.toFixed(2) + ' — Register Now');
+      } else if (headcount > 0) {
+        $btn.text($btn.data('original-text') || 'Register Now');
+      } else {
+        $btn.text($btn.data('original-text') || 'Register Now');
+      }
+    }
+
+    // Fire a custom event so cem-stripe.js can update the PaymentIntent amount.
+    $form.trigger('cem:mixedTotalChanged', [{ total: total, headcount: headcount }]);
+  }
+
+  $(document).on('input change', '.cem-tier-qty', function () {
+    var $form = $(this).closest('form');
+    cemMixedTiersRecalc($form);
+  });
+
+  // Initial pass on page load (covers refreshes where values persist).
+  $(function () {
+    $('form[data-mixed-tiers="1"]').each(function () {
+      cemMixedTiersRecalc($(this));
+    });
+  });
+
+  // Expose for cem-stripe.js to call after PI updates.
+  window.cemMixedTiersRecalc = cemMixedTiersRecalc;
 
   // ── Attendee count validation ──────────────────────────────────────────────
 

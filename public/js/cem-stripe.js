@@ -58,20 +58,43 @@
 
   // ── Step 1: Create PaymentIntent + mount Card Element on page load ───────────
 
+  // ── Mixed-tier helpers ─────────────────────────────────────────────────────
+
+  function collectTierQuantities() {
+    var quantities = {};
+    $('.cem-tier-qty').each(function () {
+      var idx = parseInt($(this).data('index'), 10);
+      var qty = parseInt($(this).val(), 10) || 0;
+      if (qty > 0) quantities[idx] = qty;
+    });
+    return quantities;
+  }
+
+  function isMixedMode() {
+    return $('#cem-registration-form').data('mixed-tiers') == 1; // eslint-disable-line eqeqeq
+  }
+
   function initCardElement() {
     const $mount = $('#cem-stripe-element');
     if (!$mount.length) return;
 
-    // Pass whichever tier is selected when the page loads so the PaymentIntent
-    // is created with the correct amount from the very first request.
-    const initialTier = $('input[name="registration_type_index"]:checked').val();
+    // Build the request payload. Mixed-tier events send a JSON-encoded
+    // map of {tierIndex: qty}; single-tier events still send the radio
+    // index for backwards compatibility.
+    const payload = {
+      action:   'cem_create_payment_intent',
+      nonce:    cemStripe.nonce,
+      event_id: cemStripe.eventId,
+    };
 
-    $.post(cemStripe.ajaxUrl, {
-      action:                  'cem_create_payment_intent',
-      nonce:                   cemStripe.nonce,
-      event_id:                cemStripe.eventId,
-      registration_type_index: initialTier !== undefined ? parseInt(initialTier, 10) : -1,
-    })
+    if (isMixedMode()) {
+      payload.tier_quantities = JSON.stringify(collectTierQuantities());
+    } else {
+      const initialTier = $('input[name="registration_type_index"]:checked').val();
+      payload.registration_type_index = initialTier !== undefined ? parseInt(initialTier, 10) : -1;
+    }
+
+    $.post(cemStripe.ajaxUrl, payload)
     .done(function (res) {
       if (!res.success) {
         initError = true;
@@ -222,8 +245,8 @@
   $(function () {
     initCardElement();
 
-    // When the registrant switches pricing tier, update the PaymentIntent amount
-    // on Stripe's side so the eventual charge matches what they selected.
+    // When the registrant switches pricing tier (single-tier mode), update
+    // the PaymentIntent amount so the eventual charge matches.
     $(document).on('change', 'input[name="registration_type_index"]', function () {
       const tierIndex = parseInt(this.value, 10);
       const piId      = $('#cem-payment-intent-id').val();
@@ -243,11 +266,37 @@
           console.error('[CEM Stripe] update_payment_intent failed:', res.data);
           showStripeError(cemStripe.strings.error);
         }
-        // No card remounting needed — Stripe's Card Element is amount-agnostic;
-        // the new amount is reflected when confirmCardPayment is called.
       }).fail(function () {
         console.error('[CEM Stripe] update_payment_intent request failed.');
       });
+    });
+
+    // Mixed-tier mode: update PI amount whenever any qty changes. Debounced
+    // so a fast keystroke or arrow-spin doesn't hammer Stripe.
+    let mixedUpdateTimer = null;
+    $(document).on('cem:mixedTotalChanged', '#cem-registration-form', function () {
+      if (!isMixedMode()) return;
+      const piId = $('#cem-payment-intent-id').val();
+      if (!piId) return;
+
+      clearTimeout(mixedUpdateTimer);
+      mixedUpdateTimer = setTimeout(function () {
+        $.post(cemStripe.ajaxUrl, {
+          action:            'cem_update_payment_intent',
+          nonce:             cemStripe.nonce,
+          event_id:          cemStripe.eventId,
+          payment_intent_id: piId,
+          tier_quantities:   JSON.stringify(collectTierQuantities()),
+        }).done(function (res) {
+          if (!res.success) {
+            console.error('[CEM Stripe] update_payment_intent (mixed) failed:', res.data);
+            // Don't show an error for "free" updates — when total drops to $0
+            // the server returns an error but the form is still valid.
+          }
+        }).fail(function () {
+          console.error('[CEM Stripe] update_payment_intent (mixed) request failed.');
+        });
+      }, 350);
     });
   });
 

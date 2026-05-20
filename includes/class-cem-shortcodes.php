@@ -667,9 +667,10 @@ class CEM_Shortcodes {
 		$custom_fields = CEM_Custom_Fields::get_fields( $event_id );
 
 		// ── Registration types / pricing tiers ───────────────────────────────────
-		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
-		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
-		$has_reg_types  = ! empty( $reg_types );
+		$reg_types_json   = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types        = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+		$has_reg_types    = ! empty( $reg_types );
+		$allow_mixed_tiers = $has_reg_types && get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
 
 		// ── Payment detection ────────────────────────────────────────────────────
 		$event_price      = get_post_meta( $event_id, '_cem_price', true );
@@ -736,7 +737,8 @@ class CEM_Shortcodes {
 
 			<form class="cem-form" id="cem-registration-form" novalidate
 				data-needs-payment="<?php echo $payment_required ? '1' : '0'; ?>"
-				data-event-id="<?php echo esc_attr( $event_id ); ?>">
+				data-event-id="<?php echo esc_attr( $event_id ); ?>"
+				data-mixed-tiers="<?php echo $allow_mixed_tiers ? '1' : '0'; ?>">
 				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>">
 				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
@@ -766,7 +768,61 @@ class CEM_Shortcodes {
 			?>
 				<!-- Registration Type / Pricing Tier Selection -->
 				<div class="cem-form-section">
-					<h3 class="cem-section-title"><?php esc_html_e( 'Select Registration Type', 'church-event-manager' ); ?></h3>
+					<h3 class="cem-section-title">
+						<?php echo $allow_mixed_tiers
+							? esc_html__( 'Choose Quantities', 'church-event-manager' )
+							: esc_html__( 'Select Registration Type', 'church-event-manager' ); ?>
+					</h3>
+
+					<?php if ( $allow_mixed_tiers ) : ?>
+					<p class="description" style="margin:0 0 12px"><?php esc_html_e( 'Pick a quantity for each tier. The total updates as you change quantities.', 'church-event-manager' ); ?></p>
+					<div class="cem-tier-qty-list" id="cem-tier-qty-list">
+						<?php foreach ( $reg_types as $i => $rt ) :
+							$rt_price     = (float) $rt['price'];
+							$rt_cap       = (int) ( $rt['capacity'] ?? 0 );
+							$rt_price_lbl = $rt_price > 0 ? $currency_sym . number_format( $rt_price, 2 ) : __( 'Free', 'church-event-manager' );
+							$rt_sold      = $type_sold_counts[ $rt['name'] ] ?? 0;
+							$rt_avail     = ( $rt_cap > 0 ) ? max( 0, $rt_cap - $rt_sold ) : null;
+							$rt_disabled  = ( $rt_cap > 0 && $rt_avail <= 0 );
+							$qty_max      = ( $rt_avail !== null ) ? $rt_avail : 99;
+						?>
+						<div class="cem-tier-qty-row <?php echo $rt_disabled ? 'cem-tier-qty-disabled' : ''; ?>">
+							<div class="cem-tier-qty-info">
+								<div class="cem-tier-qty-name"><?php echo esc_html( $rt['name'] ); ?> <span class="cem-tier-qty-price">— <?php echo esc_html( $rt_price_lbl ); ?> <?php esc_html_e( 'each', 'church-event-manager' ); ?></span></div>
+								<?php if ( ! empty( $rt['description'] ) ) : ?>
+								<div class="cem-tier-qty-desc"><?php echo esc_html( $rt['description'] ); ?></div>
+								<?php endif; ?>
+								<?php if ( $rt_avail !== null ) : ?>
+								<div class="cem-tier-qty-avail">
+									<?php echo $rt_disabled
+										? esc_html__( 'Sold Out', 'church-event-manager' )
+										: sprintf( esc_html__( '%d spots left', 'church-event-manager' ), $rt_avail ); ?>
+								</div>
+								<?php endif; ?>
+							</div>
+							<div class="cem-tier-qty-input">
+								<input type="number" class="cem-tier-qty"
+									name="tier_qty[<?php echo esc_attr( $i ); ?>]"
+									data-index="<?php echo esc_attr( $i ); ?>"
+									data-price="<?php echo esc_attr( $rt_price ); ?>"
+									data-name="<?php echo esc_attr( $rt['name'] ); ?>"
+									value="0"
+									min="0"
+									max="<?php echo esc_attr( $qty_max ); ?>"
+									step="1"
+									<?php echo $rt_disabled ? 'disabled' : ''; ?>>
+							</div>
+						</div>
+						<?php endforeach; ?>
+					</div>
+					<div class="cem-tier-qty-summary" id="cem-tier-qty-summary" style="margin-top:14px;padding:12px 14px;background:#f7f7f7;border-radius:6px">
+						<div id="cem-tier-qty-lines" class="cem-tier-qty-lines" style="font-size:14px;color:#555"></div>
+						<div class="cem-tier-qty-total" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #e0e0e0;font-weight:600;font-size:16px">
+							<span><?php esc_html_e( 'Total', 'church-event-manager' ); ?></span>
+							<span id="cem-tier-qty-total-display"><?php echo esc_html( $currency_sym ); ?>0.00</span>
+						</div>
+					</div>
+					<?php else : ?>
 					<div class="cem-reg-type-options" id="cem-reg-type-options">
 						<?php foreach ( $reg_types as $i => $rt ) :
 							$rt_price     = (float) $rt['price'];
@@ -800,6 +856,7 @@ class CEM_Shortcodes {
 						</label>
 						<?php endforeach; ?>
 					</div>
+					<?php endif; ?>
 				</div>
 				<?php endif; ?>
 

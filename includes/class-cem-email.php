@@ -500,6 +500,38 @@ class CEM_Email {
 			}
 		}
 
+		// Pull tier breakdown for mixed-tier registrations so emails can show it.
+		$tier_breakdown_lines = '';
+		$tier_breakdown_total = '';
+		if ( $reg && ! empty( $reg->id ) ) {
+			global $wpdb;
+			$bd_json = $wpdb->get_var( $wpdb->prepare(
+				"SELECT meta_value FROM {$wpdb->prefix}cem_registration_meta WHERE registration_id = %d AND meta_key = '_registration_tier_breakdown' LIMIT 1",
+				$reg->id
+			) );
+			if ( $bd_json ) {
+				$breakdown = json_decode( $bd_json, true );
+				if ( is_array( $breakdown ) && ! empty( $breakdown ) ) {
+					$sym   = get_option( 'cem_currency_symbol', '$' );
+					$total = 0;
+					$rows  = [];
+					foreach ( $breakdown as $line ) {
+						$qty   = (int) ( $line['qty'] ?? 0 );
+						$name  = (string) ( $line['name'] ?? '' );
+						$price = (float) ( $line['price'] ?? 0 );
+						$sub   = (float) ( $line['subtotal'] ?? ( $qty * $price ) );
+						$total += $sub;
+						$rows[] = sprintf( '%d × %s @ %s%s = %s%s',
+							$qty, $name, $sym, number_format( $price, 2 ),
+							$sym, number_format( $sub, 2 )
+						);
+					}
+					$tier_breakdown_lines = implode( "\n", $rows );
+					$tier_breakdown_total = $sym . number_format( $total, 2 );
+				}
+			}
+		}
+
 		return [
 			'first_name'          => $reg->first_name,
 			'last_name'           => $reg->last_name,
@@ -509,6 +541,8 @@ class CEM_Email {
 			'num_attendees'       => $reg->num_attendees,
 			'registration_code'   => $reg->registration_code,
 			'registration_status' => $reg->status,
+			'tier_breakdown'      => $tier_breakdown_lines,
+			'tier_total'          => $tier_breakdown_total,
 			'event_id'            => $event ? (int) $event->ID : 0,
 			'event_title'         => $event ? $event->post_title : '',
 			'event_description'   => $event ? wp_trim_words( $event->post_content, 30 ) : '',

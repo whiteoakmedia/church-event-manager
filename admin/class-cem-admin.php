@@ -2166,9 +2166,19 @@ class CEM_Admin {
 				<div class="cem-section-body">
 				<p class="description" style="margin:0 0 10px"><?php esc_html_e( 'Add multiple registration types with different prices (e.g., Adult $25, Student $10, Child Free). Leave empty to use the single price field above.', 'church-event-manager' ); ?></p>
 				<?php
-				$reg_types = get_post_meta( $post->ID, '_cem_registration_types', true );
-				$reg_types = $reg_types ? json_decode( $reg_types, true ) : [];
+				$reg_types         = get_post_meta( $post->ID, '_cem_registration_types', true );
+				$reg_types         = $reg_types ? json_decode( $reg_types, true ) : [];
+				$allow_mixed_tiers = get_post_meta( $post->ID, '_cem_allow_mixed_tiers', true ) === '1';
 				?>
+				<div class="cem-meta-row" style="margin:0 0 12px">
+					<label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+						<input type="checkbox" name="_cem_allow_mixed_tiers" value="1" <?php checked( $allow_mixed_tiers ); ?>>
+						<span>
+							<strong><?php esc_html_e( 'Allow mixed quantities across tiers', 'church-event-manager' ); ?></strong>
+							<span class="description" style="display:block;margin-top:2px"><?php esc_html_e( 'Lets one registrant pick a quantity for each tier (e.g. 2 Adults + 2 Kids). Total price is summed. Off = traditional single-tier radio buttons.', 'church-event-manager' ); ?></span>
+						</span>
+					</label>
+				</div>
 				<table class="widefat cem-reg-types-table" id="cem-reg-types-table">
 					<thead>
 						<tr>
@@ -2326,7 +2336,7 @@ class CEM_Admin {
 		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
 		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
-		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled', '_cem_checkin_enabled' ];
+		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled', '_cem_checkin_enabled', '_cem_allow_mixed_tiers' ];
 
 		// ── Parse all datetime values up front, then cross-validate ─────────
 		// We need start + end together before deciding whether to save the

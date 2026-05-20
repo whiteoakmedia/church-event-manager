@@ -6,6 +6,74 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class CEM_Ajax {
 
+	// ── Mixed-tier helpers ────────────────────────────────────────────────────
+
+	/**
+	 * Parse incoming tier_quantities — either a JSON-encoded string or a
+	 * raw array of [index => qty]. Returns an array of validated entries:
+	 *   [ [ 'index'=>int, 'name'=>str, 'price'=>float, 'qty'=>int, 'subtotal'=>float ], ... ]
+	 * Skips entries with qty <= 0 or invalid indices.
+	 */
+	public static function parse_tier_quantities( array $reg_types, $raw ) {
+		if ( is_string( $raw ) ) {
+			$raw = json_decode( wp_unslash( $raw ), true );
+		}
+		if ( ! is_array( $raw ) ) return [];
+
+		$out = [];
+		foreach ( $raw as $idx => $qty ) {
+			$idx = (int) $idx;
+			$qty = (int) $qty;
+			if ( $qty <= 0 || ! isset( $reg_types[ $idx ] ) ) continue;
+
+			$tier  = $reg_types[ $idx ];
+			$price = (float) ( $tier['price'] ?? 0 );
+
+			// Enforce per-tier capacity if set (qty can't exceed remaining).
+			$cap = (int) ( $tier['capacity'] ?? 0 );
+			if ( $cap > 0 ) {
+				$qty = min( $qty, $cap );
+			}
+
+			$out[] = [
+				'index'    => $idx,
+				'name'     => (string) ( $tier['name'] ?? '' ),
+				'price'    => $price,
+				'qty'      => $qty,
+				'subtotal' => $price * $qty,
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Resolve the effective price for an incoming request. Handles all 3 modes:
+	 *   1. Mixed-tier   → sum of (qty × tier price) from tier_quantities
+	 *   2. Single-tier  → registration_type_index
+	 *   3. Flat-price   → _cem_price meta
+	 */
+	public static function resolve_price_for_request( $event_id, array $reg_types, array $post ) {
+		// Mixed-tier mode wins if the event is configured for it AND a
+		// tier_quantities payload was sent.
+		$mixed_enabled = get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
+		if ( $mixed_enabled && $reg_types && isset( $post['tier_quantities'] ) ) {
+			$breakdown = self::parse_tier_quantities( $reg_types, $post['tier_quantities'] );
+			$total     = 0.0;
+			foreach ( $breakdown as $line ) $total += $line['subtotal'];
+			return $total;
+		}
+
+		// Single-tier mode.
+		$reg_type_index = isset( $post['registration_type_index'] ) ? (int) $post['registration_type_index'] : -1;
+		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
+			return (float) $reg_types[ $reg_type_index ]['price'];
+		}
+
+		// Flat event price.
+		$price = get_post_meta( $event_id, '_cem_price', true );
+		return ( $price !== '' ) ? (float) $price : 0.0;
+	}
+
 	public function init() {
 		// Public (logged-in + logged-out)
 		add_action( 'wp_ajax_cem_register',                     [ $this, 'handle_registration' ] );
@@ -160,12 +228,26 @@ class CEM_Ajax {
 		}
 
 		// Registration type / pricing tier
-		$reg_type_index = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
-		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
-		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
-		$selected_type  = ( $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) ? $reg_types[ $reg_type_index ] : null;
+		$reg_type_index    = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
+		$reg_types_json    = get_post_meta( $event_id, '_cem_registration_types', true );
+		$reg_types         = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
+		$selected_type     = ( $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) ? $reg_types[ $reg_type_index ] : null;
 
-		$num_attendees = (int) ( $_POST['num_attendees'] ?? 1 );
+		// Mixed-tier mode: parse tier_quantities and derive num_attendees from it.
+		$mixed_enabled = get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
+		$tier_breakdown = ( $mixed_enabled && $reg_types && isset( $_POST['tier_quantities'] ) )
+			? self::parse_tier_quantities( $reg_types, $_POST['tier_quantities'] )
+			: [];
+
+		if ( ! empty( $tier_breakdown ) ) {
+			// Override num_attendees with the sum of tier quantities so capacity
+			// checks, headcounts, and confirmation emails reflect reality.
+			$num_attendees = 0;
+			foreach ( $tier_breakdown as $line ) $num_attendees += $line['qty'];
+			if ( $num_attendees < 1 ) $num_attendees = 1;
+		} else {
+			$num_attendees = (int) ( $_POST['num_attendees'] ?? 1 );
+		}
 
 		$data = [
 			'event_id'      => $event_id,
@@ -190,13 +272,21 @@ class CEM_Ajax {
 
 		// ── Payment verification ───────────────────────────────────────────────
 		// Groups (Event Series) are always free — no Stripe involved.
-		$event_price    = $is_group ? '' : get_post_meta( $event_id, '_cem_price', true );
-		$price_num      = ( $event_price !== '' ) ? (float) $event_price : 0.0;
 		$allow_inperson = ! $is_group && get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';
 
-		// If a registration type/tier was selected, use its price instead
-		if ( $selected_type ) {
+		if ( $is_group ) {
+			$price_num = 0.0;
+		} elseif ( ! empty( $tier_breakdown ) ) {
+			// Mixed-tier: sum subtotals.
+			$price_num = 0.0;
+			foreach ( $tier_breakdown as $line ) $price_num += $line['subtotal'];
+		} elseif ( $selected_type ) {
+			// Single-tier mode
 			$price_num = (float) $selected_type['price'];
+		} else {
+			// Flat event price
+			$event_price = get_post_meta( $event_id, '_cem_price', true );
+			$price_num   = ( $event_price !== '' ) ? (float) $event_price : 0.0;
 		}
 
 		if ( ! $is_group && $price_num > 0 && ! $allow_inperson && get_option( 'cem_stripe_enabled' ) === '1' ) {
@@ -247,7 +337,35 @@ class CEM_Ajax {
 		}
 
 		// Save registration type/tier metadata
-		if ( $selected_type ) {
+		if ( ! empty( $tier_breakdown ) ) {
+			// Mixed-tier mode: store the JSON breakdown + a human-readable summary.
+			global $wpdb;
+			$reg_meta_table = "{$wpdb->prefix}cem_registration_meta";
+
+			$summary_parts = [];
+			foreach ( $tier_breakdown as $line ) {
+				$summary_parts[] = sprintf( '%dx %s', $line['qty'], $line['name'] );
+			}
+			$summary = implode( ', ', $summary_parts );
+
+			$wpdb->insert( $reg_meta_table, [
+				'registration_id' => $result,
+				'meta_key'        => '_registration_tier_breakdown',
+				'meta_value'      => wp_json_encode( $tier_breakdown ),
+			], [ '%d', '%s', '%s' ] );
+
+			$wpdb->insert( $reg_meta_table, [
+				'registration_id' => $result,
+				'meta_key'        => '_registration_type',
+				'meta_value'      => $summary,
+			], [ '%d', '%s', '%s' ] );
+
+			$wpdb->insert( $reg_meta_table, [
+				'registration_id' => $result,
+				'meta_key'        => '_registration_type_price',
+				'meta_value'      => number_format( (float) $price_num, 2, '.', '' ),
+			], [ '%d', '%s', '%s' ] );
+		} elseif ( $selected_type ) {
 			global $wpdb;
 			$reg_meta_table = "{$wpdb->prefix}cem_registration_meta";
 
@@ -692,18 +810,14 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
 		}
 
-		// Resolve price: use the selected registration tier if provided, otherwise
-		// fall back to the event-level _cem_price meta.
-		$reg_type_index = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
+		// Resolve price. Three modes (in order):
+		//   1. Mixed-tier mode → tier_quantities JSON → Σ(qty × tier price)
+		//   2. Single-tier mode → registration_type_index → tier price
+		//   3. Event flat price → _cem_price
 		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
 		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
 
-		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
-			$price_num = (float) $reg_types[ $reg_type_index ]['price'];
-		} else {
-			$price     = get_post_meta( $event_id, '_cem_price', true );
-			$price_num = ( $price !== '' ) ? (float) $price : 0.0;
-		}
+		$price_num = self::resolve_price_for_request( $event_id, $reg_types, $_POST );
 
 		if ( $price_num <= 0 ) {
 			wp_send_json_error( [ 'message' => __( 'This event is free — no payment required.', 'church-event-manager' ) ] );
@@ -770,7 +884,6 @@ class CEM_Ajax {
 
 		$event_id          = (int) ( $_POST['event_id'] ?? 0 );
 		$payment_intent_id = sanitize_text_field( $_POST['payment_intent_id'] ?? '' );
-		$reg_type_index    = isset( $_POST['registration_type_index'] ) ? (int) $_POST['registration_type_index'] : -1;
 
 		if ( ! $event_id || get_post_type( $event_id ) !== 'cem_event' ) {
 			wp_send_json_error( [ 'message' => __( 'Invalid event.', 'church-event-manager' ) ] );
@@ -780,16 +893,11 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Invalid payment reference.', 'church-event-manager' ) ] );
 		}
 
-		// Resolve the tier price
+		// Resolve the tier price using the same multi-mode resolver as create.
 		$reg_types_json = get_post_meta( $event_id, '_cem_registration_types', true );
 		$reg_types      = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
 
-		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
-			$price_num = (float) $reg_types[ $reg_type_index ]['price'];
-		} else {
-			$price     = get_post_meta( $event_id, '_cem_price', true );
-			$price_num = ( $price !== '' ) ? (float) $price : 0.0;
-		}
+		$price_num = self::resolve_price_for_request( $event_id, $reg_types, $_POST );
 
 		if ( $price_num <= 0 ) {
 			wp_send_json_error( [ 'message' => __( 'Selected tier is free — no payment required.', 'church-event-manager' ) ] );
