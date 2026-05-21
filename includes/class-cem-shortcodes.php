@@ -775,7 +775,7 @@ class CEM_Shortcodes {
 					</h3>
 
 					<?php if ( $allow_mixed_tiers ) : ?>
-					<p class="description" style="margin:0 0 12px"><?php esc_html_e( 'Pick a quantity for each tier. The total updates as you change quantities.', 'church-event-manager' ); ?></p>
+					<p class="cem-field-description" style="margin:0 0 12px"><?php esc_html_e( 'Choose a quantity for each tier. The total updates as you change quantities.', 'church-event-manager' ); ?></p>
 					<div class="cem-tier-qty-list" id="cem-tier-qty-list">
 						<?php foreach ( $reg_types as $i => $rt ) :
 							$rt_price     = (float) $rt['price'];
@@ -786,9 +786,17 @@ class CEM_Shortcodes {
 							$rt_disabled  = ( $rt_cap > 0 && $rt_avail <= 0 );
 							$qty_max      = ( $rt_avail !== null ) ? $rt_avail : 99;
 						?>
-						<div class="cem-tier-qty-row <?php echo $rt_disabled ? 'cem-tier-qty-disabled' : ''; ?>">
+						<label class="cem-tier-qty-row <?php echo $rt_disabled ? 'cem-tier-qty-disabled' : ''; ?>">
 							<div class="cem-tier-qty-info">
-								<div class="cem-tier-qty-name"><?php echo esc_html( $rt['name'] ); ?> <span class="cem-tier-qty-price">— <?php echo esc_html( $rt_price_lbl ); ?> <?php esc_html_e( 'each', 'church-event-manager' ); ?></span></div>
+								<div class="cem-tier-qty-name"><?php echo esc_html( $rt['name'] ); ?></div>
+								<div class="cem-tier-qty-price"><?php
+									if ( $rt_price > 0 ) {
+										/* translators: %s: formatted price e.g. "$10.00" */
+										printf( esc_html__( '%s each', 'church-event-manager' ), esc_html( $rt_price_lbl ) );
+									} else {
+										esc_html_e( 'Free', 'church-event-manager' );
+									}
+								?></div>
 								<?php if ( ! empty( $rt['description'] ) ) : ?>
 								<div class="cem-tier-qty-desc"><?php echo esc_html( $rt['description'] ); ?></div>
 								<?php endif; ?>
@@ -810,14 +818,15 @@ class CEM_Shortcodes {
 									min="0"
 									max="<?php echo esc_attr( $qty_max ); ?>"
 									step="1"
+									aria-label="<?php echo esc_attr( sprintf( __( 'Quantity for %s', 'church-event-manager' ), $rt['name'] ) ); ?>"
 									<?php echo $rt_disabled ? 'disabled' : ''; ?>>
 							</div>
-						</div>
+						</label>
 						<?php endforeach; ?>
 					</div>
-					<div class="cem-tier-qty-summary" id="cem-tier-qty-summary" style="margin-top:14px;padding:12px 14px;background:#f7f7f7;border-radius:6px">
-						<div id="cem-tier-qty-lines" class="cem-tier-qty-lines" style="font-size:14px;color:#555"></div>
-						<div class="cem-tier-qty-total" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #e0e0e0;font-weight:600;font-size:16px">
+					<div class="cem-tier-qty-summary" id="cem-tier-qty-summary">
+						<div id="cem-tier-qty-lines" class="cem-tier-qty-lines"></div>
+						<div class="cem-tier-qty-total">
 							<span><?php esc_html_e( 'Total', 'church-event-manager' ); ?></span>
 							<span id="cem-tier-qty-total-display"><?php echo esc_html( $currency_sym ); ?>0.00</span>
 						</div>

@@ -255,16 +255,16 @@
         total     += sub;
         headcount += qty;
         lines.push(
-          '<div style="display:flex;justify-content:space-between;margin:2px 0">'
+          '<div class="cem-tier-qty-line" style="display:flex;justify-content:space-between;margin:3px 0">'
           + '<span>' + qty + ' &times; ' + $('<span>').text(name).html()
-          + ' @ ' + symbol + price.toFixed(2) + '</span>'
-          + '<span>' + symbol + sub.toFixed(2) + '</span>'
+          + (price > 0 ? ' @ ' + symbol + price.toFixed(2) : '') + '</span>'
+          + '<span>' + (price > 0 ? symbol + sub.toFixed(2) : 'Free') + '</span>'
           + '</div>'
         );
       }
     });
 
-    $form.find('#cem-tier-qty-lines').html(lines.join('') || '<span style="color:#888">No quantities selected yet.</span>');
+    $form.find('#cem-tier-qty-lines').html(lines.join('') || '<span class="cem-tier-qty-empty">No quantities selected yet.</span>');
     $form.find('#cem-tier-qty-total-display').text(symbol + total.toFixed(2));
 
     // Ensure a hidden num_attendees field exists; sync it to headcount.
