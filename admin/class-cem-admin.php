@@ -2170,12 +2170,13 @@ class CEM_Admin {
 				$reg_types         = $reg_types ? json_decode( $reg_types, true ) : [];
 				$allow_mixed_tiers = get_post_meta( $post->ID, '_cem_allow_mixed_tiers', true ) === '1';
 				?>
-				<div class="cem-meta-row" style="margin:0 0 12px">
-					<label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-						<input type="checkbox" name="_cem_allow_mixed_tiers" value="1" <?php checked( $allow_mixed_tiers ); ?>>
-						<span>
+				<div style="margin:0 0 12px;padding:10px 12px;background:#f7f7f7;border-radius:4px">
+					<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">
+						<input type="checkbox" name="_cem_allow_mixed_tiers" value="1" <?php checked( $allow_mixed_tiers ); ?>
+							style="flex:0 0 auto;width:18px;height:18px;margin:2px 0 0;">
+						<span style="flex:1;min-width:0">
 							<strong><?php esc_html_e( 'Allow mixed quantities across tiers', 'church-event-manager' ); ?></strong>
-							<span class="description" style="display:block;margin-top:2px"><?php esc_html_e( 'Lets one registrant pick a quantity for each tier (e.g. 2 Adults + 2 Kids). Total price is summed. Off = traditional single-tier radio buttons.', 'church-event-manager' ); ?></span>
+							<span class="description" style="display:block;margin-top:2px;font-weight:normal"><?php esc_html_e( 'Lets one registrant pick a quantity for each tier (e.g. 2 Adults + 2 Kids). Total price is summed. Off = traditional single-tier radio buttons.', 'church-event-manager' ); ?></span>
 						</span>
 					</label>
 				</div>
