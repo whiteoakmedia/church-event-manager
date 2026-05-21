@@ -53,11 +53,20 @@ class CEM_Ajax {
 	 *   3. Flat-price   → _cem_price meta
 	 */
 	public static function resolve_price_for_request( $event_id, array $reg_types, array $post ) {
-		// Mixed-tier mode wins if the event is configured for it AND a
-		// tier_quantities payload was sent.
+		// Mixed-tier mode wins if the event is configured for it AND any
+		// tier-qty payload was sent (JSON-encoded `tier_quantities`, or
+		// PHP-array `tier_qty[]` from a regular form submit).
 		$mixed_enabled = get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
-		if ( $mixed_enabled && $reg_types && isset( $post['tier_quantities'] ) ) {
-			$breakdown = self::parse_tier_quantities( $reg_types, $post['tier_quantities'] );
+		$tier_raw      = null;
+		if ( $mixed_enabled && $reg_types ) {
+			if ( isset( $post['tier_quantities'] ) ) {
+				$tier_raw = $post['tier_quantities'];
+			} elseif ( isset( $post['tier_qty'] ) && is_array( $post['tier_qty'] ) ) {
+				$tier_raw = $post['tier_qty'];
+			}
+		}
+		if ( $tier_raw !== null ) {
+			$breakdown = self::parse_tier_quantities( $reg_types, $tier_raw );
 			$total     = 0.0;
 			foreach ( $breakdown as $line ) $total += $line['subtotal'];
 			return $total;
@@ -233,10 +242,21 @@ class CEM_Ajax {
 		$reg_types         = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
 		$selected_type     = ( $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) ? $reg_types[ $reg_type_index ] : null;
 
-		// Mixed-tier mode: parse tier_quantities and derive num_attendees from it.
-		$mixed_enabled = get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
-		$tier_breakdown = ( $mixed_enabled && $reg_types && isset( $_POST['tier_quantities'] ) )
-			? self::parse_tier_quantities( $reg_types, $_POST['tier_quantities'] )
+		// Mixed-tier mode: parse quantities and derive num_attendees from sum.
+		// Accept either `tier_quantities` (JSON, sent by the Stripe AJAX flow)
+		// or `tier_qty[]` (PHP-array, sent by the regular form serialize on
+		// submit — including the free/in-person path where Stripe never runs).
+		$mixed_enabled  = get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
+		$tier_raw       = null;
+		if ( $mixed_enabled && $reg_types ) {
+			if ( isset( $_POST['tier_quantities'] ) ) {
+				$tier_raw = $_POST['tier_quantities'];
+			} elseif ( isset( $_POST['tier_qty'] ) && is_array( $_POST['tier_qty'] ) ) {
+				$tier_raw = $_POST['tier_qty'];
+			}
+		}
+		$tier_breakdown = $tier_raw !== null
+			? self::parse_tier_quantities( $reg_types, $tier_raw )
 			: [];
 
 		if ( ! empty( $tier_breakdown ) ) {
