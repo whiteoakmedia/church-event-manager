@@ -412,6 +412,79 @@ class CEM_Registration {
 	}
 
 	/**
+	 * Update a registrant's contact details (admin use).
+	 *
+	 * Lets an admin fix a mistyped name, email, or phone from the registrations
+	 * screen. Only contact fields are touched — status, attendees, payment, and
+	 * the registration code are left alone. Caller is responsible for the
+	 * capability + nonce check.
+	 *
+	 * @param int   $registration_id
+	 * @param array $data Keys: first_name, last_name, email, phone. Missing keys
+	 *                    are left unchanged.
+	 * @return true|WP_Error
+	 */
+	public static function admin_update_contact( $registration_id, array $data ) {
+		global $wpdb;
+
+		$reg = self::get( $registration_id );
+		if ( ! $reg ) {
+			return new WP_Error( 'not_found', __( 'Registration not found.', 'church-event-manager' ) );
+		}
+
+		$update  = [];
+		$formats = [];
+
+		if ( isset( $data['first_name'] ) ) {
+			$first = sanitize_text_field( $data['first_name'] );
+			if ( $first === '' ) {
+				return new WP_Error( 'missing_name', __( 'First name cannot be empty.', 'church-event-manager' ) );
+			}
+			$update['first_name'] = $first;
+			$formats[] = '%s';
+		}
+		if ( isset( $data['last_name'] ) ) {
+			$last = sanitize_text_field( $data['last_name'] );
+			if ( $last === '' ) {
+				return new WP_Error( 'missing_name', __( 'Last name cannot be empty.', 'church-event-manager' ) );
+			}
+			$update['last_name'] = $last;
+			$formats[] = '%s';
+		}
+		if ( isset( $data['email'] ) ) {
+			$email = sanitize_email( $data['email'] );
+			if ( ! is_email( $email ) ) {
+				return new WP_Error( 'invalid_email', __( 'Please enter a valid email address.', 'church-event-manager' ) );
+			}
+			$update['email'] = $email;
+			$formats[] = '%s';
+		}
+		if ( array_key_exists( 'phone', $data ) ) {
+			$update['phone'] = $data['phone'] !== '' ? CEM_Helpers::sanitize_phone( $data['phone'] ) : null;
+			$formats[] = '%s';
+		}
+
+		if ( empty( $update ) ) {
+			return true; // nothing to change
+		}
+
+		$update['updated_at'] = current_time( 'mysql' );
+		$formats[]            = '%s';
+
+		$result = $wpdb->update(
+			"{$wpdb->prefix}cem_registrations",
+			$update,
+			[ 'id' => (int) $registration_id ],
+			$formats,
+			[ '%d' ]
+		);
+
+		return ( $result !== false )
+			? true
+			: new WP_Error( 'db_error', __( 'Could not save your changes. Please try again.', 'church-event-manager' ) );
+	}
+
+	/**
 	 * Update editable fields of a registration by code (front-end use).
 	 *
 	 * Accepts a nonce verified against 'cem_manage_{code}' — the same action

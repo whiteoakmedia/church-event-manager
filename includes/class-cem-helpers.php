@@ -54,8 +54,15 @@ class CEM_Helpers {
 		return ( $val !== '' && $val !== false ) ? $val : $default;
 	}
 
-	/** Count confirmed registrations for an event (including check-ins). */
-	public static function get_registration_count( $event_id, $include_statuses = [ 'confirmed', 'checked_in' ] ) {
+	/**
+	 * Count registrations that occupy a spot for an event.
+	 *
+	 * "Pending" (awaiting admin approval) counts here too: an unapproved signup
+	 * still holds a seat, so spots-remaining drops the moment someone registers —
+	 * even on events that require approval — and the event can't be oversold while
+	 * requests sit in the approval queue. Cancelled/waitlisted never count.
+	 */
+	public static function get_registration_count( $event_id, $include_statuses = [ 'confirmed', 'checked_in', 'pending' ] ) {
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $include_statuses ), '%s' ) );
 		$query_args   = array_merge( [ $event_id ], $include_statuses );
@@ -87,7 +94,10 @@ class CEM_Helpers {
 	}
 
 	/**
-	 * Get total confirmed registrations across all events in a given category.
+	 * Get total spot-occupying registrations across all events in a category.
+	 *
+	 * Mirrors get_registration_count(): pending (awaiting approval) counts too,
+	 * so a category cap can't be oversold while requests sit in the queue.
 	 *
 	 * @param int $term_id  Term ID of the cem_event_category.
 	 * @return int
@@ -105,7 +115,7 @@ class CEM_Helpers {
 				"SELECT COALESCE(SUM(num_attendees),0)
 				 FROM {$wpdb->prefix}cem_registrations
 				 WHERE event_id IN ($placeholders)
-				 AND status IN ('confirmed','checked_in')",
+				 AND status IN ('confirmed','checked_in','pending')",
 				$event_ids
 			)
 		);

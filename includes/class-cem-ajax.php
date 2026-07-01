@@ -107,6 +107,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_waitlist_promote',       [ $this, 'waitlist_promote' ] );
 		add_action( 'wp_ajax_cem_delete_registration',    [ $this, 'delete_registration' ] );
 		add_action( 'wp_ajax_cem_get_reg_details',        [ $this, 'get_reg_details' ] );
+		add_action( 'wp_ajax_cem_update_registration',    [ $this, 'update_registration' ] );
 		add_action( 'wp_ajax_cem_save_settings',          [ $this, 'save_settings' ] );
 		add_action( 'wp_ajax_cem_dashboard_stats',        [ $this, 'dashboard_stats' ] );
 		add_action( 'wp_ajax_cem_get_recipients_preview', [ $this, 'get_recipients_preview' ] );
@@ -649,6 +650,31 @@ class CEM_Ajax {
 			'meta'         => $meta,
 			'event_title'  => $event ? $event->post_title : '',
 		] );
+	}
+
+	/** Admin: correct a registrant's contact details (name / email / phone). */
+	public function update_registration() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$reg_id = (int) ( $_POST['registration_id'] ?? 0 );
+		if ( ! $reg_id ) {
+			wp_send_json_error( [ 'message' => __( 'Invalid request.', 'church-event-manager' ) ] );
+		}
+
+		$data = [
+			'first_name' => wp_unslash( $_POST['first_name'] ?? '' ),
+			'last_name'  => wp_unslash( $_POST['last_name']  ?? '' ),
+			'email'      => wp_unslash( $_POST['email']      ?? '' ),
+			'phone'      => wp_unslash( $_POST['phone']      ?? '' ),
+		];
+
+		$result = CEM_Registration::admin_update_contact( $reg_id, $data );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+
+		wp_send_json_success( [ 'message' => __( 'Registration updated.', 'church-event-manager' ) ] );
 	}
 
 	public function save_settings() {

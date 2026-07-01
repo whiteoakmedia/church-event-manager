@@ -946,14 +946,14 @@ class CEM_Shortcodes {
 						<div>
 							<?php if ( $allow_mixed_tiers ) : ?>
 							<strong><?php esc_html_e( 'Pay at the Door', 'church-event-manager' ); ?></strong>
-							<p><?php esc_html_e( 'No online payment required. Please bring payment to the event — your total is shown above and on the Register button.', 'church-event-manager' ); ?></p>
+							<p><?php esc_html_e( 'Payment is due at the event — please bring cash or a check when you arrive. Your total is shown above and on the Register button.', 'church-event-manager' ); ?></p>
 							<?php else : ?>
 							<strong><?php echo esc_html( sprintf(
 							    /* translators: %s: formatted price */
 							    __( 'Cost: %s — Pay at the Door', 'church-event-manager' ),
 							    $price_display
 							) ); ?></strong>
-							<p><?php esc_html_e( 'No online payment required. Please bring payment to the event.', 'church-event-manager' ); ?></p>
+							<p><?php esc_html_e( 'Payment is due at the event — please bring cash or a check when you arrive.', 'church-event-manager' ); ?></p>
 							<?php endif; ?>
 						</div>
 					</div>

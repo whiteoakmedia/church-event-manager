@@ -55,44 +55,122 @@
 
     $.get(ajax, { action: 'cem_get_reg_details', nonce, registration_id: regId }, function (res) {
       if (!res.success) { body.html('<p>' + res.data.message + '</p>'); return; }
-      const r    = res.data.registration;
-      const meta = res.data.meta;
-      const ev   = res.data.event_title;
+      renderRegDetails(body, res.data.registration, res.data.meta, res.data.event_title);
+    });
+  });
 
-      let html = '<h2>' + r.first_name + ' ' + r.last_name + '</h2>';
-      html += '<table class="cem-table widefat"><tbody>';
-      html += row('Event', ev);
-      html += row('Email', '<a href="mailto:' + r.email + '">' + r.email + '</a>');
-      html += row('Phone', r.phone || '—');
-      html += row('Attendees', r.num_attendees);
-      html += row('Status', r.status);
-      html += row('Code', '<code>' + r.registration_code + '</code>');
-      html += row('Registered', r.created_at);
-      if (r.checked_in_at) html += row('Checked In', r.checked_in_at);
-      if (r.notes)         html += row('Notes', r.notes);
+  // Render the read-only details view for a registration.
+  function renderRegDetails(body, r, meta, ev) {
+    let html = '<h2>' + esc(r.first_name) + ' ' + esc(r.last_name) + '</h2>';
+    html += '<table class="cem-table widefat"><tbody>';
+    html += row('Event', esc(ev));
+    html += row('Email', '<a href="mailto:' + escAttr(r.email) + '">' + esc(r.email) + '</a>');
+    html += row('Phone', esc(r.phone) || '—');
+    html += row('Attendees', esc(r.num_attendees));
+    html += row('Status', esc(r.status));
+    html += row('Code', '<code>' + esc(r.registration_code) + '</code>');
+    html += row('Registered', esc(r.created_at));
+    if (r.checked_in_at) html += row('Checked In', esc(r.checked_in_at));
+    if (r.notes)         html += row('Notes', esc(r.notes));
 
-      if (meta && Object.keys(meta).length) {
-        html += '<tr><td colspan="2"><strong>Custom Fields</strong></td></tr>';
-        Object.keys(meta).forEach(function (k) {
-          html += row(k, meta[k]);
-        });
+    if (meta && Object.keys(meta).length) {
+      html += '<tr><td colspan="2"><strong>Custom Fields</strong></td></tr>';
+      Object.keys(meta).forEach(function (k) {
+        html += row(esc(k), esc(meta[k]));
+      });
+    }
+
+    html += '</tbody></table>';
+
+    html += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">';
+    if (r.status !== 'checked_in') {
+      html += '<button class="button button-primary cem-check-in-btn" data-id="' + r.id + '"><span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Check In</button>';
+    }
+    html += '<button class="button cem-edit-reg" data-id="' + r.id + '"><span class="dashicons dashicons-edit" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Edit Contact Info</button>';
+    html += '<button class="button cem-delete-reg" data-id="' + r.id + '"><span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Delete</button>';
+    html += '</div>';
+
+    body.html(html);
+    // Stash the loaded record so the Edit button can pre-fill without re-fetching.
+    body.data('reg', r).data('meta', meta).data('ev', ev);
+  }
+
+  // Swap the modal into an editable contact-info form.
+  $(document).on('click', '.cem-edit-reg', function () {
+    const body = $('#cem-reg-modal-body');
+    const r    = body.data('reg');
+    if (!r) return;
+
+    let html = '<h2>Edit Contact Info</h2>';
+    html += '<p class="cem-muted" style="margin-top:-8px">Correct a mistyped name, email, or phone. Other details (status, attendees, payment) are unchanged.</p>';
+    html += '<div class="cem-edit-reg-form" style="display:flex;flex-direction:column;gap:12px;max-width:420px">';
+    html += field('First name', 'first_name', r.first_name, 'text');
+    html += field('Last name',  'last_name',  r.last_name,  'text');
+    html += field('Email',      'email',      r.email,      'email');
+    html += field('Phone',      'phone',      r.phone || '', 'tel');
+    html += '</div>';
+    html += '<p class="cem-edit-reg-error" style="color:#c53030;display:none;margin-top:10px"></p>';
+    html += '<div style="margin-top:16px;display:flex;gap:8px">';
+    html += '<button class="button button-primary cem-save-reg" data-id="' + r.id + '">Save Changes</button>';
+    html += '<button class="button cem-cancel-edit-reg">Cancel</button>';
+    html += '</div>';
+
+    body.html(html);
+  });
+
+  // Cancel edit → back to the read-only view.
+  $(document).on('click', '.cem-cancel-edit-reg', function () {
+    const body = $('#cem-reg-modal-body');
+    renderRegDetails(body, body.data('reg'), body.data('meta'), body.data('ev'));
+  });
+
+  // Save edited contact info.
+  $(document).on('click', '.cem-save-reg', function () {
+    const btn  = $(this);
+    const body = $('#cem-reg-modal-body');
+    const err  = body.find('.cem-edit-reg-error');
+    const payload = {
+      action: 'cem_update_registration',
+      nonce,
+      registration_id: btn.data('id'),
+      first_name: body.find('[name="first_name"]').val().trim(),
+      last_name:  body.find('[name="last_name"]').val().trim(),
+      email:      body.find('[name="email"]').val().trim(),
+      phone:      body.find('[name="phone"]').val().trim()
+    };
+
+    err.hide();
+    btn.prop('disabled', true).text('Saving…');
+    $.post(ajax, payload, function (res) {
+      if (res.success) {
+        location.reload();
+      } else {
+        btn.prop('disabled', false).text('Save Changes');
+        err.text(res.data && res.data.message ? res.data.message : 'Could not save.').show();
       }
-
-      html += '</tbody></table>';
-
-      html += '<div style="margin-top:14px;display:flex;gap:8px">';
-      if (r.status !== 'checked_in') {
-        html += '<button class="button button-primary cem-check-in-btn" data-id="' + r.id + '"><span class="dashicons dashicons-yes" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Check In</button>';
-      }
-      html += '<button class="button cem-delete-reg" data-id="' + r.id + '"><span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;vertical-align:text-bottom"></span> Delete</button>';
-      html += '</div>';
-
-      body.html(html);
+    }).fail(function () {
+      btn.prop('disabled', false).text('Save Changes');
+      err.text('Could not save. Please try again.').show();
     });
   });
 
   function row(label, value) {
     return '<tr><th style="width:140px;font-size:12px;color:#718096;text-transform:uppercase">' + label + '</th><td>' + (value || '—') + '</td></tr>';
+  }
+
+  function field(label, name, value, type) {
+    return '<label style="font-size:12px;color:#718096;text-transform:uppercase;font-weight:600">' + label +
+      '<input type="' + type + '" name="' + name + '" value="' + escAttr(value) + '" class="widefat" style="margin-top:4px;text-transform:none"></label>';
+  }
+
+  // Minimal HTML / attribute escapers for values rendered into the modal.
+  function esc(v) {
+    if (v === null || typeof v === 'undefined') return '';
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escAttr(v) {
+    if (v === null || typeof v === 'undefined') return '';
+    return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   // Modal close
