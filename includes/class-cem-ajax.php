@@ -291,6 +291,43 @@ class CEM_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'church-event-manager' ) ] );
 		}
 
+		// ── Per-tier capacity check ─────────────────────────────────────────────
+		// Reject if a requested tier quantity exceeds that tier's remaining spots.
+		// Runs BEFORE payment so a paid registrant is never charged then bounced.
+		if ( ! $is_group && ! empty( $reg_types ) ) {
+			$tier_sold = CEM_Helpers::get_tier_sold_counts( $event_id );
+			$requested = []; // tier name => qty being requested now
+			if ( ! empty( $tier_breakdown ) ) {
+				foreach ( $tier_breakdown as $line ) {
+					$requested[ $line['name'] ] = ( $requested[ $line['name'] ] ?? 0 ) + (int) $line['qty'];
+				}
+			} elseif ( $selected_type ) {
+				$requested[ $selected_type['name'] ] = $num_attendees;
+			}
+			foreach ( $reg_types as $rt ) {
+				$cap = (int) ( $rt['capacity'] ?? 0 );
+				if ( $cap <= 0 ) continue; // unlimited tier
+				$name = (string) ( $rt['name'] ?? '' );
+				$want = (int) ( $requested[ $name ] ?? 0 );
+				if ( $want <= 0 ) continue;
+				$remaining = max( 0, $cap - (int) ( $tier_sold[ $name ] ?? 0 ) );
+				if ( $want > $remaining ) {
+					ob_end_clean();
+					wp_send_json_error( [ 'message' => sprintf(
+						/* translators: 1: number of spots left, 2: tier name */
+						_n(
+							'Sorry, only %1$d spot is left for "%2$s". Please lower the quantity.',
+							'Sorry, only %1$d spots are left for "%2$s". Please lower the quantity.',
+							$remaining,
+							'church-event-manager'
+						),
+						$remaining,
+						$name
+					) ] );
+				}
+			}
+		}
+
 		// ── Payment verification ───────────────────────────────────────────────
 		// Groups (Event Series) are always free — no Stripe involved.
 		$allow_inperson = ! $is_group && get_post_meta( $event_id, '_cem_allow_inperson', true ) === '1';

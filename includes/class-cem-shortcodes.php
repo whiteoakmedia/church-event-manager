@@ -750,21 +750,10 @@ class CEM_Shortcodes {
 			?>
 
 				<?php if ( $has_reg_types ) :
-				// Batch-load sold counts per registration type for this event.
-				global $wpdb;
-				$type_sold_raw = $wpdb->get_results( $wpdb->prepare(
-					"SELECT m.meta_value AS type_name, COUNT(*) AS sold
-					 FROM {$wpdb->prefix}cem_registration_meta m
-					 INNER JOIN {$wpdb->prefix}cem_registrations r ON r.id = m.registration_id
-					 WHERE r.event_id = %d AND m.meta_key = '_registration_type'
-					   AND r.status IN ('confirmed','pending','checked_in','waitlisted')
-					 GROUP BY m.meta_value",
-					$event_id
-				) );
-				$type_sold_counts = [];
-				foreach ( $type_sold_raw as $row ) {
-					$type_sold_counts[ $row->type_name ] = (int) $row->sold;
-				}
+				// Sold counts per tier — accurately handles mixed-tier breakdowns
+				// (summed quantities) and single-tier registrations (attendees),
+				// counting pending as a held spot. See CEM_Helpers for details.
+				$type_sold_counts = CEM_Helpers::get_tier_sold_counts( $event_id );
 			?>
 				<!-- Registration Type / Pricing Tier Selection -->
 				<div class="cem-form-section">

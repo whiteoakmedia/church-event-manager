@@ -94,6 +94,61 @@ class CEM_Helpers {
 	}
 
 	/**
+	 * Count how many of each registration type / pricing tier have been taken.
+	 *
+	 * Returns a map of [ tier name => quantity sold ]. Handles both modes:
+	 *   • Mixed-tier registrations store a `_registration_tier_breakdown` JSON
+	 *     blob — we sum the per-tier `qty` from it.
+	 *   • Single-tier registrations store the plain tier name in
+	 *     `_registration_type` — every attendee on that registration counts as
+	 *     one of that tier.
+	 *
+	 * A mixed-tier registration ALSO stores a human-readable summary (e.g.
+	 * "2x Adult, 1x Child") under `_registration_type`; we deliberately ignore
+	 * that field when a breakdown is present so the summary never pollutes the
+	 * counts. Like get_registration_count(), pending holds a spot; cancelled and
+	 * waitlisted do not.
+	 *
+	 * @param int $event_id
+	 * @return array<string,int>
+	 */
+	public static function get_tier_sold_counts( $event_id, $include_statuses = [ 'confirmed', 'checked_in', 'pending' ] ) {
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $include_statuses ), '%s' ) );
+		$args         = array_merge( [ (int) $event_id ], $include_statuses );
+
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT r.id, r.num_attendees,
+			        MAX(CASE WHEN m.meta_key = '_registration_type'            THEN m.meta_value END) AS type_name,
+			        MAX(CASE WHEN m.meta_key = '_registration_tier_breakdown' THEN m.meta_value END) AS breakdown
+			 FROM {$wpdb->prefix}cem_registrations r
+			 LEFT JOIN {$wpdb->prefix}cem_registration_meta m ON m.registration_id = r.id
+			 WHERE r.event_id = %d AND r.status IN ($placeholders)
+			 GROUP BY r.id, r.num_attendees",
+			$args
+		) );
+
+		$counts = [];
+		foreach ( $rows as $row ) {
+			if ( ! empty( $row->breakdown ) ) {
+				$bd = json_decode( $row->breakdown, true );
+				if ( is_array( $bd ) ) {
+					foreach ( $bd as $line ) {
+						$name = (string) ( $line['name'] ?? '' );
+						$qty  = (int) ( $line['qty'] ?? 0 );
+						if ( $name === '' || $qty <= 0 ) continue;
+						$counts[ $name ] = ( $counts[ $name ] ?? 0 ) + $qty;
+					}
+				}
+			} elseif ( ! empty( $row->type_name ) ) {
+				$name = (string) $row->type_name;
+				$counts[ $name ] = ( $counts[ $name ] ?? 0 ) + max( 1, (int) $row->num_attendees );
+			}
+		}
+		return $counts;
+	}
+
+	/**
 	 * Get total spot-occupying registrations across all events in a category.
 	 *
 	 * Mirrors get_registration_count(): pending (awaiting approval) counts too,
