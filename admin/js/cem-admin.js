@@ -258,6 +258,21 @@
       $.post(ajax, { action: 'cem_send_reminder', nonce, registration_ids: ids }, function (res) {
         alert(res.success ? res.data.message : res.data.message);
       });
+    } else if (action === 'delete') {
+      // Permanent, cascading, and usually used on dozens of rows at once —
+      // so the confirm states the count and what goes with them.
+      const msg = 'Permanently delete ' + ids.length + ' registration' + (ids.length === 1 ? '' : 's') + '?\n\n'
+        + 'This also removes their answers, check-in records and waiting-list places. It cannot be undone.';
+      if (!confirm(msg)) return;
+
+      $.post(ajax, { action: 'cem_bulk_delete_regs', nonce, ids }, function (res) {
+        if (res.success) {
+          showNotice('.cem-results-count', res.data.message, 'success');
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          alert(res.data.message);
+        }
+      });
     } else {
       // Status change
       $.post(ajax, { action: 'cem_update_reg_status', nonce, ids, status: action }, function (res) {

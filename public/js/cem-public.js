@@ -4,6 +4,22 @@
 
   const ajax = cemPublic.ajaxUrl;
 
+  // ── Spam gate: submit timing ────────────────────────────────────────────────
+  // How long the visitor had the form open. Written into the payload by JS at
+  // submit time rather than rendered into the page HTML, so a CDN serving a
+  // cached page can't bake in a stale value. The server treats a MISSING value
+  // as fine (see CEM_Antispam::submitted_too_fast) — only an implausibly fast
+  // submit is rejected.
+  const cemLoadedAt = Date.now();
+
+  function cemStampSubmitTime(form) {
+    let $field = form.find('input[name="cem_ft"]');
+    if (!$field.length) {
+      $field = $('<input type="hidden" name="cem_ft">').appendTo(form);
+    }
+    $field.val(Date.now() - cemLoadedAt);
+  }
+
   /**
    * Fetch a freshly-minted cem_register_nonce from the plugin's REST endpoint
    * and write it into the form's hidden cem_nonce input before submission.
@@ -165,6 +181,8 @@
       return;
     }
 
+    cemStampSubmitTime(form);
+
     // ── Stripe payment gate ──────────────────────────────────────────────────
     // If this event requires payment, cem-stripe.js intercepts first, processes
     // the Stripe payment, then re-triggers submit with data-payment-confirmed set.
@@ -254,6 +272,8 @@
       msgs.html('<div class="cem-notice cem-notice-error">Please fill in all required fields.</div>');
       return;
     }
+
+    cemStampSubmitTime(form);
 
     btn.prop('disabled', true).text(cemPublic.strings.submitting || 'Submitting…');
     msgs.html('');

@@ -1517,3 +1517,23 @@
   padding-left: 8px;
   padding-right: 8px;
 }
+
+/* ============================================================
+   Spam gate  (v1.12.1)
+   ============================================================ */
+
+/* The honeypot. Moved off-screen rather than display:none — some bots skip
+   anything hidden with display, and off-screen still catches them. It carries
+   aria-hidden and tabindex="-1" in the markup, so assistive tech and the
+   keyboard both pass it by. !important because a theme's form styles love to
+   re-show stray inputs. */
+.cem-hp {
+  position: absolute !important;
+  left: -9999px !important;
+  top: auto !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+.cem-turnstile { margin: 0 0 18px; }

@@ -768,6 +768,7 @@ class CEM_Shortcodes {
 				data-event-id="<?php echo esc_attr( $event_id ); ?>"
 				data-mixed-tiers="<?php echo $allow_mixed_tiers ? '1' : '0'; ?>">
 				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
+				<?php CEM_Antispam::render_honeypot(); ?>
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>">
 				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
 
@@ -1081,6 +1082,8 @@ class CEM_Shortcodes {
 					</div>
 				</div>
 				<?php endif; ?>
+
+				<?php CEM_Antispam::render_turnstile(); ?>
 
 				<div class="cem-form-submit">
 					<button type="submit" class="cem-btn cem-btn-primary cem-btn-large" id="cem-submit-btn">

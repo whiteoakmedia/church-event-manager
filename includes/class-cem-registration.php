@@ -68,12 +68,26 @@ class CEM_Registration {
 			}
 		}
 
-		// Duplicate check (same email + event/group, not cancelled)
-		$existing = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM {$wpdb->prefix}cem_registrations
-			 WHERE event_id = %d AND email = %s AND status NOT IN ('cancelled')",
-			$event_id, sanitize_email( $data['email'] )
+		// ── Duplicate check (same person + event/group, not cancelled) ──────────
+		// Compared on the normalized address rather than the literal one. Gmail
+		// ignores dots and "+tags", so h.on.gv.o7.81@gmail.com and
+		// hongvo781@gmail.com are one inbox — matching on the raw string let a
+		// single spammer register hundreds of times for the same event.
+		$submitted = CEM_Antispam::normalize_email( $data['email'] );
+		$existing  = false;
+
+		$candidates = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, email FROM {$wpdb->prefix}cem_registrations
+			 WHERE event_id = %d AND status NOT IN ('cancelled')",
+			$event_id
 		) );
+		foreach ( (array) $candidates as $candidate ) {
+			if ( CEM_Antispam::normalize_email( $candidate->email ) === $submitted ) {
+				$existing = (int) $candidate->id;
+				break;
+			}
+		}
+
 		if ( $existing ) {
 			return new WP_Error( 'duplicate', $is_group
 				? __( 'You are already a member of this group.', 'church-event-manager' )
@@ -268,10 +282,23 @@ class CEM_Registration {
 			'order'     => 'DESC',
 			'date_from' => '',
 			'date_to'   => '',
+			'ids'       => null, // restrict to a specific set (spam clean-up filter)
 		];
 		$args   = wp_parse_args( $args, $defaults );
 		$where  = [ '1=1' ];
 		$values = [];
+
+		// `ids` is null when unused, but an EMPTY array is meaningful: it means
+		// "a set was requested and nothing matched", which must return nothing
+		// rather than silently falling through to every registration.
+		if ( is_array( $args['ids'] ) ) {
+			if ( empty( $args['ids'] ) ) {
+				return [ 'registrations' => [], 'total' => 0 ];
+			}
+			$ids          = array_map( 'absint', $args['ids'] );
+			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$where[]      = $wpdb->prepare( "id IN ($placeholders)", ...$ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders
+		}
 
 		if ( $args['event_id'] ) {
 			$where[] = $wpdb->prepare( "event_id = %d", $args['event_id'] );

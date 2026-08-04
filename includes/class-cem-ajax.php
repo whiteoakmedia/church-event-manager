@@ -168,6 +168,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_bulk_email',             [ $this, 'bulk_email' ] );
 		add_action( 'wp_ajax_cem_export_registrations',   [ $this, 'export_registrations' ] );
 		add_action( 'wp_ajax_cem_update_reg_status',      [ $this, 'update_reg_status' ] );
+		add_action( 'wp_ajax_cem_bulk_delete_regs',      [ $this, 'bulk_delete_regs' ] );
 		add_action( 'wp_ajax_cem_send_reminder',          [ $this, 'send_reminder' ] );
 		add_action( 'wp_ajax_cem_waitlist_promote',       [ $this, 'waitlist_promote' ] );
 		add_action( 'wp_ajax_cem_delete_registration',    [ $this, 'delete_registration' ] );
@@ -283,6 +284,17 @@ class CEM_Ajax {
 		}
 		$is_group = ( $post_type === 'cem_group' );
 
+		// ── Spam gate ───────────────────────────────────────────────────────────
+		// Runs before anything is written or emailed. A nonce alone never stopped
+		// this: the endpoint that mints nonces is public, so a script could fetch
+		// one and post all day. Every check inside fails open — see CEM_Antispam.
+		$spam_reason = CEM_Antispam::check( $_POST );
+		if ( $spam_reason ) {
+			CEM_Antispam::log_blocked( $spam_reason, $_POST );
+			ob_end_clean();
+			wp_send_json_error( [ 'message' => CEM_Antispam::rejection_message() ] );
+		}
+
 		// Collect the whole-booking custom fields. Questions flagged "per person"
 		// are skipped here — they arrive under cem_attendee[] and are handled
 		// once the headcount is known (see parse_attendees below).
@@ -336,7 +348,15 @@ class CEM_Ajax {
 			foreach ( $tier_breakdown as $line ) $num_attendees += $line['qty'];
 			if ( $num_attendees < 1 ) $num_attendees = 1;
 		} else {
-			$num_attendees = (int) ( $_POST['num_attendees'] ?? 1 );
+			// Clamp to the event's own limit. This value came straight off the
+			// request with no upper bound, so a crafted POST could claim any
+			// headcount and swallow the whole event's capacity — which is exactly
+			// what the spam run was doing with 3 and 5 attendees a time.
+			$num_attendees = max( 1, (int) ( $_POST['num_attendees'] ?? 1 ) );
+			$max_per_reg   = (int) get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
+			if ( $max_per_reg > 0 ) {
+				$num_attendees = min( $num_attendees, $max_per_reg );
+			}
 		}
 
 		$data = [
@@ -734,6 +754,36 @@ class CEM_Ajax {
 		] );
 	}
 
+	/**
+	 * Delete many registrations at once.
+	 *
+	 * Clearing a spam run one row at a time isn't viable — the flood that
+	 * prompted this left hundreds of rows. Deletion cascades through the meta,
+	 * check-in and waitlist tables exactly as the single-row delete does.
+	 */
+	public function bulk_delete_regs() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$ids = array_filter( array_map( 'intval', (array) ( $_POST['ids'] ?? [] ) ) );
+		if ( empty( $ids ) ) {
+			wp_send_json_error( [ 'message' => __( 'No registrations selected.', 'church-event-manager' ) ] );
+		}
+
+		$deleted = 0;
+		foreach ( $ids as $id ) {
+			if ( CEM_Registration::delete( $id ) ) $deleted++;
+		}
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				/* translators: %d: number of registrations deleted */
+				_n( '%d registration deleted.', '%d registrations deleted.', $deleted, 'church-event-manager' ),
+				$deleted
+			),
+		] );
+	}
+
 	public function send_reminder() {
 		$this->require_admin();
 		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
@@ -905,6 +955,10 @@ class CEM_Ajax {
 			'cem_stripe_publishable_key', 'cem_stripe_secret_key', 'cem_stripe_currency',
 			// Error reporting
 			'cem_client_id', 'cem_client_name', 'cem_error_reporting_endpoint',
+			// Spam protection
+			'cem_antispam_min_seconds', 'cem_antispam_max_per_window',
+			'cem_antispam_window_minutes',
+			'cem_turnstile_site_key', 'cem_turnstile_secret_key',
 		];
 
 		foreach ( $text_settings as $key ) {
@@ -926,6 +980,7 @@ class CEM_Ajax {
 			'cem_stripe_enabled',
 			'cem_stripe_test_mode',
 			'cem_error_reporting_enabled',
+			'cem_antispam_enabled',
 		];
 		$present_checkboxes = isset( $_POST['cem_checkbox_fields'] ) && is_array( $_POST['cem_checkbox_fields'] )
 			? array_map( 'sanitize_key', $_POST['cem_checkbox_fields'] )
