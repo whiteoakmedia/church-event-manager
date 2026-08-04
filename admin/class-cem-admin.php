@@ -2169,7 +2169,27 @@ class CEM_Admin {
 				$reg_types         = get_post_meta( $post->ID, '_cem_registration_types', true );
 				$reg_types         = $reg_types ? json_decode( $reg_types, true ) : [];
 				$allow_mixed_tiers = get_post_meta( $post->ID, '_cem_allow_mixed_tiers', true ) === '1';
+				$rt_heading        = get_post_meta( $post->ID, '_cem_reg_types_heading', true );
+				$rt_intro          = get_post_meta( $post->ID, '_cem_reg_types_intro', true );
 				?>
+				<div class="cem-section-body--cols2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 12px">
+					<div class="cem-meta-row">
+						<label for="cem_rt_heading"><?php esc_html_e( 'Heading shown to registrants', 'church-event-manager' ); ?></label>
+						<input type="text" id="cem_rt_heading" name="_cem_reg_types_heading" class="widefat"
+							value="<?php echo esc_attr( $rt_heading ); ?>"
+							placeholder="<?php echo esc_attr( $allow_mixed_tiers
+								? __( 'Choose Quantities', 'church-event-manager' )
+								: __( 'Select Registration Type', 'church-event-manager' ) ); ?>">
+						<p class="description" style="margin:4px 0 0"><?php esc_html_e( 'Replaces the default title above the options — e.g. "Which session are you attending?"', 'church-event-manager' ); ?></p>
+					</div>
+					<div class="cem-meta-row">
+						<label for="cem_rt_intro"><?php esc_html_e( 'Short explanation (optional)', 'church-event-manager' ); ?></label>
+						<input type="text" id="cem_rt_intro" name="_cem_reg_types_intro" class="widefat"
+							value="<?php echo esc_attr( $rt_intro ); ?>"
+							placeholder="<?php esc_attr_e( 'e.g. Pick the option that applies to you.', 'church-event-manager' ); ?>">
+						<p class="description" style="margin:4px 0 0"><?php esc_html_e( 'Appears just under the heading, before the options.', 'church-event-manager' ); ?></p>
+					</div>
+				</div>
 				<div style="margin:0 0 12px;padding:10px 12px;background:#f7f7f7;border-radius:4px">
 					<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">
 						<input type="checkbox" name="_cem_allow_mixed_tiers" value="1" <?php checked( $allow_mixed_tiers ); ?>
@@ -2254,6 +2274,24 @@ class CEM_Admin {
 				</div><!-- /.cem-section-body -->
 			</div><!-- /.cem-section capacity-deadlines -->
 
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-email-alt"></span>
+					<h3><?php esc_html_e( 'Confirmation email', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<?php $confirm_msg = get_post_meta( $post->ID, '_cem_confirmation_message', true ); ?>
+					<div class="cem-meta-row">
+						<label for="cem_confirmation_message"><?php esc_html_e( 'Extra message for this event only', 'church-event-manager' ); ?></label>
+						<textarea id="cem_confirmation_message" name="_cem_confirmation_message" rows="5" class="widefat"
+							placeholder="<?php esc_attr_e( 'e.g. Payment is due by May 1st. You can give online at https://example.org/giving — choose "Women\'s Retreat" from the fund list.', 'church-event-manager' ); ?>"><?php echo esc_textarea( $confirm_msg ); ?></textarea>
+						<p class="description" style="margin:6px 0 0">
+							<?php esc_html_e( 'Added to the confirmation email for this event, just below the event details. Leave blank to send the standard email. Web addresses become clickable links automatically.', 'church-event-manager' ); ?>
+						</p>
+					</div>
+				</div><!-- /.cem-section-body -->
+			</div><!-- /.cem-section confirmation-email -->
+
 			</div><!-- /#cem-reg-fields-wrap -->
 		</div>
 		<script>
@@ -2334,7 +2372,7 @@ class CEM_Admin {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
 		$datetime_fields = [ '_cem_start_datetime', '_cem_end_datetime', '_cem_registration_deadline' ];
-		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
+		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status', '_cem_reg_types_heading', '_cem_reg_types_intro' ];
 		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
 		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled', '_cem_checkin_enabled', '_cem_allow_mixed_tiers' ];
@@ -2403,6 +2441,15 @@ class CEM_Admin {
 		foreach ( $text_fields   as $key ) update_post_meta( $post_id, $key, sanitize_text_field( $_POST[$key] ?? '' ) );
 		foreach ( $url_fields    as $key ) update_post_meta( $post_id, $key, esc_url_raw( $_POST[$key] ?? '' ) );
 		foreach ( $number_fields as $key ) update_post_meta( $post_id, $key, (int) ( $_POST[$key] ?? 0 ) );
+
+		// Per-event confirmation email message. wp_kses_post (not
+		// sanitize_text_field) so line breaks survive and a link the admin pastes
+		// in still works; the email template runs it through make_clickable().
+		update_post_meta(
+			$post_id,
+			'_cem_confirmation_message',
+			wp_kses_post( (string) wp_unslash( $_POST['_cem_confirmation_message'] ?? '' ) )
+		);
 
 		// Price is stored as a decimal string ("25.00") so (float) casts work correctly in templates.
 		// Empty string means "no price shown"; "0.00" means "Free".

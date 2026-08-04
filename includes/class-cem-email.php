@@ -532,6 +532,28 @@ class CEM_Email {
 			}
 		}
 
+		// Per-event confirmation message — giving/payment instructions, what to
+		// bring, and anything else that differs from the standard email. Run
+		// through make_clickable() so a pasted giving URL is a real link.
+		$custom_message = '';
+		if ( $event && ! $is_group ) {
+			$raw_msg = get_post_meta( $event->ID, '_cem_confirmation_message', true );
+			if ( is_string( $raw_msg ) && trim( $raw_msg ) !== '' ) {
+				$custom_message = wpautop( make_clickable( wp_kses_post( $raw_msg ) ) );
+			}
+		}
+
+		// Per-attendee roster, for events that ask "per person" questions — so a
+		// mum who signed up her daughters sees each person's workshop pick in the
+		// confirmation instead of just "Attendees: 3".
+		$attendee_roster = [];
+		if ( $reg && ! empty( $reg->id ) ) {
+			$attendee_roster = CEM_Custom_Fields::describe_roster(
+				$reg->event_id,
+				CEM_Custom_Fields::get_roster( $reg->id )
+			);
+		}
+
 		return [
 			'first_name'          => $reg->first_name,
 			'last_name'           => $reg->last_name,
@@ -543,6 +565,8 @@ class CEM_Email {
 			'registration_status' => $reg->status,
 			'tier_breakdown'      => $tier_breakdown_lines,
 			'tier_total'          => $tier_breakdown_total,
+			'event_custom_message'=> $custom_message,
+			'attendee_roster'     => $attendee_roster,
 			'event_id'            => $event ? (int) $event->ID : 0,
 			'event_title'         => $event ? $event->post_title : '',
 			'event_description'   => $event ? wp_trim_words( $event->post_content, 30 ) : '',

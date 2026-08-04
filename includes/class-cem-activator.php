@@ -107,6 +107,15 @@ class CEM_Activator {
 		dbDelta( $sql );
 
 		// Event custom field definitions
+		//
+		// field_meta (added in DB v1.5.0) is a JSON blob for settings that don't
+		// warrant their own column. Today it holds:
+		//   option_caps  – { "Option label": int } per-option signup limits for
+		//                  select/radio/checkbox fields (0/absent = unlimited)
+		//   per_attendee – 1 when the question is asked once per attendee
+		//                  instead of once per registration
+		// field_options remains the comma-joined option labels so every older
+		// read path keeps working untouched.
 		$sql = "CREATE TABLE {$wpdb->prefix}cem_custom_fields (
 			id           BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			event_id     BIGINT(20) UNSIGNED NOT NULL,
@@ -114,6 +123,7 @@ class CEM_Activator {
 			field_name   VARCHAR(255) NOT NULL,
 			field_type   VARCHAR(50)  NOT NULL DEFAULT 'text',
 			field_options LONGTEXT DEFAULT NULL,
+			field_meta   LONGTEXT DEFAULT NULL,
 			required     TINYINT(1)   NOT NULL DEFAULT 0,
 			sort_order   INT(11)      NOT NULL DEFAULT 0,
 			PRIMARY KEY (id),

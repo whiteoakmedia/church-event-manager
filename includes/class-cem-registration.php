@@ -794,9 +794,32 @@ class CEM_Registration {
 		}
 
 		$rows = [];
+		// Whether each event asks "per person" questions, cached per event so an
+		// export of hundreds of registrations doesn't re-query the field
+		// definitions — and doesn't look for a roster that can't exist.
+		$has_roster = [];
+
 		foreach ( $regs as $reg ) {
 			$event = get_post( $reg->event_id );
 			$meta  = self::get_meta( $reg->id );
+
+			$event_id_key = (int) $reg->event_id;
+			if ( ! isset( $has_roster[ $event_id_key ] ) ) {
+				$has_roster[ $event_id_key ] = (bool) array_filter(
+					CEM_Custom_Fields::get_fields( $event_id_key ),
+					[ 'CEM_Custom_Fields', 'is_per_attendee' ]
+				);
+			}
+
+			$attendees_detail = '';
+			if ( $has_roster[ $event_id_key ] ) {
+				$attendees_detail = CEM_Custom_Fields::summarize_roster(
+					CEM_Custom_Fields::describe_roster(
+						$event_id_key,
+						CEM_Custom_Fields::get_roster( $reg->id )
+					)
+				);
+			}
 
 			// Pull registration tier (name + price) out of meta so it shows up
 			// as first-class CSV columns instead of being buried in Custom:*.
@@ -828,6 +851,13 @@ class CEM_Registration {
 				'Registered At'     => $reg->created_at,
 				'Checked In At'     => $reg->checked_in_at,
 				'Notes'             => $reg->notes,
+				// Per-attendee answers, collapsed into one cell:
+				//   "Jane Doe (Workshop: Pottery) | Amy Doe (Workshop: Painting)"
+				// A single fixed column rather than one per attendee, because
+				// CEM_Helpers::array_to_csv() takes its header row from the first
+				// record — variable columns would shift values under the wrong
+				// headings for anyone with a different party size.
+				'Attendees Detail'  => $attendees_detail,
 			];
 			foreach ( $meta as $key => $value ) {
 				// Skip leading-underscore meta (internal); they shouldn't

@@ -1420,3 +1420,100 @@
   color: var(--cem-muted);
   font-weight: 500;
 }
+
+/* ============================================================
+   Per-attendee question blocks  (v1.12.0)
+   One card per person on a group sign-up. Blocks past the
+   current headcount carry the [hidden] attribute and have
+   their inputs disabled by cem-public.js.
+   ============================================================ */
+
+.cem-attendee-block {
+  border: 1px solid var(--cem-border);
+  border-radius: var(--cem-radius);
+  background: var(--cem-card-bg);
+  padding: 16px 18px 4px;
+  margin-bottom: 12px;
+}
+
+/* Belt and braces: some themes override the UA [hidden] rule with a
+   display declaration of their own, which would leak empty attendee
+   cards onto the page. */
+.cem-attendee-block[hidden] { display: none !important; }
+
+.cem-attendee-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cem-attendee-num {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--cem-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cem-attendee-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cem-text);
+}
+
+/* ── Option availability + sold-out states ────────────────── */
+
+.cem-option-avail {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cem-muted);
+  white-space: nowrap;
+}
+
+.cem-option-avail--full { color: var(--cem-danger); }
+
+.cem-option-full {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.cem-option-full input { cursor: not-allowed; }
+
+/* ── Clear a mis-clicked choice ───────────────────────────── */
+
+.cem-clear-choice {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cem-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cem-clear-choice:hover { color: var(--cem-primary); }
+
+/* ── Validation errors on a whole field group ─────────────── */
+/* Radio/checkbox groups are flagged on their wrapper, which has no
+   border of its own — so show the error on the label and options
+   rather than relying on the generic input border rule. */
+
+.cem-field.cem-field-error > label { color: var(--cem-danger); }
+
+.cem-field.cem-field-error .cem-option-label {
+  border-radius: var(--cem-radius-sm);
+  box-shadow: inset 0 0 0 1px rgba(198,40,40,.35);
+  padding-left: 8px;
+  padding-right: 8px;
+}
