@@ -16,6 +16,58 @@
 </table>
 
 <?php
+// Who's coming — only present when the event asks "per person" questions.
+// Each attendee gets their own row with their own answers (workshop pick, age
+// group, etc.) so the person who booked for the family can check them at a
+// glance. Table layout + inline styles: email clients are unreliable with
+// anything else.
+if ( ! empty( $attendee_roster ) ) :
+?>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;border-collapse:collapse;width:100%">
+  <tr>
+    <td style="padding:0 0 8px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#666">
+      <?php esc_html_e( "Who's coming", 'church-event-manager' ); ?>
+    </td>
+  </tr>
+  <?php foreach ( $attendee_roster as $person ) : ?>
+  <tr>
+    <td style="padding:0 0 8px">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff">
+        <tr>
+          <td style="padding:10px 14px">
+            <div style="font-size:15px;font-weight:600;color:#222"><?php echo esc_html( $person['name'] ); ?></div>
+            <?php if ( ! empty( $person['answers'] ) ) : ?>
+            <?php foreach ( $person['answers'] as $answer ) : ?>
+            <div style="font-size:13px;color:#555;margin-top:3px">
+              <?php echo esc_html( $answer['label'] ); ?>:
+              <strong style="color:#222"><?php echo esc_html( $answer['value'] ); ?></strong>
+            </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+<?php endif; ?>
+
+<?php
+// Per-event message set by the church (giving instructions, what to bring…).
+// Already sanitized + auto-linked in CEM_Email::get_template_vars().
+if ( ! empty( $event_custom_message ) ) :
+?>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;border-collapse:collapse;width:100%">
+  <tr>
+    <td style="padding:14px 18px;background:#f7f9fc;border-left:4px solid #3b5998;border-radius:4px;font-size:15px;line-height:1.6;color:#333">
+      <?php echo wp_kses_post( $event_custom_message ); ?>
+    </td>
+  </tr>
+</table>
+<?php endif; ?>
+
+<?php
 // QR code — encodes the manage URL. At check-in the volunteer scans
 // it; at home the registrant can scan it with their phone camera to
 // open their manage page directly.

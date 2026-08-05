@@ -68,12 +68,26 @@ class CEM_Registration {
 			}
 		}
 
-		// Duplicate check (same email + event/group, not cancelled)
-		$existing = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM {$wpdb->prefix}cem_registrations
-			 WHERE event_id = %d AND email = %s AND status NOT IN ('cancelled')",
-			$event_id, sanitize_email( $data['email'] )
+		// ── Duplicate check (same person + event/group, not cancelled) ──────────
+		// Compared on the normalized address rather than the literal one. Gmail
+		// ignores dots and "+tags", so h.on.gv.o7.81@gmail.com and
+		// hongvo781@gmail.com are one inbox — matching on the raw string let a
+		// single spammer register hundreds of times for the same event.
+		$submitted = CEM_Antispam::normalize_email( $data['email'] );
+		$existing  = false;
+
+		$candidates = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, email FROM {$wpdb->prefix}cem_registrations
+			 WHERE event_id = %d AND status NOT IN ('cancelled')",
+			$event_id
 		) );
+		foreach ( (array) $candidates as $candidate ) {
+			if ( CEM_Antispam::normalize_email( $candidate->email ) === $submitted ) {
+				$existing = (int) $candidate->id;
+				break;
+			}
+		}
+
 		if ( $existing ) {
 			return new WP_Error( 'duplicate', $is_group
 				? __( 'You are already a member of this group.', 'church-event-manager' )
@@ -268,10 +282,23 @@ class CEM_Registration {
 			'order'     => 'DESC',
 			'date_from' => '',
 			'date_to'   => '',
+			'ids'       => null, // restrict to a specific set (spam clean-up filter)
 		];
 		$args   = wp_parse_args( $args, $defaults );
 		$where  = [ '1=1' ];
 		$values = [];
+
+		// `ids` is null when unused, but an EMPTY array is meaningful: it means
+		// "a set was requested and nothing matched", which must return nothing
+		// rather than silently falling through to every registration.
+		if ( is_array( $args['ids'] ) ) {
+			if ( empty( $args['ids'] ) ) {
+				return [ 'registrations' => [], 'total' => 0 ];
+			}
+			$ids          = array_map( 'absint', $args['ids'] );
+			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$where[]      = $wpdb->prepare( "id IN ($placeholders)", ...$ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders
+		}
 
 		if ( $args['event_id'] ) {
 			$where[] = $wpdb->prepare( "event_id = %d", $args['event_id'] );
@@ -794,9 +821,32 @@ class CEM_Registration {
 		}
 
 		$rows = [];
+		// Whether each event asks "per person" questions, cached per event so an
+		// export of hundreds of registrations doesn't re-query the field
+		// definitions — and doesn't look for a roster that can't exist.
+		$has_roster = [];
+
 		foreach ( $regs as $reg ) {
 			$event = get_post( $reg->event_id );
 			$meta  = self::get_meta( $reg->id );
+
+			$event_id_key = (int) $reg->event_id;
+			if ( ! isset( $has_roster[ $event_id_key ] ) ) {
+				$has_roster[ $event_id_key ] = (bool) array_filter(
+					CEM_Custom_Fields::get_fields( $event_id_key ),
+					[ 'CEM_Custom_Fields', 'is_per_attendee' ]
+				);
+			}
+
+			$attendees_detail = '';
+			if ( $has_roster[ $event_id_key ] ) {
+				$attendees_detail = CEM_Custom_Fields::summarize_roster(
+					CEM_Custom_Fields::describe_roster(
+						$event_id_key,
+						CEM_Custom_Fields::get_roster( $reg->id )
+					)
+				);
+			}
 
 			// Pull registration tier (name + price) out of meta so it shows up
 			// as first-class CSV columns instead of being buried in Custom:*.
@@ -828,6 +878,13 @@ class CEM_Registration {
 				'Registered At'     => $reg->created_at,
 				'Checked In At'     => $reg->checked_in_at,
 				'Notes'             => $reg->notes,
+				// Per-attendee answers, collapsed into one cell:
+				//   "Jane Doe (Workshop: Pottery) | Amy Doe (Workshop: Painting)"
+				// A single fixed column rather than one per attendee, because
+				// CEM_Helpers::array_to_csv() takes its header row from the first
+				// record — variable columns would shift values under the wrong
+				// headings for anyone with a different party size.
+				'Attendees Detail'  => $attendees_detail,
 			];
 			foreach ( $meta as $key => $value ) {
 				// Skip leading-underscore meta (internal); they shouldn't

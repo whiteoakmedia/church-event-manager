@@ -55,12 +55,12 @@
 
     $.get(ajax, { action: 'cem_get_reg_details', nonce, registration_id: regId }, function (res) {
       if (!res.success) { body.html('<p>' + res.data.message + '</p>'); return; }
-      renderRegDetails(body, res.data.registration, res.data.meta, res.data.event_title);
+      renderRegDetails(body, res.data.registration, res.data.meta, res.data.event_title, res.data.attendees);
     });
   });
 
   // Render the read-only details view for a registration.
-  function renderRegDetails(body, r, meta, ev) {
+  function renderRegDetails(body, r, meta, ev, attendees) {
     let html = '<h2>' + esc(r.first_name) + ' ' + esc(r.last_name) + '</h2>';
     html += '<table class="cem-table widefat"><tbody>';
     html += row('Event', esc(ev));
@@ -80,6 +80,23 @@
       });
     }
 
+    // Per-attendee roster: one block per person with their own answers, for
+    // events that ask "per person" questions (workshop choice, age group…).
+    if (attendees && attendees.length) {
+      html += '<tr><td colspan="2"><strong>Attendees</strong></td></tr>';
+      attendees.forEach(function (person, i) {
+        let detail = '';
+        if (person.answers && person.answers.length) {
+          detail = person.answers.map(function (a) {
+            return esc(a.label) + ': <strong>' + esc(a.value) + '</strong>';
+          }).join('<br>');
+        } else {
+          detail = '<span class="cem-muted">—</span>';
+        }
+        html += row((i + 1) + '. ' + esc(person.name), detail);
+      });
+    }
+
     html += '</tbody></table>';
 
     html += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">';
@@ -92,7 +109,7 @@
 
     body.html(html);
     // Stash the loaded record so the Edit button can pre-fill without re-fetching.
-    body.data('reg', r).data('meta', meta).data('ev', ev);
+    body.data('reg', r).data('meta', meta).data('ev', ev).data('attendees', attendees);
   }
 
   // Swap the modal into an editable contact-info form.
@@ -121,7 +138,7 @@
   // Cancel edit → back to the read-only view.
   $(document).on('click', '.cem-cancel-edit-reg', function () {
     const body = $('#cem-reg-modal-body');
-    renderRegDetails(body, body.data('reg'), body.data('meta'), body.data('ev'));
+    renderRegDetails(body, body.data('reg'), body.data('meta'), body.data('ev'), body.data('attendees'));
   });
 
   // Save edited contact info.
@@ -240,6 +257,21 @@
       // Send reminders
       $.post(ajax, { action: 'cem_send_reminder', nonce, registration_ids: ids }, function (res) {
         alert(res.success ? res.data.message : res.data.message);
+      });
+    } else if (action === 'delete') {
+      // Permanent, cascading, and usually used on dozens of rows at once —
+      // so the confirm states the count and what goes with them.
+      const msg = 'Permanently delete ' + ids.length + ' registration' + (ids.length === 1 ? '' : 's') + '?\n\n'
+        + 'This also removes their answers, check-in records and waiting-list places. It cannot be undone.';
+      if (!confirm(msg)) return;
+
+      $.post(ajax, { action: 'cem_bulk_delete_regs', nonce, ids }, function (res) {
+        if (res.success) {
+          showNotice('.cem-results-count', res.data.message, 'success');
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          alert(res.data.message);
+        }
       });
     } else {
       // Status change

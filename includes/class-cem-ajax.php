@@ -6,6 +6,71 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class CEM_Ajax {
 
+	// ── Per-attendee roster ───────────────────────────────────────────────────
+
+	/**
+	 * Normalize the posted cem_attendee[] roster into one row per attendee.
+	 *
+	 * Returns an empty array when the event has no "per person" questions, so
+	 * events that don't use the feature carry no extra data at all.
+	 *
+	 * The roster length is derived from $num_attendees rather than from the
+	 * payload: the form disables the blocks past the current headcount so they
+	 * are never submitted, but a hand-crafted POST could otherwise smuggle in
+	 * extra people and slip past the per-option capacity checks.
+	 *
+	 * @param int         $event_id
+	 * @param mixed       $raw            $_POST['cem_attendee'] (may be anything).
+	 * @param int         $num_attendees  Headcount for this registration.
+	 * @param string      $fallback_first Registrant's first name (attendee #1).
+	 * @param string      $fallback_last  Registrant's last name (attendee #1).
+	 * @return array [ [ 'first_name'=>str, 'last_name'=>str, 'fields'=>[ name => str|array ] ], … ]
+	 */
+	public static function parse_attendees( $event_id, $raw, $num_attendees, $fallback_first = '', $fallback_last = '' ) {
+		$per_fields = [];
+		foreach ( CEM_Custom_Fields::get_fields( $event_id ) as $field ) {
+			if ( CEM_Custom_Fields::is_per_attendee( $field ) ) {
+				$per_fields[] = $field;
+			}
+		}
+		if ( empty( $per_fields ) ) return [];
+
+		$raw   = is_array( $raw ) ? $raw : [];
+		$count = max( 1, (int) $num_attendees );
+		$out   = [];
+
+		for ( $i = 0; $i < $count; $i++ ) {
+			$row   = is_array( $raw[ $i ] ?? null ) ? $raw[ $i ] : [];
+			$first = sanitize_text_field( wp_unslash( $row['first_name'] ?? '' ) );
+			$last  = sanitize_text_field( wp_unslash( $row['last_name']  ?? '' ) );
+
+			// Attendee #1 is the registrant; the form mirrors their contact name
+			// into the roster, but fall back to it server-side too in case the
+			// mirror never ran (JS disabled, or a direct POST).
+			if ( $i === 0 ) {
+				if ( $first === '' ) $first = $fallback_first;
+				if ( $last  === '' ) $last  = $fallback_last;
+			}
+
+			$posted  = is_array( $row['fields'] ?? null ) ? $row['fields'] : [];
+			$answers = [];
+			foreach ( $per_fields as $field ) {
+				$val = $posted[ $field->field_name ] ?? '';
+				$answers[ $field->field_name ] = is_array( $val )
+					? array_values( array_map( 'sanitize_text_field', array_map( 'wp_unslash', $val ) ) )
+					: sanitize_text_field( wp_unslash( $val ) );
+			}
+
+			$out[] = [
+				'first_name' => $first,
+				'last_name'  => $last,
+				'fields'     => $answers,
+			];
+		}
+
+		return $out;
+	}
+
 	// ── Mixed-tier helpers ────────────────────────────────────────────────────
 
 	/**
@@ -103,6 +168,7 @@ class CEM_Ajax {
 		add_action( 'wp_ajax_cem_bulk_email',             [ $this, 'bulk_email' ] );
 		add_action( 'wp_ajax_cem_export_registrations',   [ $this, 'export_registrations' ] );
 		add_action( 'wp_ajax_cem_update_reg_status',      [ $this, 'update_reg_status' ] );
+		add_action( 'wp_ajax_cem_bulk_delete_regs',      [ $this, 'bulk_delete_regs' ] );
 		add_action( 'wp_ajax_cem_send_reminder',          [ $this, 'send_reminder' ] );
 		add_action( 'wp_ajax_cem_waitlist_promote',       [ $this, 'waitlist_promote' ] );
 		add_action( 'wp_ajax_cem_delete_registration',    [ $this, 'delete_registration' ] );
@@ -218,15 +284,30 @@ class CEM_Ajax {
 		}
 		$is_group = ( $post_type === 'cem_group' );
 
-		// Collect custom fields
+		// ── Spam gate ───────────────────────────────────────────────────────────
+		// Runs before anything is written or emailed. A nonce alone never stopped
+		// this: the endpoint that mints nonces is public, so a script could fetch
+		// one and post all day. Every check inside fails open — see CEM_Antispam.
+		$spam_reason = CEM_Antispam::check( $_POST );
+		if ( $spam_reason ) {
+			CEM_Antispam::log_blocked( $spam_reason, $_POST );
+			ob_end_clean();
+			wp_send_json_error( [ 'message' => CEM_Antispam::rejection_message() ] );
+		}
+
+		// Collect the whole-booking custom fields. Questions flagged "per person"
+		// are skipped here — they arrive under cem_attendee[] and are handled
+		// once the headcount is known (see parse_attendees below).
 		$custom_fields = [];
 		$field_defs    = CEM_Custom_Fields::get_fields( $event_id );
 		foreach ( $field_defs as $field ) {
+			if ( CEM_Custom_Fields::is_per_attendee( $field ) ) continue;
 			$key = 'cem_custom_' . $field->field_name;
 			if ( isset( $_POST[ $key ] ) ) {
-				$custom_fields[ $field->field_name ] = is_array( $_POST[ $key ] )
-					? array_map( 'sanitize_text_field', $_POST[ $key ] )
-					: sanitize_text_field( $_POST[ $key ] );
+				$raw = wp_unslash( $_POST[ $key ] );
+				$custom_fields[ $field->field_name ] = is_array( $raw )
+					? array_values( array_map( 'sanitize_text_field', $raw ) )
+					: sanitize_text_field( $raw );
 			}
 		}
 
@@ -267,7 +348,15 @@ class CEM_Ajax {
 			foreach ( $tier_breakdown as $line ) $num_attendees += $line['qty'];
 			if ( $num_attendees < 1 ) $num_attendees = 1;
 		} else {
-			$num_attendees = (int) ( $_POST['num_attendees'] ?? 1 );
+			// Clamp to the event's own limit. This value came straight off the
+			// request with no upper bound, so a crafted POST could claim any
+			// headcount and swallow the whole event's capacity — which is exactly
+			// what the spam run was doing with 3 and 5 attendees a time.
+			$num_attendees = max( 1, (int) ( $_POST['num_attendees'] ?? 1 ) );
+			$max_per_reg   = (int) get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
+			if ( $max_per_reg > 0 ) {
+				$num_attendees = min( $num_attendees, $max_per_reg );
+			}
 		}
 
 		$data = [
@@ -289,6 +378,49 @@ class CEM_Ajax {
 		if ( ! is_email( $data['email'] ) ) {
 			ob_end_clean();
 			wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'church-event-manager' ) ] );
+		}
+
+		// ── Per-attendee roster ─────────────────────────────────────────────────
+		// Only built when the event actually has "per person" questions. The
+		// roster length comes from $num_attendees, not from the payload, so a
+		// crafted POST can't smuggle extra people past the capacity checks.
+		$attendees = self::parse_attendees(
+			$event_id,
+			$_POST['cem_attendee'] ?? null,
+			$num_attendees,
+			$data['first_name'],
+			$data['last_name']
+		);
+
+		if ( ! empty( $attendees ) ) {
+			$attendee_errors = CEM_Custom_Fields::validate_attendees( $event_id, $attendees );
+			if ( ! empty( $attendee_errors ) ) {
+				ob_end_clean();
+				wp_send_json_error( [ 'message' => implode( '<br>', $attendee_errors ) ] );
+			}
+		}
+
+		// ── Per-option capacity check ───────────────────────────────────────────
+		// Caps set on individual answer options (e.g. a workshop that holds 30).
+		// Runs before payment so a paid registrant is never charged then bounced.
+		$option_errors = CEM_Custom_Fields::check_option_capacity(
+			$event_id,
+			$custom_fields,
+			$attendees,
+			$num_attendees
+		);
+		if ( ! empty( $option_errors ) ) {
+			ob_end_clean();
+			wp_send_json_error( [ 'message' => implode( '<br>', $option_errors ) ] );
+		}
+
+		// ── A tier must actually be selected ────────────────────────────────────
+		// Registrants can clear a choice they made by mistake, so an empty tier
+		// selection has to be an explicit error rather than silently falling back
+		// to the event's flat price — which would charge the wrong amount.
+		if ( ! $is_group && ! empty( $reg_types ) && ! $mixed_enabled && ! $selected_type ) {
+			ob_end_clean();
+			wp_send_json_error( [ 'message' => __( 'Please choose a registration type.', 'church-event-manager' ) ] );
 		}
 
 		// ── Per-tier capacity check ─────────────────────────────────────────────
@@ -437,6 +569,19 @@ class CEM_Ajax {
 				'registration_id' => $result,
 				'meta_key'        => '_registration_type_price',
 				'meta_value'      => number_format( (float) $selected_type['price'], 2, '.', '' ),
+			], [ '%d', '%s', '%s' ] );
+		}
+
+		// Per-attendee roster: names plus each person's own answers. Stored as a
+		// single JSON blob the same way mixed-tier breakdowns are, so there's no
+		// schema change and the per-option capacity counter can read it back in
+		// one query. See CEM_Custom_Fields::get_option_sold_counts().
+		if ( ! empty( $attendees ) ) {
+			global $wpdb;
+			$wpdb->insert( "{$wpdb->prefix}cem_registration_meta", [
+				'registration_id' => $result,
+				'meta_key'        => '_attendees',
+				'meta_value'      => wp_json_encode( $attendees ),
 			], [ '%d', '%s', '%s' ] );
 		}
 
@@ -609,6 +754,36 @@ class CEM_Ajax {
 		] );
 	}
 
+	/**
+	 * Delete many registrations at once.
+	 *
+	 * Clearing a spam run one row at a time isn't viable — the flood that
+	 * prompted this left hundreds of rows. Deletion cascades through the meta,
+	 * check-in and waitlist tables exactly as the single-row delete does.
+	 */
+	public function bulk_delete_regs() {
+		$this->require_admin();
+		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
+
+		$ids = array_filter( array_map( 'intval', (array) ( $_POST['ids'] ?? [] ) ) );
+		if ( empty( $ids ) ) {
+			wp_send_json_error( [ 'message' => __( 'No registrations selected.', 'church-event-manager' ) ] );
+		}
+
+		$deleted = 0;
+		foreach ( $ids as $id ) {
+			if ( CEM_Registration::delete( $id ) ) $deleted++;
+		}
+
+		wp_send_json_success( [
+			'message' => sprintf(
+				/* translators: %d: number of registrations deleted */
+				_n( '%d registration deleted.', '%d registrations deleted.', $deleted, 'church-event-manager' ),
+				$deleted
+			),
+		] );
+	}
+
 	public function send_reminder() {
 		$this->require_admin();
 		check_ajax_referer( 'cem_admin_nonce', 'nonce' );
@@ -682,9 +857,18 @@ class CEM_Ajax {
 		$meta  = CEM_Registration::get_meta( $reg_id );
 		$event = get_post( $reg->event_id );
 
+		// Send the per-attendee roster pre-shaped (labels resolved) and drop the
+		// raw JSON so the modal never renders it as a meta row.
+		$attendees = CEM_Custom_Fields::describe_roster(
+			$reg->event_id,
+			CEM_Custom_Fields::get_roster( $reg_id )
+		);
+		unset( $meta['_attendees'] );
+
 		wp_send_json_success( [
 			'registration' => (array) $reg,
 			'meta'         => $meta,
+			'attendees'    => $attendees,
 			'event_title'  => $event ? $event->post_title : '',
 		] );
 	}
@@ -771,6 +955,10 @@ class CEM_Ajax {
 			'cem_stripe_publishable_key', 'cem_stripe_secret_key', 'cem_stripe_currency',
 			// Error reporting
 			'cem_client_id', 'cem_client_name', 'cem_error_reporting_endpoint',
+			// Spam protection
+			'cem_antispam_min_seconds', 'cem_antispam_max_per_window',
+			'cem_antispam_window_minutes',
+			'cem_turnstile_site_key', 'cem_turnstile_secret_key',
 		];
 
 		foreach ( $text_settings as $key ) {
@@ -792,6 +980,7 @@ class CEM_Ajax {
 			'cem_stripe_enabled',
 			'cem_stripe_test_mode',
 			'cem_error_reporting_enabled',
+			'cem_antispam_enabled',
 		];
 		$present_checkboxes = isset( $_POST['cem_checkbox_fields'] ) && is_array( $_POST['cem_checkbox_fields'] )
 			? array_map( 'sanitize_key', $_POST['cem_checkbox_fields'] )

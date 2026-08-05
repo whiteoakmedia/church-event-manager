@@ -666,11 +666,39 @@ class CEM_Shortcodes {
 		$waitlist   = get_option( 'cem_waitlist_enabled', '1' );
 		$custom_fields = CEM_Custom_Fields::get_fields( $event_id );
 
+		// ── Shared vs per-attendee questions ─────────────────────────────────────
+		// Questions flagged "per person" repeat once for every attendee on the
+		// sign-up (workshop choice, age group…); the rest are asked once for the
+		// whole booking.
+		$shared_fields   = [];
+		$attendee_fields = [];
+		foreach ( $custom_fields as $cf ) {
+			if ( CEM_Custom_Fields::is_per_attendee( $cf ) ) {
+				$attendee_fields[] = $cf;
+			} else {
+				$shared_fields[] = $cf;
+			}
+		}
+
+		// Remaining spots for each capped option, resolved once up front and
+		// reused for every attendee block — otherwise a 10-person sign-up would
+		// run the same count query ten times over. Fields with no caps return an
+		// empty array without touching the database.
+		$field_remaining = [];
+		foreach ( $custom_fields as $cf ) {
+			$field_remaining[ (int) $cf->id ] = CEM_Custom_Fields::get_option_remaining( $event_id, $cf );
+		}
+
 		// ── Registration types / pricing tiers ───────────────────────────────────
 		$reg_types_json   = get_post_meta( $event_id, '_cem_registration_types', true );
 		$reg_types        = $reg_types_json ? json_decode( $reg_types_json, true ) : [];
 		$has_reg_types    = ! empty( $reg_types );
 		$allow_mixed_tiers = $has_reg_types && get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1';
+
+		// Admin-editable heading + intro for the tier picker. Blank falls back to
+		// the built-in wording, so existing events are unchanged.
+		$reg_types_heading = trim( (string) get_post_meta( $event_id, '_cem_reg_types_heading', true ) );
+		$reg_types_intro   = trim( (string) get_post_meta( $event_id, '_cem_reg_types_intro', true ) );
 
 		// ── Payment detection ────────────────────────────────────────────────────
 		$event_price      = get_post_meta( $event_id, '_cem_price', true );
@@ -740,6 +768,7 @@ class CEM_Shortcodes {
 				data-event-id="<?php echo esc_attr( $event_id ); ?>"
 				data-mixed-tiers="<?php echo $allow_mixed_tiers ? '1' : '0'; ?>">
 				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
+				<?php CEM_Antispam::render_honeypot(); ?>
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>">
 				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
 
@@ -747,6 +776,35 @@ class CEM_Shortcodes {
 				$max_attendees = get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
 				$spots         = CEM_Helpers::get_spots_remaining( $event_id );
 				$currency_sym  = get_option( 'cem_currency_symbol', '$' );
+
+				// An event that never saved "Guests per sign-up" has no per-signup
+				// limit. This fallback has to be shared by the headcount input and
+				// the per-attendee blocks: when they disagree, the form offers a
+				// party size it has no blocks to collect answers for, and the
+				// server then rejects the sign-up over questions the registrant
+				// was never shown.
+				$max_per_reg = $max_attendees ? max( 1, (int) $max_attendees ) : 99;
+
+				// Largest headcount the form will accept.
+				$num_max = $max_per_reg;
+				if ( $spots !== null ) {
+					$num_max = min( $num_max, max( 1, (int) $spots ) );
+				}
+
+				// Per-attendee blocks are rendered server-side, so how many exist is
+				// a hard ceiling on party size whenever "per person" questions are in
+				// play. $slot_ceiling keeps the page from ballooning on events with no
+				// per-signup limit; cem-public.js refuses a headcount above it.
+				$slot_ceiling   = 25;
+				$attendee_slots = 0;
+				if ( ! empty( $attendee_fields ) ) {
+					// Mixed-tier headcount is the sum of the tier quantities, which
+					// _cem_max_attendees_per_reg doesn't bound — so allow the ceiling.
+					$attendee_slots = $allow_mixed_tiers ? $slot_ceiling : $num_max;
+					$attendee_slots = max( 1, min( $attendee_slots, $slot_ceiling ) );
+					// Never advertise a headcount we can't collect answers for.
+					$num_max        = min( $num_max, $attendee_slots );
+				}
 			?>
 
 				<?php if ( $has_reg_types ) :
@@ -758,13 +816,24 @@ class CEM_Shortcodes {
 				<!-- Registration Type / Pricing Tier Selection -->
 				<div class="cem-form-section">
 					<h3 class="cem-section-title">
-						<?php echo $allow_mixed_tiers
-							? esc_html__( 'Choose Quantities', 'church-event-manager' )
-							: esc_html__( 'Select Registration Type', 'church-event-manager' ); ?>
+						<?php
+						if ( $reg_types_heading !== '' ) {
+							echo esc_html( $reg_types_heading );
+						} else {
+							echo $allow_mixed_tiers
+								? esc_html__( 'Choose Quantities', 'church-event-manager' )
+								: esc_html__( 'Select Registration Type', 'church-event-manager' );
+						}
+						?>
 					</h3>
 
-					<?php if ( $allow_mixed_tiers ) : ?>
+					<?php if ( $reg_types_intro !== '' ) : ?>
+					<p class="cem-field-description" style="margin:0 0 12px"><?php echo esc_html( $reg_types_intro ); ?></p>
+					<?php elseif ( $allow_mixed_tiers ) : ?>
 					<p class="cem-field-description" style="margin:0 0 12px"><?php esc_html_e( 'Choose a quantity for each tier. The total updates as you change quantities.', 'church-event-manager' ); ?></p>
+					<?php endif; ?>
+
+					<?php if ( $allow_mixed_tiers ) : ?>
 					<div class="cem-tier-qty-list" id="cem-tier-qty-list">
 						<?php foreach ( $reg_types as $i => $rt ) :
 							$rt_price     = (float) $rt['price'];
@@ -884,22 +953,87 @@ class CEM_Shortcodes {
 					</div>
 
 					<?php if ( (int) $max_attendees !== 1 ) : ?>
+					<?php // One `max` only: emitting the attribute twice (as this did
+					      // before) leaves the browser honouring the first and silently
+					      // ignoring the remaining-spots limit. $num_max is resolved up
+					      // top so the attendee blocks agree with it. ?>
 					<div class="cem-form-row">
 						<div class="cem-field">
 							<label for="cem_num_attendees"><?php esc_html_e( 'Number of Attendees', 'church-event-manager' ); ?></label>
 							<input type="number" id="cem_num_attendees" name="num_attendees" value="1" min="1"
-								<?php if ( $max_attendees ) echo 'max="' . esc_attr( $max_attendees ) . '"'; ?>
-								<?php if ( $spots !== null ) echo 'max="' . esc_attr( min( $max_attendees ?: 99, $spots ) ) . '"'; ?>>
+								max="<?php echo esc_attr( $num_max ); ?>">
 						</div>
 					</div>
 					<?php endif; ?>
 				</div>
 
-				<?php if ( ! empty( $custom_fields ) ) : ?>
+				<?php if ( ! empty( $attendee_fields ) ) : ?>
+				<?php // One block per possible attendee, rendered server-side and
+				      // revealed as the headcount grows. Blocks past the current
+				      // headcount are hidden AND their inputs disabled by
+				      // cem-public.js, so they are neither validated nor submitted. ?>
+				<div class="cem-form-section cem-attendees-section" id="cem-attendees-section">
+					<h3 class="cem-section-title"><?php esc_html_e( "Who's Coming", 'church-event-manager' ); ?></h3>
+					<p class="cem-field-description" style="margin:0 0 14px">
+						<?php esc_html_e( 'Answer these for each person you are signing up. Change the number of attendees above to add or remove people.', 'church-event-manager' ); ?>
+					</p>
+
+					<?php for ( $ai = 0; $ai < $attendee_slots; $ai++ ) : ?>
+					<div class="cem-attendee-block" data-attendee-index="<?php echo esc_attr( $ai ); ?>" <?php echo $ai > 0 ? 'hidden' : ''; ?>>
+						<div class="cem-attendee-head">
+							<span class="cem-attendee-num"><?php echo esc_html( $ai + 1 ); ?></span>
+							<span class="cem-attendee-title">
+								<?php
+								echo $ai === 0
+									? esc_html__( 'You', 'church-event-manager' )
+									: esc_html( sprintf(
+										/* translators: %d: attendee number */
+										__( 'Attendee %d', 'church-event-manager' ),
+										$ai + 1
+									) );
+								?>
+							</span>
+						</div>
+
+						<?php if ( $ai === 0 ) : ?>
+						<?php // The first attendee is the registrant — their name mirrors
+						      // the contact fields above (kept in sync by cem-public.js)
+						      // so the roster is complete without asking twice. ?>
+						<input type="hidden" name="cem_attendee[0][first_name]" class="cem-attendee-mirror-first" value="">
+						<input type="hidden" name="cem_attendee[0][last_name]"  class="cem-attendee-mirror-last"  value="">
+						<?php else : ?>
+						<div class="cem-form-row cem-form-row-2">
+							<div class="cem-field">
+								<label for="cem_att<?php echo esc_attr( $ai ); ?>_first"><?php esc_html_e( 'First Name', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+								<input type="text" id="cem_att<?php echo esc_attr( $ai ); ?>_first"
+									name="cem_attendee[<?php echo esc_attr( $ai ); ?>][first_name]" required>
+							</div>
+							<div class="cem-field">
+								<label for="cem_att<?php echo esc_attr( $ai ); ?>_last"><?php esc_html_e( 'Last Name', 'church-event-manager' ); ?> <span class="cem-required">*</span></label>
+								<input type="text" id="cem_att<?php echo esc_attr( $ai ); ?>_last"
+									name="cem_attendee[<?php echo esc_attr( $ai ); ?>][last_name]" required>
+							</div>
+						</div>
+						<?php endif; ?>
+
+						<?php foreach ( $attendee_fields as $field ) :
+							CEM_Custom_Fields::render_field_html( $field, [
+								'attendee_index' => $ai,
+								'remaining'      => $field_remaining[ (int) $field->id ] ?? [],
+							] );
+						endforeach; ?>
+					</div>
+					<?php endfor; ?>
+				</div>
+				<?php endif; ?>
+
+				<?php if ( ! empty( $shared_fields ) ) : ?>
 				<div class="cem-form-section">
 					<h3 class="cem-section-title"><?php esc_html_e( 'Additional Information', 'church-event-manager' ); ?></h3>
-					<?php foreach ( $custom_fields as $field ) : ?>
-					<?php CEM_Custom_Fields::render_field_html( $field ); ?>
+					<?php foreach ( $shared_fields as $field ) : ?>
+					<?php CEM_Custom_Fields::render_field_html( $field, [
+						'remaining' => $field_remaining[ (int) $field->id ] ?? [],
+					] ); ?>
 					<?php endforeach; ?>
 				</div>
 				<?php endif; ?>
@@ -948,6 +1082,8 @@ class CEM_Shortcodes {
 					</div>
 				</div>
 				<?php endif; ?>
+
+				<?php CEM_Antispam::render_turnstile(); ?>
 
 				<div class="cem-form-submit">
 					<button type="submit" class="cem-btn cem-btn-primary cem-btn-large" id="cem-submit-btn">

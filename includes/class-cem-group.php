@@ -730,6 +730,9 @@ class CEM_Group {
 				data-event-id="<?php echo esc_attr( $group_id ); ?>"
 				data-ajax="<?php echo esc_url( $ajax_url ); ?>">
 				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
+				<?php // Group sign-ups post to the same cem_register handler, so they
+				      // pass through the same spam gate and need the same honeypot. ?>
+				<?php CEM_Antispam::render_honeypot(); ?>
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $group_id ); ?>">
 				<input type="hidden" name="payment_intent_id" id="cem-payment-intent-id" value="">
 

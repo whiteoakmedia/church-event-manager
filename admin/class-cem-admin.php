@@ -441,6 +441,14 @@ class CEM_Admin {
 			'date_to'   => $date_to,
 		];
 
+		// "Likely spam" narrows the list to rows matching the same pattern the
+		// live spam gate blocks, so a flood already in the table can be selected
+		// and deleted in a couple of clicks instead of one row at a time.
+		$spam_filter = isset( $_GET['spam'] ) && $_GET['spam'] === 'likely';
+		if ( $spam_filter ) {
+			$args['ids'] = CEM_Antispam::find_suspicious_ids( $event_id );
+		}
+
 		$result = CEM_Registration::get_all( $args );
 		$regs   = $result['registrations'];
 		$total  = $result['total'];
@@ -505,6 +513,11 @@ class CEM_Admin {
 					<option value="out" <?php selected( $checkin, 'out' ); ?>><?php esc_html_e( 'Not checked in', 'church-event-manager' ); ?></option>
 				</select>
 
+				<select name="spam" onchange="this.form.submit()" title="<?php esc_attr_e( 'Spam filter', 'church-event-manager' ); ?>">
+					<option value=""><?php esc_html_e( 'All sign-ups', 'church-event-manager' ); ?></option>
+					<option value="likely" <?php selected( $spam_filter ); ?>><?php esc_html_e( 'Likely spam only', 'church-event-manager' ); ?></option>
+				</select>
+
 				<label class="cem-filter-date">
 					<span class="screen-reader-text"><?php esc_html_e( 'Registered from', 'church-event-manager' ); ?></span>
 					<input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>" placeholder="<?php esc_attr_e( 'From', 'church-event-manager' ); ?>" title="<?php esc_attr_e( 'Registered on or after', 'church-event-manager' ); ?>">
@@ -518,7 +531,7 @@ class CEM_Admin {
 					value="<?php echo esc_attr( $search ); ?>">
 				<button type="submit" class="button"><?php esc_html_e( 'Filter', 'church-event-manager' ); ?></button>
 
-				<?php if ( $event_id || $status || $checkin || $date_from || $date_to || $search ) : ?>
+				<?php if ( $event_id || $status || $checkin || $date_from || $date_to || $search || $spam_filter ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=cem-registrations' ) ); ?>" class="cem-filter-clear">
 					<?php esc_html_e( 'Clear', 'church-event-manager' ); ?>
 				</a>
@@ -535,9 +548,20 @@ class CEM_Admin {
 					<option value="checked_in"><?php esc_html_e( 'Mark Checked In','church-event-manager' ); ?></option>
 					<option value="cancelled"><?php esc_html_e( 'Mark Cancelled',  'church-event-manager' ); ?></option>
 					<option value="reminder"><?php esc_html_e( 'Send Reminder Email','church-event-manager' ); ?></option>
+					<option value="delete"><?php esc_html_e( 'Delete permanently',  'church-event-manager' ); ?></option>
 				</select>
 				<button type="button" class="button" id="cem-apply-bulk"><?php esc_html_e( 'Apply', 'church-event-manager' ); ?></button>
 			</form>
+
+			<?php if ( $spam_filter ) : ?>
+			<div class="notice notice-warning inline" style="margin:12px 0">
+				<p style="margin:.5em 0">
+					<strong><?php esc_html_e( 'Showing sign-ups that look automated.', 'church-event-manager' ); ?></strong>
+					<?php esc_html_e( 'These matched the same pattern the spam filter now blocks: random-looking names, or a random string in the notes box. Check the list before deleting — anything that looks like a real person should be left alone.', 'church-event-manager' ); ?>
+					<?php esc_html_e( 'To clear them: tick the box at the top of the table, choose "Delete permanently", then Apply.', 'church-event-manager' ); ?>
+				</p>
+			</div>
+			<?php endif; ?>
 
 			<!-- Results count -->
 			<p class="cem-results-count">
@@ -1522,6 +1546,7 @@ class CEM_Admin {
 					'email'        => __( 'Email',           'church-event-manager' ),
 					'registration' => __( 'Registration',    'church-event-manager' ),
 					'payments'     => __( 'Payments',        'church-event-manager' ),
+					'spam'         => __( 'Spam Protection', 'church-event-manager' ),
 					'pages'        => __( 'Pages',           'church-event-manager' ),
 					'reporting'    => __( 'Error Reporting', 'church-event-manager' ),
 				] as $t => $label ) : ?>
@@ -1677,6 +1702,122 @@ class CEM_Admin {
 						</td>
 					</tr>
 				</table>
+
+			<?php elseif ( $tab === 'spam' ) : ?>
+				<h2><?php esc_html_e( 'Spam Protection', 'church-event-manager' ); ?></h2>
+				<p class="description" style="max-width:640px">
+					<?php esc_html_e( 'Blocks automated sign-ups on the public registration form: a hidden field bots fill in, a check on how fast the form was submitted, a limit per visitor, and a look at whether the name and notes read like random characters. Every check is built to let a real person through if anything goes wrong, so having this on cannot lock your members out.', 'church-event-manager' ); ?>
+				</p>
+
+				<?php $blocked = CEM_Antispam::blocked_count(); ?>
+				<?php if ( $blocked > 0 ) : ?>
+				<div class="notice notice-success inline" style="margin:12px 0">
+					<p style="margin:.5em 0">
+						<?php
+						printf(
+							/* translators: %s: number of blocked sign-ups */
+							esc_html( _n( '%s spam sign-up blocked so far.', '%s spam sign-ups blocked so far.', $blocked, 'church-event-manager' ) ),
+							'<strong>' . esc_html( number_format_i18n( $blocked ) ) . '</strong>'
+						);
+						?>
+					</p>
+				</div>
+				<?php endif; ?>
+
+				<table class="form-table">
+					<tr>
+						<th><?php esc_html_e( 'Spam filter', 'church-event-manager' ); ?></th>
+						<td>
+							<label>
+								<input type="hidden" name="cem_checkbox_fields[]" value="cem_antispam_enabled">
+								<input type="checkbox" name="cem_antispam_enabled" value="1" <?php checked( CEM_Antispam::is_enabled() ); ?>>
+								<?php esc_html_e( 'Block automated sign-ups', 'church-event-manager' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'Leave this on. Only switch it off if you think it is stopping real people, and tell White Oak Media if you do.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="cem_antispam_min_seconds"><?php esc_html_e( 'Minimum time to fill the form', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="number" id="cem_antispam_min_seconds" name="cem_antispam_min_seconds" min="0" max="60"
+								value="<?php echo esc_attr( get_option( 'cem_antispam_min_seconds', 3 ) ); ?>" class="small-text">
+							<?php esc_html_e( 'seconds', 'church-event-manager' ); ?>
+							<p class="description"><?php esc_html_e( 'Anything sent faster than this is treated as automated. Three seconds is plenty for a person. Set to 0 to switch this check off.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="cem_antispam_max_per_window"><?php esc_html_e( 'Limit per visitor', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="number" id="cem_antispam_max_per_window" name="cem_antispam_max_per_window" min="0" max="500"
+								value="<?php echo esc_attr( get_option( 'cem_antispam_max_per_window', 8 ) ); ?>" class="small-text">
+							<?php esc_html_e( 'sign-ups every', 'church-event-manager' ); ?>
+							<input type="number" name="cem_antispam_window_minutes" min="1" max="1440"
+								value="<?php echo esc_attr( get_option( 'cem_antispam_window_minutes', 10 ) ); ?>" class="small-text">
+							<?php esc_html_e( 'minutes', 'church-event-manager' ); ?>
+							<p class="description"><?php esc_html_e( 'Keep this generous. Everyone signing up on the church wifi shares one internet address, so a tight limit would turn real members away. Set the first number to 0 to switch this check off.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 style="margin-top:28px"><?php esc_html_e( 'Cloudflare Turnstile (optional)', 'church-event-manager' ); ?></h2>
+				<p class="description" style="max-width:640px">
+					<?php esc_html_e( 'If spam still gets through, this stops it for good. Turnstile is free and usually invisible to visitors, with no puzzles to solve. Create a free Cloudflare account, add a Turnstile site, and paste both keys here. Leave them blank to skip it.', 'church-event-manager' ); ?>
+					<a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener"><?php esc_html_e( 'Open Cloudflare Turnstile', 'church-event-manager' ); ?></a>
+				</p>
+				<table class="form-table">
+					<tr>
+						<th><label for="cem_turnstile_site_key"><?php esc_html_e( 'Site Key', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="text" id="cem_turnstile_site_key" name="cem_turnstile_site_key"
+								value="<?php echo esc_attr( get_option( 'cem_turnstile_site_key', '' ) ); ?>"
+								class="regular-text" autocomplete="off" placeholder="0x4AAA…">
+						</td>
+					</tr>
+					<tr>
+						<th><label for="cem_turnstile_secret_key"><?php esc_html_e( 'Secret Key', 'church-event-manager' ); ?></label></th>
+						<td>
+							<input type="password" id="cem_turnstile_secret_key" name="cem_turnstile_secret_key"
+								value="<?php echo esc_attr( get_option( 'cem_turnstile_secret_key', '' ) ); ?>"
+								class="regular-text" autocomplete="off" placeholder="0x4AAA…">
+							<p class="description"><?php esc_html_e( 'Both keys are needed. With only one filled in, Turnstile stays off.', 'church-event-manager' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<?php
+				// The block log exists so a false positive is discoverable. Without it,
+				// a real member who gets wrongly turned away just gives up quietly.
+				$spam_log = CEM_Antispam::get_log();
+				$reasons  = CEM_Antispam::reason_labels();
+				?>
+				<h2 style="margin-top:28px"><?php esc_html_e( 'Recently blocked', 'church-event-manager' ); ?></h2>
+				<?php if ( empty( $spam_log ) ) : ?>
+				<p class="description"><?php esc_html_e( 'Nothing has been blocked yet.', 'church-event-manager' ); ?></p>
+				<?php else : ?>
+				<p class="description" style="max-width:640px">
+					<?php esc_html_e( 'The last few sign-ups that were turned away. Look over this now and then: if you spot a name that looks like a real person, tell White Oak Media so the filter can be adjusted.', 'church-event-manager' ); ?>
+				</p>
+				<table class="widefat striped" style="max-width:900px;margin-top:8px">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'When',  'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Name',  'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Email', 'church-event-manager' ); ?></th>
+							<th><?php esc_html_e( 'Why',   'church-event-manager' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+					<?php foreach ( $spam_log as $entry ) : ?>
+						<tr>
+							<td><?php echo esc_html( CEM_Helpers::format_datetime( $entry['time'] ?? '' ) ); ?></td>
+							<td><?php echo $entry['name'] ? esc_html( $entry['name'] ) : '<span class="cem-muted">—</span>'; ?></td>
+							<td><?php echo $entry['email'] ? esc_html( $entry['email'] ) : '<span class="cem-muted">—</span>'; ?></td>
+							<td><?php echo esc_html( $reasons[ $entry['reason'] ?? '' ] ?? ( $entry['reason'] ?? '' ) ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php endif; ?>
 
 			<?php elseif ( $tab === 'pages' ) : ?>
 				<h2><?php esc_html_e( 'Page Assignments', 'church-event-manager' ); ?></h2>
@@ -2169,7 +2310,27 @@ class CEM_Admin {
 				$reg_types         = get_post_meta( $post->ID, '_cem_registration_types', true );
 				$reg_types         = $reg_types ? json_decode( $reg_types, true ) : [];
 				$allow_mixed_tiers = get_post_meta( $post->ID, '_cem_allow_mixed_tiers', true ) === '1';
+				$rt_heading        = get_post_meta( $post->ID, '_cem_reg_types_heading', true );
+				$rt_intro          = get_post_meta( $post->ID, '_cem_reg_types_intro', true );
 				?>
+				<div class="cem-section-body--cols2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 12px">
+					<div class="cem-meta-row">
+						<label for="cem_rt_heading"><?php esc_html_e( 'Heading shown to registrants', 'church-event-manager' ); ?></label>
+						<input type="text" id="cem_rt_heading" name="_cem_reg_types_heading" class="widefat"
+							value="<?php echo esc_attr( $rt_heading ); ?>"
+							placeholder="<?php echo esc_attr( $allow_mixed_tiers
+								? __( 'Choose Quantities', 'church-event-manager' )
+								: __( 'Select Registration Type', 'church-event-manager' ) ); ?>">
+						<p class="description" style="margin:4px 0 0"><?php esc_html_e( 'Replaces the default title above the options — e.g. "Which session are you attending?"', 'church-event-manager' ); ?></p>
+					</div>
+					<div class="cem-meta-row">
+						<label for="cem_rt_intro"><?php esc_html_e( 'Short explanation (optional)', 'church-event-manager' ); ?></label>
+						<input type="text" id="cem_rt_intro" name="_cem_reg_types_intro" class="widefat"
+							value="<?php echo esc_attr( $rt_intro ); ?>"
+							placeholder="<?php esc_attr_e( 'e.g. Pick the option that applies to you.', 'church-event-manager' ); ?>">
+						<p class="description" style="margin:4px 0 0"><?php esc_html_e( 'Appears just under the heading, before the options.', 'church-event-manager' ); ?></p>
+					</div>
+				</div>
 				<div style="margin:0 0 12px;padding:10px 12px;background:#f7f7f7;border-radius:4px">
 					<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0">
 						<input type="checkbox" name="_cem_allow_mixed_tiers" value="1" <?php checked( $allow_mixed_tiers ); ?>
@@ -2254,6 +2415,24 @@ class CEM_Admin {
 				</div><!-- /.cem-section-body -->
 			</div><!-- /.cem-section capacity-deadlines -->
 
+			<div class="cem-section cem-meta-full">
+				<div class="cem-section-head">
+					<span class="dashicons dashicons-email-alt"></span>
+					<h3><?php esc_html_e( 'Confirmation email', 'church-event-manager' ); ?></h3>
+				</div>
+				<div class="cem-section-body">
+					<?php $confirm_msg = get_post_meta( $post->ID, '_cem_confirmation_message', true ); ?>
+					<div class="cem-meta-row">
+						<label for="cem_confirmation_message"><?php esc_html_e( 'Extra message for this event only', 'church-event-manager' ); ?></label>
+						<textarea id="cem_confirmation_message" name="_cem_confirmation_message" rows="5" class="widefat"
+							placeholder="<?php esc_attr_e( 'e.g. Payment is due by May 1st. You can give online at https://example.org/giving — choose "Women\'s Retreat" from the fund list.', 'church-event-manager' ); ?>"><?php echo esc_textarea( $confirm_msg ); ?></textarea>
+						<p class="description" style="margin:6px 0 0">
+							<?php esc_html_e( 'Added to the confirmation email for this event, just below the event details. Leave blank to send the standard email. Web addresses become clickable links automatically.', 'church-event-manager' ); ?>
+						</p>
+					</div>
+				</div><!-- /.cem-section-body -->
+			</div><!-- /.cem-section confirmation-email -->
+
 			</div><!-- /#cem-reg-fields-wrap -->
 		</div>
 		<script>
@@ -2334,7 +2513,7 @@ class CEM_Admin {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
 		$datetime_fields = [ '_cem_start_datetime', '_cem_end_datetime', '_cem_registration_deadline' ];
-		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status' ];
+		$text_fields     = [ '_cem_location', '_cem_location_address', '_cem_organizer', '_cem_organizer_email', '_cem_event_status', '_cem_registration_status', '_cem_reg_types_heading', '_cem_reg_types_intro' ];
 		$url_fields      = [ '_cem_location_url', '_cem_stream_url' ];
 		$number_fields   = [ '_cem_capacity', '_cem_max_attendees_per_reg' ];
 		$checkbox_fields = [ '_cem_online_event', '_cem_allow_inperson', '_cem_registration_enabled', '_cem_checkin_enabled', '_cem_allow_mixed_tiers' ];
@@ -2403,6 +2582,15 @@ class CEM_Admin {
 		foreach ( $text_fields   as $key ) update_post_meta( $post_id, $key, sanitize_text_field( $_POST[$key] ?? '' ) );
 		foreach ( $url_fields    as $key ) update_post_meta( $post_id, $key, esc_url_raw( $_POST[$key] ?? '' ) );
 		foreach ( $number_fields as $key ) update_post_meta( $post_id, $key, (int) ( $_POST[$key] ?? 0 ) );
+
+		// Per-event confirmation email message. wp_kses_post (not
+		// sanitize_text_field) so line breaks survive and a link the admin pastes
+		// in still works; the email template runs it through make_clickable().
+		update_post_meta(
+			$post_id,
+			'_cem_confirmation_message',
+			wp_kses_post( (string) wp_unslash( $_POST['_cem_confirmation_message'] ?? '' ) )
+		);
 
 		// Price is stored as a decimal string ("25.00") so (float) casts work correctly in templates.
 		// Empty string means "no price shown"; "0.00" means "Free".
