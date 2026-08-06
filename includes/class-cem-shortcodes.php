@@ -735,14 +735,22 @@ class CEM_Shortcodes {
 			return ob_get_clean();
 		}
 
+		// The button label carries the price, and the price changes as soon as
+		// somebody picks a different tier or a second attendee — so the template
+		// goes to the front end alongside the rendered label. cem-public.js
+		// re-fills %s with the running total rather than re-deriving the wording.
+		$button_price_template = '';
+
 		if ( $full && $waitlist ) {
 			$button_label = __( 'Join Waitlist', 'church-event-manager' );
 		} elseif ( $payment_required ) {
 			/* translators: %s: formatted price e.g. "$25.00" */
-			$button_label = sprintf( __( 'Pay %s & Register', 'church-event-manager' ), $price_display );
+			$button_price_template = __( 'Pay %s & Register', 'church-event-manager' );
+			$button_label = sprintf( $button_price_template, $price_display );
 		} elseif ( $inperson_payment ) {
 			/* translators: %s: formatted price e.g. "$25.00" */
-			$button_label = sprintf( __( 'Register (Pay %s at Door)', 'church-event-manager' ), $price_display );
+			$button_price_template = __( 'Register (Pay %s at Door)', 'church-event-manager' );
+			$button_label = sprintf( $button_price_template, $price_display );
 		} else {
 			$button_label = __( 'Register Now', 'church-event-manager' );
 		}
@@ -766,7 +774,11 @@ class CEM_Shortcodes {
 			<form class="cem-form" id="cem-registration-form" novalidate
 				data-needs-payment="<?php echo $payment_required ? '1' : '0'; ?>"
 				data-event-id="<?php echo esc_attr( $event_id ); ?>"
-				data-mixed-tiers="<?php echo $allow_mixed_tiers ? '1' : '0'; ?>">
+				data-mixed-tiers="<?php echo $allow_mixed_tiers ? '1' : '0'; ?>"
+				<?php // Price PER PERSON, plus the currency symbol, so the front end can
+				      // keep a running total as the attendee count changes. ?>
+				data-unit-price="<?php echo esc_attr( number_format( $price_num, 2, '.', '' ) ); ?>"
+				data-currency="<?php echo esc_attr( $currency_symbol ); ?>">
 				<?php wp_nonce_field( 'cem_register_nonce', 'cem_nonce' ); ?>
 				<?php CEM_Antispam::render_honeypot(); ?>
 				<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>">
@@ -1049,7 +1061,9 @@ class CEM_Shortcodes {
 				<div class="cem-form-section cem-payment-section">
 					<h3 class="cem-section-title">
 						<?php esc_html_e( 'Payment', 'church-event-manager' ); ?>
-						<span class="cem-payment-amount"><?php echo esc_html( $price_display ); ?></span>
+						<?php // cem-total-amount marks every place the running total appears,
+						      // so the front end can update them all as the headcount changes. ?>
+						<span class="cem-payment-amount cem-total-amount"><?php echo esc_html( $price_display ); ?></span>
 					</h3>
 					<p class="cem-payment-intro">
 						<?php esc_html_e( 'Your card will be charged securely via Stripe. We never store your card details.', 'church-event-manager' ); ?>
@@ -1064,19 +1078,32 @@ class CEM_Shortcodes {
 				</div>
 				<?php elseif ( $inperson_payment ) : ?>
 				<div class="cem-form-section cem-inperson-section">
+					<?php
+					// How to pay is the church's call, not ours. The old wording told
+					// everyone to bring cash or a check, which is wrong for anyone
+					// collecting payment through their giving page — so the event can
+					// now say what it actually wants, and the default no longer
+					// prescribes a payment method at all.
+					$inperson_message = trim( (string) get_post_meta( $event_id, '_cem_inperson_message', true ) );
+					?>
 					<div class="cem-inperson-notice">
-						<span class="cem-inperson-notice__icon">💵</span>
+						<span class="cem-inperson-notice__icon" aria-hidden="true">💵</span>
 						<div>
 							<?php if ( $allow_mixed_tiers ) : ?>
-							<strong><?php esc_html_e( 'Pay at the Door', 'church-event-manager' ); ?></strong>
-							<p><?php esc_html_e( 'Payment is due at the event — please bring cash or a check when you arrive. Your total is shown above and on the Register button.', 'church-event-manager' ); ?></p>
+							<strong><?php esc_html_e( 'Payment', 'church-event-manager' ); ?></strong>
 							<?php else : ?>
-							<strong><?php echo esc_html( sprintf(
-							    /* translators: %s: formatted price */
-							    __( 'Cost: %s — Pay at the Door', 'church-event-manager' ),
-							    $price_display
-							) ); ?></strong>
-							<p><?php esc_html_e( 'Payment is due at the event — please bring cash or a check when you arrive.', 'church-event-manager' ); ?></p>
+							<strong>
+								<?php esc_html_e( 'Cost:', 'church-event-manager' ); ?>
+								<span class="cem-total-amount"><?php echo esc_html( $price_display ); ?></span>
+							</strong>
+							<?php endif; ?>
+
+							<?php if ( $inperson_message !== '' ) : ?>
+							<?php echo wpautop( make_clickable( wp_kses_post( $inperson_message ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<?php elseif ( $allow_mixed_tiers ) : ?>
+							<p><?php esc_html_e( 'Payment is due at the event. Your total is shown above and on the Register button.', 'church-event-manager' ); ?></p>
+							<?php else : ?>
+							<p><?php esc_html_e( 'Payment is due at the event.', 'church-event-manager' ); ?></p>
 							<?php endif; ?>
 						</div>
 					</div>
@@ -1086,7 +1113,9 @@ class CEM_Shortcodes {
 				<?php CEM_Antispam::render_turnstile(); ?>
 
 				<div class="cem-form-submit">
-					<button type="submit" class="cem-btn cem-btn-primary cem-btn-large" id="cem-submit-btn">
+					<button type="submit" class="cem-btn cem-btn-primary cem-btn-large" id="cem-submit-btn"
+						data-original-text="<?php echo esc_attr( $button_label ); ?>"
+						data-price-template="<?php echo esc_attr( $button_price_template ); ?>">
 						<?php echo esc_html( $button_label ); ?>
 					</button>
 					<span class="cem-spinner" id="cem-spinner" style="display:none">⏳</span>

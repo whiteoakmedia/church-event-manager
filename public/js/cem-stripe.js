@@ -200,6 +200,14 @@
     const fullName  = [firstName, lastName].filter(Boolean).join(' ');
     const email     = ($('#cem_email').val() || '').trim();
 
+    // Re-price the PaymentIntent one last time and WAIT for it before charging.
+    // The live updates below are debounced, so somebody who changes the attendee
+    // count and immediately hits Register could otherwise be charged the old
+    // amount and then rejected by the server's amount check — money taken for a
+    // registration that never gets created. Failures here are logged and allowed
+    // through: the server still verifies the amount, so the worst case is the
+    // error we already handle, not a silent mischarge.
+    syncPaymentIntentAmount().always(function () {
     stripe.confirmCardPayment(clientSecret, {
       payment_method: {
         card: cardElement,
@@ -238,66 +246,66 @@
       setButtonState(false);
       showStripeError(cemStripe.strings.error);
     });
+    }); // syncPaymentIntentAmount().always
   });
+
+  // ── Keeping the charged amount in step with the form ────────────────────────
+
+  /**
+   * Push the form's current pricing at the PaymentIntent.
+   *
+   * Always returns a promise so callers can wait on it. Resolves immediately
+   * when there's no PaymentIntent yet (free event, or Stripe still starting up).
+   */
+  function syncPaymentIntentAmount() {
+    const piId = $('#cem-payment-intent-id').val();
+    if (!piId) return $.Deferred().resolve().promise();
+
+    const $form   = $('#cem-registration-form');
+    const payload = {
+      action:            'cem_update_payment_intent',
+      nonce:             cemStripe.nonce,
+      event_id:          cemStripe.eventId,
+      payment_intent_id: piId,
+    };
+
+    if (isMixedMode()) {
+      payload.tier_quantities = JSON.stringify(collectTierQuantities());
+    } else {
+      // Per-person pricing: the server multiplies by this, so it has to be sent
+      // even when the event has no tiers at all.
+      payload.num_attendees = parseInt($form.find('#cem_num_attendees').val(), 10) || 1;
+      const $tier = $form.find('input[name="registration_type_index"]:checked');
+      if ($tier.length) payload.registration_type_index = parseInt($tier.val(), 10);
+    }
+
+    return $.post(cemStripe.ajaxUrl, payload).done(function (res) {
+      if (!res || !res.success) {
+        // A total of zero is a legitimate outcome (everything cleared), and the
+        // server reports that as an error — so don't alarm the visitor.
+        console.error('[CEM Stripe] update_payment_intent failed:', res && res.data);
+      }
+    }).fail(function () {
+      console.error('[CEM Stripe] update_payment_intent request failed.');
+    });
+  }
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
   $(function () {
     initCardElement();
 
-    // When the registrant switches pricing tier (single-tier mode), update
-    // the PaymentIntent amount so the eventual charge matches.
-    $(document).on('change', 'input[name="registration_type_index"]', function () {
-      const tierIndex = parseInt(this.value, 10);
-      const piId      = $('#cem-payment-intent-id').val();
+    // Re-price whenever the form's total changes — a different tier, a
+    // different attendee count, or a mixed-tier quantity. Debounced so holding
+    // an arrow key on a number input doesn't hammer Stripe. cem-public.js
+    // raises both of these events after it recalculates.
+    let repriceTimer = null;
+    function scheduleReprice() {
+      clearTimeout(repriceTimer);
+      repriceTimer = setTimeout(syncPaymentIntentAmount, 350);
+    }
 
-      // PI may not be ready yet if Stripe is still initialising — skip silently;
-      // the correct tier index will be used if initCardElement hasn't finished.
-      if (!piId) return;
-
-      $.post(cemStripe.ajaxUrl, {
-        action:                  'cem_update_payment_intent',
-        nonce:                   cemStripe.nonce,
-        event_id:                cemStripe.eventId,
-        payment_intent_id:       piId,
-        registration_type_index: tierIndex,
-      }).done(function (res) {
-        if (!res.success) {
-          console.error('[CEM Stripe] update_payment_intent failed:', res.data);
-          showStripeError(cemStripe.strings.error);
-        }
-      }).fail(function () {
-        console.error('[CEM Stripe] update_payment_intent request failed.');
-      });
-    });
-
-    // Mixed-tier mode: update PI amount whenever any qty changes. Debounced
-    // so a fast keystroke or arrow-spin doesn't hammer Stripe.
-    let mixedUpdateTimer = null;
-    $(document).on('cem:mixedTotalChanged', '#cem-registration-form', function () {
-      if (!isMixedMode()) return;
-      const piId = $('#cem-payment-intent-id').val();
-      if (!piId) return;
-
-      clearTimeout(mixedUpdateTimer);
-      mixedUpdateTimer = setTimeout(function () {
-        $.post(cemStripe.ajaxUrl, {
-          action:            'cem_update_payment_intent',
-          nonce:             cemStripe.nonce,
-          event_id:          cemStripe.eventId,
-          payment_intent_id: piId,
-          tier_quantities:   JSON.stringify(collectTierQuantities()),
-        }).done(function (res) {
-          if (!res.success) {
-            console.error('[CEM Stripe] update_payment_intent (mixed) failed:', res.data);
-            // Don't show an error for "free" updates — when total drops to $0
-            // the server returns an error but the form is still valid.
-          }
-        }).fail(function () {
-          console.error('[CEM Stripe] update_payment_intent (mixed) request failed.');
-        });
-      }, 350);
-    });
+    $(document).on('cem:mixedTotalChanged cem:simpleTotalChanged', '#cem-registration-form', scheduleReprice);
   });
 
 })(jQuery);

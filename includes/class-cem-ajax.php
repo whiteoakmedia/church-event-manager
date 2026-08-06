@@ -137,15 +137,41 @@ class CEM_Ajax {
 			return $total;
 		}
 
+		// Single-tier and flat pricing are PER PERSON, so both multiply by the
+		// headcount. Without this, booking three people charged for one — the
+		// mixed-tier path did its own qty maths and quietly hid the gap.
+		$people = self::resolve_num_attendees( $event_id, $post );
+
 		// Single-tier mode.
 		$reg_type_index = isset( $post['registration_type_index'] ) ? (int) $post['registration_type_index'] : -1;
 		if ( $reg_types && $reg_type_index >= 0 && isset( $reg_types[ $reg_type_index ] ) ) {
-			return (float) $reg_types[ $reg_type_index ]['price'];
+			return (float) $reg_types[ $reg_type_index ]['price'] * $people;
 		}
 
 		// Flat event price.
 		$price = get_post_meta( $event_id, '_cem_price', true );
-		return ( $price !== '' ) ? (float) $price : 0.0;
+		return ( $price !== '' ) ? (float) $price * $people : 0.0;
+	}
+
+	/**
+	 * Headcount for a request, clamped to the event's own limit.
+	 *
+	 * Shared by the price resolver and the registration handler so the amount a
+	 * card is charged can never disagree with the amount the server later
+	 * verifies. Returns 1 for mixed-tier events, where the per-tier quantities
+	 * already carry the headcount.
+	 */
+	public static function resolve_num_attendees( $event_id, array $post ) {
+		if ( get_post_meta( $event_id, '_cem_allow_mixed_tiers', true ) === '1' ) {
+			return 1;
+		}
+
+		$people      = max( 1, (int) ( $post['num_attendees'] ?? 1 ) );
+		$max_per_reg = (int) get_post_meta( $event_id, '_cem_max_attendees_per_reg', true );
+		if ( $max_per_reg > 0 ) {
+			$people = min( $people, $max_per_reg );
+		}
+		return $people;
 	}
 
 	public function init() {
@@ -471,12 +497,14 @@ class CEM_Ajax {
 			$price_num = 0.0;
 			foreach ( $tier_breakdown as $line ) $price_num += $line['subtotal'];
 		} elseif ( $selected_type ) {
-			// Single-tier mode
-			$price_num = (float) $selected_type['price'];
+			// Single-tier mode — priced per person, so × the headcount. Must stay
+			// in step with resolve_price_for_request(), which sets the amount on
+			// the PaymentIntent that verify_stripe_payment() checks this against.
+			$price_num = (float) $selected_type['price'] * $num_attendees;
 		} else {
-			// Flat event price
+			// Flat event price — likewise per person.
 			$event_price = get_post_meta( $event_id, '_cem_price', true );
-			$price_num   = ( $event_price !== '' ) ? (float) $event_price : 0.0;
+			$price_num   = ( $event_price !== '' ) ? (float) $event_price * $num_attendees : 0.0;
 		}
 
 		if ( ! $is_group && $price_num > 0 && ! $allow_inperson && get_option( 'cem_stripe_enabled' ) === '1' ) {
