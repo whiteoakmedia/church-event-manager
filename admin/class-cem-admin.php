@@ -2064,6 +2064,14 @@ class CEM_Admin {
 							<span><?php esc_html_e( 'Allow attendees to pay at the door (skip Stripe)', 'church-event-manager' ); ?></span>
 						</label>
 					</div>
+					<div class="cem-meta-row cem-meta-full">
+						<label for="cem_inperson_message"><?php esc_html_e( 'How should they pay?', 'church-event-manager' ); ?></label>
+						<textarea id="cem_inperson_message" name="_cem_inperson_message" rows="3" class="widefat"
+							placeholder="<?php esc_attr_e( 'e.g. Payment is due by May 1st. Please give online at example.org/giving and choose "Women\'s Retreat".', 'church-event-manager' ); ?>"><?php
+							echo esc_textarea( get_post_meta( $post->ID, '_cem_inperson_message', true ) );
+						?></textarea>
+						<span class="description"><?php esc_html_e( 'Shown on the sign-up form when "pay at the door" is ticked, in place of the standard wording. Use it to say exactly how you want people to pay.', 'church-event-manager' ); ?></span>
+					</div>
 				</div>
 			</div>
 
@@ -2590,6 +2598,14 @@ class CEM_Admin {
 			$post_id,
 			'_cem_confirmation_message',
 			wp_kses_post( (string) wp_unslash( $_POST['_cem_confirmation_message'] ?? '' ) )
+		);
+
+		// Pay-at-the-door instructions shown on the form. Same treatment: keep
+		// line breaks so a pasted giving link survives intact.
+		update_post_meta(
+			$post_id,
+			'_cem_inperson_message',
+			wp_kses_post( (string) wp_unslash( $_POST['_cem_inperson_message'] ?? '' ) )
 		);
 
 		// Price is stored as a decimal string ("25.00") so (float) casts work correctly in templates.

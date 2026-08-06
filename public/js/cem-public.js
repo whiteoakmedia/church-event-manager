@@ -300,23 +300,63 @@
     });
   });
 
-  // ── Registration Type / Pricing Tier Selection ─────────────────────────────
+  // ── Running total (single-tier and flat pricing) ────────────────────────────
+  // The price is per person, so the total has to follow the attendee count and
+  // the chosen tier. Mixed-tier events do their own arithmetic in
+  // cemMixedTiersRecalc and are skipped here.
+
+  function cemUnitPrice($form) {
+    // A selected tier overrides the event's flat price.
+    var $tier = $form.find('input[name="registration_type_index"]:checked');
+    if ($tier.length) return parseFloat($tier.data('price')) || 0;
+    return parseFloat($form.data('unit-price')) || 0;
+  }
+
+  function cemMoney($form, amount) {
+    return ($form.data('currency') || '$') + amount.toFixed(2);
+  }
+
+  function cemRecalcSimpleTotal($form) {
+    if (!$form.length) return;
+    if ($form.data('mixed-tiers') == 1) return; // eslint-disable-line eqeqeq
+
+    var unit  = cemUnitPrice($form);
+    var total = unit * cemHeadcount($form);
+    var money = cemMoney($form, total);
+
+    // Every place the total is shown, wherever it appears on the form.
+    $form.find('.cem-total-amount').text(money);
+
+    // The button wording comes from the server as a template, so the label
+    // stays correctly worded and translated instead of being rebuilt in JS.
+    var $btn = $form.find('#cem-submit-btn');
+    if (!$btn.length) return;
+    var template = $btn.data('price-template');
+    if (template && total > 0) {
+      $btn.text(String(template).replace('%s', money));
+    } else {
+      $btn.text($btn.data('original-text') || 'Register Now');
+    }
+
+    // Let cem-stripe.js re-price the PaymentIntent to match.
+    $form.trigger('cem:simpleTotalChanged', [{ total: total, unit: unit }]);
+  }
 
   $(document).on('change', 'input[name="registration_type_index"]', function () {
-    var price = parseFloat($(this).data('price')) || 0;
-    var name  = $(this).data('name') || '';
-    var btn   = $(this).closest('form').find('#cem-submit-btn');
-
-    // Update submit button text to reflect selected tier price
-    if (price > 0 && btn.length) {
-      var symbol = (typeof cemStripe !== 'undefined' && cemStripe.priceDisplay)
-        ? cemStripe.priceDisplay.charAt(0)
-        : '$';
-      btn.text(symbol + price.toFixed(2) + ' — Register Now');
-    } else if (btn.length) {
-      btn.text(btn.data('original-text') || 'Register Now');
-    }
+    cemRecalcSimpleTotal($(this).closest('form'));
   });
+
+  $(document).on('input change', '#cem_num_attendees', function () {
+    cemRecalcSimpleTotal($(this).closest('form'));
+  });
+
+  $(function () {
+    $('#cem-registration-form').each(function () {
+      cemRecalcSimpleTotal($(this));
+    });
+  });
+
+  window.cemRecalcSimpleTotal = cemRecalcSimpleTotal;
 
   // ── Mixed-Tier Quantity Mode ──────────────────────────────────────────────
   // When the event has "Allow mixed quantities" enabled, the form renders a
